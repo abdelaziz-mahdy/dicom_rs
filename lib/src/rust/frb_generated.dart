@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/dicom_rs.dart';
 import 'api/simple.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -64,7 +65,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.8.0';
 
   @override
-  int get rustContentHash => -1918914929;
+  int get rustContentHash => 1618875703;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -75,9 +76,88 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<DicomHandler> crateApiDicomRsDicomHandlerDefault();
+
+  Future<List<DicomTag>> crateApiDicomRsDicomHandlerGetAllTags({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<Uint8List> crateApiDicomRsDicomHandlerGetImageBytes({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomMetadata> crateApiDicomRsDicomHandlerGetMetadata({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomImage> crateApiDicomRsDicomHandlerGetPixelData({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomValueType> crateApiDicomRsDicomHandlerGetTagValue({
+    required DicomHandler that,
+    required String path,
+    required String tagName,
+  });
+
+  Future<bool> crateApiDicomRsDicomHandlerIsValidDicom({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<List<String>> crateApiDicomRsDicomHandlerListTags({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<List<DicomDirectoryEntry>> crateApiDicomRsDicomHandlerLoadDirectory({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<List<DicomDirectoryEntry>>
+  crateApiDicomRsDicomHandlerLoadDirectoryRecursive({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomFile> crateApiDicomRsDicomHandlerLoadFile({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomHandler> crateApiDicomRsDicomHandlerNew();
+
+  Future<DicomImage> crateApiDicomRsExtractPixelData({required String path});
+
+  Future<Uint8List> crateApiDicomRsGetEncodedImage({required String path});
+
+  Future<DicomValueType> crateApiDicomRsGetTagValue({
+    required String path,
+    required String tagName,
+  });
+
   String crateApiSimpleGreet({required String name});
 
   Future<void> crateApiSimpleInitApp();
+
+  Future<bool> crateApiDicomRsIsDicomFile({required String path});
+
+  Future<List<String>> crateApiDicomRsListAllTags({required String path});
+
+  Future<List<DicomDirectoryEntry>> crateApiDicomRsLoadDicomDirectory({
+    required String dirPath,
+  });
+
+  Future<List<DicomDirectoryEntry>> crateApiDicomRsLoadDicomDirectoryRecursive({
+    required String dirPath,
+  });
+
+  Future<DicomFile> crateApiDicomRsLoadDicomFile({required String path});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -89,13 +169,511 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  Future<DicomHandler> crateApiDicomRsDicomHandlerDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_handler,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerDefaultConstMeta =>
+      const TaskConstMeta(debugName: "dicom_handler_default", argNames: []);
+
+  @override
+  Future<List<DicomTag>> crateApiDicomRsDicomHandlerGetAllTags({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_dicom_tag,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerGetAllTagsConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerGetAllTagsConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_get_all_tags",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<Uint8List> crateApiDicomRsDicomHandlerGetImageBytes({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerGetImageBytesConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerGetImageBytesConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_get_image_bytes",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<DicomMetadata> crateApiDicomRsDicomHandlerGetMetadata({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_metadata,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerGetMetadataConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerGetMetadataConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_get_metadata",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<DicomImage> crateApiDicomRsDicomHandlerGetPixelData({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_image,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerGetPixelDataConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerGetPixelDataConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_get_pixel_data",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<DicomValueType> crateApiDicomRsDicomHandlerGetTagValue({
+    required DicomHandler that,
+    required String path,
+    required String tagName,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          sse_encode_String(tagName, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_value_type,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerGetTagValueConstMeta,
+        argValues: [that, path, tagName],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerGetTagValueConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_get_tag_value",
+        argNames: ["that", "path", "tagName"],
+      );
+
+  @override
+  Future<bool> crateApiDicomRsDicomHandlerIsValidDicom({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerIsValidDicomConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerIsValidDicomConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_is_valid_dicom",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<List<String>> crateApiDicomRsDicomHandlerListTags({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerListTagsConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerListTagsConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_list_tags",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<List<DicomDirectoryEntry>> crateApiDicomRsDicomHandlerLoadDirectory({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_dicom_directory_entry,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerLoadDirectoryConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerLoadDirectoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_load_directory",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<List<DicomDirectoryEntry>>
+  crateApiDicomRsDicomHandlerLoadDirectoryRecursive({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_dicom_directory_entry,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerLoadDirectoryRecursiveConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiDicomRsDicomHandlerLoadDirectoryRecursiveConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_load_directory_recursive",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<DicomFile> crateApiDicomRsDicomHandlerLoadFile({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_file,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerLoadFileConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerLoadFileConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_load_file",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<DicomHandler> crateApiDicomRsDicomHandlerNew() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_handler,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDicomRsDicomHandlerNewConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsDicomHandlerNewConstMeta =>
+      const TaskConstMeta(debugName: "dicom_handler_new", argNames: []);
+
+  @override
+  Future<DicomImage> crateApiDicomRsExtractPixelData({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_image,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsExtractPixelDataConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsExtractPixelDataConstMeta =>
+      const TaskConstMeta(debugName: "extract_pixel_data", argNames: ["path"]);
+
+  @override
+  Future<Uint8List> crateApiDicomRsGetEncodedImage({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsGetEncodedImageConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsGetEncodedImageConstMeta =>
+      const TaskConstMeta(debugName: "get_encoded_image", argNames: ["path"]);
+
+  @override
+  Future<DicomValueType> crateApiDicomRsGetTagValue({
+    required String path,
+    required String tagName,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_String(tagName, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_value_type,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsGetTagValueConstMeta,
+        argValues: [path, tagName],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsGetTagValueConstMeta => const TaskConstMeta(
+    debugName: "get_tag_value",
+    argNames: ["path", "tagName"],
+  );
+
+  @override
   String crateApiSimpleGreet({required String name}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -120,7 +698,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 17,
             port: port_,
           );
         },
@@ -138,6 +716,156 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSimpleInitAppConstMeta =>
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
+  @override
+  Future<bool> crateApiDicomRsIsDicomFile({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 18,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDicomRsIsDicomFileConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsIsDicomFileConstMeta =>
+      const TaskConstMeta(debugName: "is_dicom_file", argNames: ["path"]);
+
+  @override
+  Future<List<String>> crateApiDicomRsListAllTags({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsListAllTagsConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsListAllTagsConstMeta =>
+      const TaskConstMeta(debugName: "list_all_tags", argNames: ["path"]);
+
+  @override
+  Future<List<DicomDirectoryEntry>> crateApiDicomRsLoadDicomDirectory({
+    required String dirPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dirPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_dicom_directory_entry,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsLoadDicomDirectoryConstMeta,
+        argValues: [dirPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsLoadDicomDirectoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "load_dicom_directory",
+        argNames: ["dirPath"],
+      );
+
+  @override
+  Future<List<DicomDirectoryEntry>> crateApiDicomRsLoadDicomDirectoryRecursive({
+    required String dirPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dirPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_dicom_directory_entry,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsLoadDicomDirectoryRecursiveConstMeta,
+        argValues: [dirPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsLoadDicomDirectoryRecursiveConstMeta =>
+      const TaskConstMeta(
+        debugName: "load_dicom_directory_recursive",
+        argNames: ["dirPath"],
+      );
+
+  @override
+  Future<DicomFile> crateApiDicomRsLoadDicomFile({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_file,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsLoadDicomFileConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsLoadDicomFileConstMeta =>
+      const TaskConstMeta(debugName: "load_dicom_file", argNames: ["path"]);
+
   @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -145,9 +873,220 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
+  DicomHandler dco_decode_box_autoadd_dicom_handler(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_dicom_handler(raw);
+  }
+
+  @protected
+  int dco_decode_box_autoadd_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  int dco_decode_box_autoadd_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  DicomDirectoryEntry dco_decode_dicom_directory_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DicomDirectoryEntry(
+      path: dco_decode_String(arr[0]),
+      metadata: dco_decode_dicom_metadata(arr[1]),
+      isValid: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  DicomFile dco_decode_dicom_file(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DicomFile(
+      path: dco_decode_String(arr[0]),
+      metadata: dco_decode_dicom_metadata(arr[1]),
+      allTags: dco_decode_list_dicom_tag(arr[2]),
+    );
+  }
+
+  @protected
+  DicomHandler dco_decode_dicom_handler(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.isNotEmpty)
+      throw Exception('unexpected arr length: expect 0 but see ${arr.length}');
+    return DicomHandler();
+  }
+
+  @protected
+  DicomImage dco_decode_dicom_image(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return DicomImage(
+      width: dco_decode_u_32(arr[0]),
+      height: dco_decode_u_32(arr[1]),
+      bitsAllocated: dco_decode_u_16(arr[2]),
+      bitsStored: dco_decode_u_16(arr[3]),
+      highBit: dco_decode_u_16(arr[4]),
+      pixelRepresentation: dco_decode_u_16(arr[5]),
+      photometricInterpretation: dco_decode_String(arr[6]),
+      samplesPerPixel: dco_decode_u_16(arr[7]),
+      planarConfiguration: dco_decode_opt_box_autoadd_u_16(arr[8]),
+      pixelData: dco_decode_list_prim_u_8_strict(arr[9]),
+    );
+  }
+
+  @protected
+  DicomMetadata dco_decode_dicom_metadata(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return DicomMetadata(
+      patientName: dco_decode_opt_String(arr[0]),
+      patientId: dco_decode_opt_String(arr[1]),
+      studyDate: dco_decode_opt_String(arr[2]),
+      accessionNumber: dco_decode_opt_String(arr[3]),
+      modality: dco_decode_opt_String(arr[4]),
+      studyDescription: dco_decode_opt_String(arr[5]),
+      seriesDescription: dco_decode_opt_String(arr[6]),
+      instanceNumber: dco_decode_opt_box_autoadd_i_32(arr[7]),
+      seriesNumber: dco_decode_opt_box_autoadd_i_32(arr[8]),
+    );
+  }
+
+  @protected
+  DicomTag dco_decode_dicom_tag(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return DicomTag(
+      tag: dco_decode_String(arr[0]),
+      vr: dco_decode_String(arr[1]),
+      name: dco_decode_String(arr[2]),
+      value: dco_decode_dicom_value_type(arr[3]),
+    );
+  }
+
+  @protected
+  DicomValueType dco_decode_dicom_value_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return DicomValueType_Str(dco_decode_String(raw[1]));
+      case 1:
+        return DicomValueType_Int(dco_decode_i_32(raw[1]));
+      case 2:
+        return DicomValueType_Float(dco_decode_f_32(raw[1]));
+      case 3:
+        return DicomValueType_IntList(dco_decode_list_prim_i_32_strict(raw[1]));
+      case 4:
+        return DicomValueType_FloatList(
+          dco_decode_list_prim_f_32_strict(raw[1]),
+        );
+      case 5:
+        return DicomValueType_StrList(dco_decode_list_String(raw[1]));
+      case 6:
+        return DicomValueType_Unknown();
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  double dco_decode_f_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<DicomDirectoryEntry> dco_decode_list_dicom_directory_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_dicom_directory_entry)
+        .toList();
+  }
+
+  @protected
+  List<DicomTag> dco_decode_list_dicom_tag(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_dicom_tag).toList();
+  }
+
+  @protected
+  Float32List dco_decode_list_prim_f_32_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as Float32List;
+  }
+
+  @protected
+  Int32List dco_decode_list_prim_i_32_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as Int32List;
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_32(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_16(raw);
+  }
+
+  @protected
+  int dco_decode_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  int dco_decode_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -170,10 +1109,272 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  DicomHandler sse_decode_box_autoadd_dicom_handler(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_dicom_handler(deserializer));
+  }
+
+  @protected
+  int sse_decode_box_autoadd_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  int sse_decode_box_autoadd_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_16(deserializer));
+  }
+
+  @protected
+  DicomDirectoryEntry sse_decode_dicom_directory_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_path = sse_decode_String(deserializer);
+    var var_metadata = sse_decode_dicom_metadata(deserializer);
+    var var_isValid = sse_decode_bool(deserializer);
+    return DicomDirectoryEntry(
+      path: var_path,
+      metadata: var_metadata,
+      isValid: var_isValid,
+    );
+  }
+
+  @protected
+  DicomFile sse_decode_dicom_file(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_path = sse_decode_String(deserializer);
+    var var_metadata = sse_decode_dicom_metadata(deserializer);
+    var var_allTags = sse_decode_list_dicom_tag(deserializer);
+    return DicomFile(
+      path: var_path,
+      metadata: var_metadata,
+      allTags: var_allTags,
+    );
+  }
+
+  @protected
+  DicomHandler sse_decode_dicom_handler(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DicomHandler();
+  }
+
+  @protected
+  DicomImage sse_decode_dicom_image(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_bitsAllocated = sse_decode_u_16(deserializer);
+    var var_bitsStored = sse_decode_u_16(deserializer);
+    var var_highBit = sse_decode_u_16(deserializer);
+    var var_pixelRepresentation = sse_decode_u_16(deserializer);
+    var var_photometricInterpretation = sse_decode_String(deserializer);
+    var var_samplesPerPixel = sse_decode_u_16(deserializer);
+    var var_planarConfiguration = sse_decode_opt_box_autoadd_u_16(deserializer);
+    var var_pixelData = sse_decode_list_prim_u_8_strict(deserializer);
+    return DicomImage(
+      width: var_width,
+      height: var_height,
+      bitsAllocated: var_bitsAllocated,
+      bitsStored: var_bitsStored,
+      highBit: var_highBit,
+      pixelRepresentation: var_pixelRepresentation,
+      photometricInterpretation: var_photometricInterpretation,
+      samplesPerPixel: var_samplesPerPixel,
+      planarConfiguration: var_planarConfiguration,
+      pixelData: var_pixelData,
+    );
+  }
+
+  @protected
+  DicomMetadata sse_decode_dicom_metadata(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_patientName = sse_decode_opt_String(deserializer);
+    var var_patientId = sse_decode_opt_String(deserializer);
+    var var_studyDate = sse_decode_opt_String(deserializer);
+    var var_accessionNumber = sse_decode_opt_String(deserializer);
+    var var_modality = sse_decode_opt_String(deserializer);
+    var var_studyDescription = sse_decode_opt_String(deserializer);
+    var var_seriesDescription = sse_decode_opt_String(deserializer);
+    var var_instanceNumber = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_seriesNumber = sse_decode_opt_box_autoadd_i_32(deserializer);
+    return DicomMetadata(
+      patientName: var_patientName,
+      patientId: var_patientId,
+      studyDate: var_studyDate,
+      accessionNumber: var_accessionNumber,
+      modality: var_modality,
+      studyDescription: var_studyDescription,
+      seriesDescription: var_seriesDescription,
+      instanceNumber: var_instanceNumber,
+      seriesNumber: var_seriesNumber,
+    );
+  }
+
+  @protected
+  DicomTag sse_decode_dicom_tag(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_tag = sse_decode_String(deserializer);
+    var var_vr = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_value = sse_decode_dicom_value_type(deserializer);
+    return DicomTag(tag: var_tag, vr: var_vr, name: var_name, value: var_value);
+  }
+
+  @protected
+  DicomValueType sse_decode_dicom_value_type(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_String(deserializer);
+        return DicomValueType_Str(var_field0);
+      case 1:
+        var var_field0 = sse_decode_i_32(deserializer);
+        return DicomValueType_Int(var_field0);
+      case 2:
+        var var_field0 = sse_decode_f_32(deserializer);
+        return DicomValueType_Float(var_field0);
+      case 3:
+        var var_field0 = sse_decode_list_prim_i_32_strict(deserializer);
+        return DicomValueType_IntList(var_field0);
+      case 4:
+        var var_field0 = sse_decode_list_prim_f_32_strict(deserializer);
+        return DicomValueType_FloatList(var_field0);
+      case 5:
+        var var_field0 = sse_decode_list_String(deserializer);
+        return DicomValueType_StrList(var_field0);
+      case 6:
+        return DicomValueType_Unknown();
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  double sse_decode_f_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat32();
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DicomDirectoryEntry> sse_decode_list_dicom_directory_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DicomDirectoryEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_dicom_directory_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DicomTag> sse_decode_list_dicom_tag(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DicomTag>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_dicom_tag(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  Float32List sse_decode_list_prim_f_32_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getFloat32List(len_);
+  }
+
+  @protected
+  Int32List sse_decode_list_prim_i_32_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getInt32List(len_);
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_16(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint16();
+  }
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint32();
   }
 
   @protected
@@ -188,21 +1389,193 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
-  }
-
-  @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
-  }
-
-  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_dicom_handler(
+    DicomHandler self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_dicom_handler(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self, serializer);
+  }
+
+  @protected
+  void sse_encode_dicom_directory_entry(
+    DicomDirectoryEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.path, serializer);
+    sse_encode_dicom_metadata(self.metadata, serializer);
+    sse_encode_bool(self.isValid, serializer);
+  }
+
+  @protected
+  void sse_encode_dicom_file(DicomFile self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.path, serializer);
+    sse_encode_dicom_metadata(self.metadata, serializer);
+    sse_encode_list_dicom_tag(self.allTags, serializer);
+  }
+
+  @protected
+  void sse_encode_dicom_handler(DicomHandler self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_dicom_image(DicomImage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_u_16(self.bitsAllocated, serializer);
+    sse_encode_u_16(self.bitsStored, serializer);
+    sse_encode_u_16(self.highBit, serializer);
+    sse_encode_u_16(self.pixelRepresentation, serializer);
+    sse_encode_String(self.photometricInterpretation, serializer);
+    sse_encode_u_16(self.samplesPerPixel, serializer);
+    sse_encode_opt_box_autoadd_u_16(self.planarConfiguration, serializer);
+    sse_encode_list_prim_u_8_strict(self.pixelData, serializer);
+  }
+
+  @protected
+  void sse_encode_dicom_metadata(DicomMetadata self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.patientName, serializer);
+    sse_encode_opt_String(self.patientId, serializer);
+    sse_encode_opt_String(self.studyDate, serializer);
+    sse_encode_opt_String(self.accessionNumber, serializer);
+    sse_encode_opt_String(self.modality, serializer);
+    sse_encode_opt_String(self.studyDescription, serializer);
+    sse_encode_opt_String(self.seriesDescription, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.instanceNumber, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.seriesNumber, serializer);
+  }
+
+  @protected
+  void sse_encode_dicom_tag(DicomTag self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.tag, serializer);
+    sse_encode_String(self.vr, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_dicom_value_type(self.value, serializer);
+  }
+
+  @protected
+  void sse_encode_dicom_value_type(
+    DicomValueType self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case DicomValueType_Str(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(field0, serializer);
+      case DicomValueType_Int(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_i_32(field0, serializer);
+      case DicomValueType_Float(field0: final field0):
+        sse_encode_i_32(2, serializer);
+        sse_encode_f_32(field0, serializer);
+      case DicomValueType_IntList(field0: final field0):
+        sse_encode_i_32(3, serializer);
+        sse_encode_list_prim_i_32_strict(field0, serializer);
+      case DicomValueType_FloatList(field0: final field0):
+        sse_encode_i_32(4, serializer);
+        sse_encode_list_prim_f_32_strict(field0, serializer);
+      case DicomValueType_StrList(field0: final field0):
+        sse_encode_i_32(5, serializer);
+        sse_encode_list_String(field0, serializer);
+      case DicomValueType_Unknown():
+        sse_encode_i_32(6, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_f_32(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat32(self);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_dicom_directory_entry(
+    List<DicomDirectoryEntry> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_dicom_directory_entry(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_dicom_tag(
+    List<DicomTag> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_dicom_tag(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_prim_f_32_strict(
+    Float32List self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putFloat32List(self);
+  }
+
+  @protected
+  void sse_encode_list_prim_i_32_strict(
+    Int32List self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putInt32List(self);
   }
 
   @protected
@@ -216,6 +1589,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_16(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint16(self);
+  }
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint32(self);
+  }
+
+  @protected
   void sse_encode_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self);
@@ -224,17 +1639,5 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
-  }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
   }
 }
