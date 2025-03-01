@@ -8,325 +8,253 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dicom_rs_interface.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `convert_value_to_dicom_type`, `element_to_int`, `element_to_string`, `element_to_u16`, `element_to_u32`, `extract_all_tags`, `extract_metadata`, `process_directory_recursive`
+            // These functions are ignored because they are not marked as `pub`: `convert_value_to_dicom_type`, `element_to_int`, `element_to_string`, `element_to_u16`, `element_to_u32`, `extract_all_tags`, `extract_metadata`, `process_directory_recursive`, `sort_dicom_entries`
 
-/// Loads a DICOM file from the given path
-Future<DicomFile> loadDicomFile({required String path}) =>
-    RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomFile(path: path);
+
+            /// Loads a DICOM file from the given path
+Future<DicomFile>  loadDicomFile({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomFile(path: path);
 
 /// Extracts pixel data from a DICOM file
-Future<DicomImage> extractPixelData({required String path}) =>
-    RustLib.instance.api.crateApiDicomRsInterfaceExtractPixelData(path: path);
+Future<DicomImage>  extractPixelData({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceExtractPixelData(path: path);
 
 /// Gets a specific tag value from a DICOM file
-Future<DicomValueType> getTagValue({
-  required String path,
-  required String tagName,
-}) => RustLib.instance.api.crateApiDicomRsInterfaceGetTagValue(
-  path: path,
-  tagName: tagName,
-);
+Future<DicomValueType>  getTagValue({required String path , required String tagName }) => RustLib.instance.api.crateApiDicomRsInterfaceGetTagValue(path: path, tagName: tagName);
 
 /// Check if a file is a valid DICOM file
-Future<bool> isDicomFile({required String path}) =>
-    RustLib.instance.api.crateApiDicomRsInterfaceIsDicomFile(path: path);
+Future<bool>  isDicomFile({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceIsDicomFile(path: path);
 
 /// Get a list of all DICOM tags in a file
-Future<List<String>> listAllTags({required String path}) =>
-    RustLib.instance.api.crateApiDicomRsInterfaceListAllTags(path: path);
+Future<List<String>>  listAllTags({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceListAllTags(path: path);
 
 /// Get encoded image bytes (PNG format) from a DICOM file
-Future<Uint8List> getEncodedImage({required String path}) =>
-    RustLib.instance.api.crateApiDicomRsInterfaceGetEncodedImage(path: path);
+Future<Uint8List>  getEncodedImage({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceGetEncodedImage(path: path);
 
 /// Load all DICOM files from a directory
-Future<List<DicomDirectoryEntry>> loadDicomDirectory({
-  required String dirPath,
-}) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectory(
-  dirPath: dirPath,
-);
+Future<List<DicomDirectoryEntry>>  loadDicomDirectory({required String dirPath }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectory(dirPath: dirPath);
 
 /// Load all DICOM files recursively from a directory
-Future<List<DicomDirectoryEntry>> loadDicomDirectoryRecursive({
-  required String dirPath,
-}) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectoryRecursive(
-  dirPath: dirPath,
-);
+Future<List<DicomDirectoryEntry>>  loadDicomDirectoryRecursive({required String dirPath }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectoryRecursive(dirPath: dirPath);
 
-class DicomDirectoryEntry {
-  final String path;
-  final DicomMetadata metadata;
-  final bool isValid;
+            class DicomDirectoryEntry  {
+                final String path;
+final DicomMetadata metadata;
+final bool isValid;
 
-  const DicomDirectoryEntry({
-    required this.path,
-    required this.metadata,
-    required this.isValid,
-  });
+                const DicomDirectoryEntry({required this.path ,required this.metadata ,required this.isValid ,});
 
-  @override
-  int get hashCode => path.hashCode ^ metadata.hashCode ^ isValid.hashCode;
+                
+                
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DicomDirectoryEntry &&
-          runtimeType == other.runtimeType &&
-          path == other.path &&
-          metadata == other.metadata &&
-          isValid == other.isValid;
-}
+                
+        @override
+        int get hashCode => path.hashCode^metadata.hashCode^isValid.hashCode;
+        
 
-class DicomFile {
-  final String path;
-  final DicomMetadata metadata;
-  final List<DicomTag> allTags;
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is DicomDirectoryEntry &&
+                runtimeType == other.runtimeType
+                && path == other.path&& metadata == other.metadata&& isValid == other.isValid;
+        
+            }
 
-  const DicomFile({
-    required this.path,
-    required this.metadata,
-    required this.allTags,
-  });
+class DicomFile  {
+                final String path;
+final DicomMetadata metadata;
+final List<DicomTag> allTags;
 
-  @override
-  int get hashCode => path.hashCode ^ metadata.hashCode ^ allTags.hashCode;
+                const DicomFile({required this.path ,required this.metadata ,required this.allTags ,});
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DicomFile &&
-          runtimeType == other.runtimeType &&
-          path == other.path &&
-          metadata == other.metadata &&
-          allTags == other.allTags;
-}
+                
+                
 
-class DicomHandler {
-  const DicomHandler();
+                
+        @override
+        int get hashCode => path.hashCode^metadata.hashCode^allTags.hashCode;
+        
 
-  /// Gets a list of all tags in a DICOM file
-  Future<List<DicomTag>> getAllTags({required String path}) => RustLib
-      .instance
-      .api
-      .crateApiDicomRsInterfaceDicomHandlerGetAllTags(that: this, path: path);
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is DicomFile &&
+                runtimeType == other.runtimeType
+                && path == other.path&& metadata == other.metadata&& allTags == other.allTags;
+        
+            }
 
-  /// Gets image bytes encoded as PNG from a DICOM file
-  Future<Uint8List> getImageBytes({required String path}) =>
-      RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetImageBytes(
-        that: this,
-        path: path,
-      );
+class DicomHandler  {
+                
 
-  /// Gets all metadata from a DICOM file
-  Future<DicomMetadata> getMetadata({required String path}) => RustLib
-      .instance
-      .api
-      .crateApiDicomRsInterfaceDicomHandlerGetMetadata(that: this, path: path);
+                const DicomHandler();
 
-  /// Extracts raw pixel data from a DICOM file
-  Future<DicomImage> getPixelData({required String path}) => RustLib
-      .instance
-      .api
-      .crateApiDicomRsInterfaceDicomHandlerGetPixelData(that: this, path: path);
+                /// Gets a list of all tags in a DICOM file
+ Future<List<DicomTag>>  getAllTags({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetAllTags(that: this, path: path);
 
-  /// Gets the value of a specific tag
-  Future<DicomValueType> getTagValue({
-    required String path,
-    required String tagName,
-  }) => RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetTagValue(
-    that: this,
-    path: path,
-    tagName: tagName,
-  );
 
-  /// Checks if a file is a valid DICOM file
-  Future<bool> isValidDicom({required String path}) => RustLib.instance.api
-      .crateApiDicomRsInterfaceDicomHandlerIsValidDicom(that: this, path: path);
+/// Gets image bytes encoded as PNG from a DICOM file
+ Future<Uint8List>  getImageBytes({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetImageBytes(that: this, path: path);
 
-  /// Gets a list of all tag names in a DICOM file
-  Future<List<String>> listTags({required String path}) => RustLib.instance.api
-      .crateApiDicomRsInterfaceDicomHandlerListTags(that: this, path: path);
 
-  /// Loads all DICOM files from a directory (non-recursive)
-  Future<List<DicomDirectoryEntry>> loadDirectory({required String path}) =>
-      RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadDirectory(
-        that: this,
-        path: path,
-      );
+/// Gets all metadata from a DICOM file
+ Future<DicomMetadata>  getMetadata({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetMetadata(that: this, path: path);
 
-  /// Loads all DICOM files from a directory recursively
-  Future<List<DicomDirectoryEntry>> loadDirectoryRecursive({
-    required String path,
-  }) => RustLib.instance.api
-      .crateApiDicomRsInterfaceDicomHandlerLoadDirectoryRecursive(
-        that: this,
-        path: path,
-      );
 
-  /// Loads a DICOM file and returns detailed information
-  Future<DicomFile> loadFile({required String path}) => RustLib.instance.api
-      .crateApiDicomRsInterfaceDicomHandlerLoadFile(that: this, path: path);
+/// Extracts raw pixel data from a DICOM file
+ Future<DicomImage>  getPixelData({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetPixelData(that: this, path: path);
+
+
+/// Gets the value of a specific tag
+ Future<DicomValueType>  getTagValue({required String path , required String tagName })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetTagValue(that: this, path: path, tagName: tagName);
+
+
+/// Checks if a file is a valid DICOM file
+ Future<bool>  isValidDicom({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerIsValidDicom(that: this, path: path);
+
+
+/// Gets a list of all tag names in a DICOM file
+ Future<List<String>>  listTags({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerListTags(that: this, path: path);
+
+
+/// Loads all DICOM files from a directory (non-recursive)
+ Future<List<DicomDirectoryEntry>>  loadDirectory({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadDirectory(that: this, path: path);
+
+
+/// Loads all DICOM files from a directory recursively
+ Future<List<DicomDirectoryEntry>>  loadDirectoryRecursive({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadDirectoryRecursive(that: this, path: path);
+
+
+/// Loads a DICOM file and returns detailed information
+ Future<DicomFile>  loadFile({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadFile(that: this, path: path);
+
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  /// Creates a new DicomHandler instance
-  static Future<DicomHandler> newInstance() =>
-      RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerNew();
+/// Creates a new DicomHandler instance
+static Future<DicomHandler>  newInstance()=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerNew();
 
-  @override
-  int get hashCode => 0;
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DicomHandler && runtimeType == other.runtimeType;
-}
+                
 
-class DicomImage {
-  final int width;
-  final int height;
-  final int bitsAllocated;
-  final int bitsStored;
-  final int highBit;
-  final int pixelRepresentation;
-  final String photometricInterpretation;
-  final int samplesPerPixel;
-  final int? planarConfiguration;
-  final Uint8List pixelData;
+                
+        @override
+        int get hashCode => 0;
+        
 
-  const DicomImage({
-    required this.width,
-    required this.height,
-    required this.bitsAllocated,
-    required this.bitsStored,
-    required this.highBit,
-    required this.pixelRepresentation,
-    required this.photometricInterpretation,
-    required this.samplesPerPixel,
-    this.planarConfiguration,
-    required this.pixelData,
-  });
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is DicomHandler &&
+                runtimeType == other.runtimeType
+                ;
+        
+            }
 
-  @override
-  int get hashCode =>
-      width.hashCode ^
-      height.hashCode ^
-      bitsAllocated.hashCode ^
-      bitsStored.hashCode ^
-      highBit.hashCode ^
-      pixelRepresentation.hashCode ^
-      photometricInterpretation.hashCode ^
-      samplesPerPixel.hashCode ^
-      planarConfiguration.hashCode ^
-      pixelData.hashCode;
+class DicomImage  {
+                final int width;
+final int height;
+final int bitsAllocated;
+final int bitsStored;
+final int highBit;
+final int pixelRepresentation;
+final String photometricInterpretation;
+final int samplesPerPixel;
+final int? planarConfiguration;
+final Uint8List pixelData;
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DicomImage &&
-          runtimeType == other.runtimeType &&
-          width == other.width &&
-          height == other.height &&
-          bitsAllocated == other.bitsAllocated &&
-          bitsStored == other.bitsStored &&
-          highBit == other.highBit &&
-          pixelRepresentation == other.pixelRepresentation &&
-          photometricInterpretation == other.photometricInterpretation &&
-          samplesPerPixel == other.samplesPerPixel &&
-          planarConfiguration == other.planarConfiguration &&
-          pixelData == other.pixelData;
-}
+                const DicomImage({required this.width ,required this.height ,required this.bitsAllocated ,required this.bitsStored ,required this.highBit ,required this.pixelRepresentation ,required this.photometricInterpretation ,required this.samplesPerPixel ,this.planarConfiguration ,required this.pixelData ,});
 
-class DicomMetadata {
-  final String? patientName;
-  final String? patientId;
-  final String? studyDate;
-  final String? accessionNumber;
-  final String? modality;
-  final String? studyDescription;
-  final String? seriesDescription;
-  final int? instanceNumber;
-  final int? seriesNumber;
+                
+                
 
-  const DicomMetadata({
-    this.patientName,
-    this.patientId,
-    this.studyDate,
-    this.accessionNumber,
-    this.modality,
-    this.studyDescription,
-    this.seriesDescription,
-    this.instanceNumber,
-    this.seriesNumber,
-  });
+                
+        @override
+        int get hashCode => width.hashCode^height.hashCode^bitsAllocated.hashCode^bitsStored.hashCode^highBit.hashCode^pixelRepresentation.hashCode^photometricInterpretation.hashCode^samplesPerPixel.hashCode^planarConfiguration.hashCode^pixelData.hashCode;
+        
 
-  @override
-  int get hashCode =>
-      patientName.hashCode ^
-      patientId.hashCode ^
-      studyDate.hashCode ^
-      accessionNumber.hashCode ^
-      modality.hashCode ^
-      studyDescription.hashCode ^
-      seriesDescription.hashCode ^
-      instanceNumber.hashCode ^
-      seriesNumber.hashCode;
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is DicomImage &&
+                runtimeType == other.runtimeType
+                && width == other.width&& height == other.height&& bitsAllocated == other.bitsAllocated&& bitsStored == other.bitsStored&& highBit == other.highBit&& pixelRepresentation == other.pixelRepresentation&& photometricInterpretation == other.photometricInterpretation&& samplesPerPixel == other.samplesPerPixel&& planarConfiguration == other.planarConfiguration&& pixelData == other.pixelData;
+        
+            }
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DicomMetadata &&
-          runtimeType == other.runtimeType &&
-          patientName == other.patientName &&
-          patientId == other.patientId &&
-          studyDate == other.studyDate &&
-          accessionNumber == other.accessionNumber &&
-          modality == other.modality &&
-          studyDescription == other.studyDescription &&
-          seriesDescription == other.seriesDescription &&
-          instanceNumber == other.instanceNumber &&
-          seriesNumber == other.seriesNumber;
-}
+class DicomMetadata  {
+                final String? patientName;
+final String? patientId;
+final String? studyDate;
+final String? accessionNumber;
+final String? modality;
+final String? studyDescription;
+final String? seriesDescription;
+final int? instanceNumber;
+final int? seriesNumber;
 
-class DicomTag {
-  final String tag;
-  final String vr;
-  final String name;
-  final DicomValueType value;
+                const DicomMetadata({this.patientName ,this.patientId ,this.studyDate ,this.accessionNumber ,this.modality ,this.studyDescription ,this.seriesDescription ,this.instanceNumber ,this.seriesNumber ,});
 
-  const DicomTag({
-    required this.tag,
-    required this.vr,
-    required this.name,
-    required this.value,
-  });
+                
+                
 
-  @override
-  int get hashCode =>
-      tag.hashCode ^ vr.hashCode ^ name.hashCode ^ value.hashCode;
+                
+        @override
+        int get hashCode => patientName.hashCode^patientId.hashCode^studyDate.hashCode^accessionNumber.hashCode^modality.hashCode^studyDescription.hashCode^seriesDescription.hashCode^instanceNumber.hashCode^seriesNumber.hashCode;
+        
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DicomTag &&
-          runtimeType == other.runtimeType &&
-          tag == other.tag &&
-          vr == other.vr &&
-          name == other.name &&
-          value == other.value;
-}
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is DicomMetadata &&
+                runtimeType == other.runtimeType
+                && patientName == other.patientName&& patientId == other.patientId&& studyDate == other.studyDate&& accessionNumber == other.accessionNumber&& modality == other.modality&& studyDescription == other.studyDescription&& seriesDescription == other.seriesDescription&& instanceNumber == other.instanceNumber&& seriesNumber == other.seriesNumber;
+        
+            }
+
+class DicomTag  {
+                final String tag;
+final String vr;
+final String name;
+final DicomValueType value;
+
+                const DicomTag({required this.tag ,required this.vr ,required this.name ,required this.value ,});
+
+                
+                
+
+                
+        @override
+        int get hashCode => tag.hashCode^vr.hashCode^name.hashCode^value.hashCode;
+        
+
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is DicomTag &&
+                runtimeType == other.runtimeType
+                && tag == other.tag&& vr == other.vr&& name == other.name&& value == other.value;
+        
+            }
 
 @freezed
-sealed class DicomValueType with _$DicomValueType {
-  const DicomValueType._();
+                sealed class DicomValueType with _$DicomValueType  {
+                    const DicomValueType._();
 
-  const factory DicomValueType.str(String field0) = DicomValueType_Str;
-  const factory DicomValueType.int(int field0) = DicomValueType_Int;
-  const factory DicomValueType.float(double field0) = DicomValueType_Float;
-  const factory DicomValueType.intList(Int32List field0) =
-      DicomValueType_IntList;
-  const factory DicomValueType.floatList(Float32List field0) =
-      DicomValueType_FloatList;
-  const factory DicomValueType.strList(List<String> field0) =
-      DicomValueType_StrList;
-  const factory DicomValueType.unknown() = DicomValueType_Unknown;
-}
+                     const factory DicomValueType.str(  String field0,) = DicomValueType_Str;
+ const factory DicomValueType.int(  int field0,) = DicomValueType_Int;
+ const factory DicomValueType.float(  double field0,) = DicomValueType_Float;
+ const factory DicomValueType.intList(  Int32List field0,) = DicomValueType_IntList;
+ const factory DicomValueType.floatList(  Float32List field0,) = DicomValueType_FloatList;
+ const factory DicomValueType.strList(  List<String> field0,) = DicomValueType_StrList;
+ const factory DicomValueType.unknown() = DicomValueType_Unknown;
+
+                    
+
+                    
+                }
+            

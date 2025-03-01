@@ -761,6 +761,9 @@ pub fn load_dicom_directory(dir_path: String) -> Result<Vec<DicomDirectoryEntry>
         }
     }
 
+    // Sort the results by series number and then instance number
+    sort_dicom_entries(&mut result);
+
     Ok(result)
 }
 
@@ -779,7 +782,35 @@ pub fn load_dicom_directory_recursive(
     // Process directory recursively
     process_directory_recursive(path, &mut result)?;
 
+    // Sort the results by series number and then instance number
+    sort_dicom_entries(&mut result);
+
     Ok(result)
+}
+
+// Helper function to sort DICOM directory entries
+fn sort_dicom_entries(entries: &mut Vec<DicomDirectoryEntry>) {
+    entries.sort_by(|a, b| {
+        // First sort by series number
+        let series_cmp = match (&a.metadata.series_number, &b.metadata.series_number) {
+            (Some(a_series), Some(b_series)) => a_series.cmp(b_series),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        };
+
+        // If series numbers are equal, sort by instance number
+        if series_cmp == std::cmp::Ordering::Equal {
+            match (&a.metadata.instance_number, &b.metadata.instance_number) {
+                (Some(a_instance), Some(b_instance)) => a_instance.cmp(b_instance),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => std::cmp::Ordering::Equal,
+            }
+        } else {
+            series_cmp
+        }
+    });
 }
 
 // Helper function to recursively process directories
