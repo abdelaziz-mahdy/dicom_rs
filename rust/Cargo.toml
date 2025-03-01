@@ -11,4 +11,4 @@ flutter_rust_bridge = "=2.8.0"
 dicom = "0.8.1"
 anyhow = "1.0"
 smallvec = "1.14.0"
-dicom-pixeldata = { version = "0.8", features = ["gdcm","image"] }
+dicom-pixeldata = { version = "0.8", features = ["image"] }

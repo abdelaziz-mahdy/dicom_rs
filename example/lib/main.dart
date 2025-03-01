@@ -64,6 +64,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
         }
       }
     } catch (e) {
+      
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error loading directory: $e')));

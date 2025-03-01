@@ -14,8 +14,8 @@ use std::{fs, io::Cursor, path::Path};
 // Add dicom-pixeldata for better image handling
 use dicom_pixeldata::{image,PixelDecoder, ConvertOptions, VoiLutOption, BitDepthOption};
 
-#[frb(dart_metadata=("freezed"))]
-#[derive(Clone, Debug)]
+// #[frb(dart_metadata=("freezed"))]
+// #[derive(Clone, Debug)]
 pub enum DicomValueType {
     Str(String),
     Int(i32),
@@ -26,8 +26,8 @@ pub enum DicomValueType {
     Unknown,
 }
 
-#[frb(dart_metadata=("freezed"))]
-#[derive(Clone, Debug)]
+// #[frb(dart_metadata=("freezed"))]
+// #[derive(Clone, Debug)]
 pub struct DicomTag {
     pub tag: String,
     pub vr: String,
@@ -35,8 +35,8 @@ pub struct DicomTag {
     pub value: DicomValueType,
 }
 
-#[frb(dart_metadata=("freezed"))]
-#[derive(Clone, Debug)]
+// #[frb(dart_metadata=("freezed"))]
+// #[derive(Clone, Debug)]
 pub struct DicomMetadata {
     pub patient_name: Option<String>,
     pub patient_id: Option<String>,
@@ -49,8 +49,8 @@ pub struct DicomMetadata {
     pub series_number: Option<i32>,
 }
 
-#[frb(dart_metadata=("freezed"))]
-#[derive(Clone, Debug)]
+// #[frb(dart_metadata=("freezed"))]
+// #[derive(Clone, Debug)]
 pub struct DicomImage {
     pub width: u32,
     pub height: u32,
@@ -64,16 +64,16 @@ pub struct DicomImage {
     pub pixel_data: Vec<u8>,
 }
 
-#[frb(dart_metadata=("freezed"))]
-#[derive(Clone, Debug)]
+// #[frb(dart_metadata=("freezed"))]
+// #[derive(Clone, Debug)]
 pub struct DicomFile {
     pub path: String,
     pub metadata: DicomMetadata,
     pub all_tags: Vec<DicomTag>,
 }
 
-#[frb(dart_metadata=("freezed"))]
-#[derive(Clone, Debug)]
+// #[frb(dart_metadata=("freezed"))]
+// #[derive(Clone, Debug)]
 pub struct DicomDirectoryEntry {
     pub path: String,
     pub metadata: DicomMetadata,
@@ -81,8 +81,8 @@ pub struct DicomDirectoryEntry {
 }
 
 // New DicomHandler struct to provide a cleaner interface
-#[frb(dart_metadata=("freezed"))]
-#[derive(Clone, Debug, Default)]
+// #[frb(dart_metadata=("freezed"))]
+// #[derive(Clone, Debug, Default)]
 pub struct DicomHandler {}
 
 // Helper functions for working with SmallVec values
