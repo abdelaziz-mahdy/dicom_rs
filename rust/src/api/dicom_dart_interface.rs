@@ -9,11 +9,10 @@ use dicom::{
 };
 use dicom::core::DataDictionary;  // Add this trait import
 use flutter_rust_bridge::frb;
-use image::{ImageBuffer, ImageFormat, Rgba};
 use std::{fs, io::Cursor, path::Path};
 
 // Add dicom-pixeldata for better image handling
-use dicom_pixeldata::{PixelDecoder, ConvertOptions, VoiLutOption, BitDepthOption};
+use dicom_pixeldata::{image,PixelDecoder, ConvertOptions, VoiLutOption, BitDepthOption};
 
 #[frb(dart_metadata=("freezed"))]
 #[derive(Clone, Debug)]
@@ -532,8 +531,8 @@ pub fn extract_pixel_data(path: String) -> Result<DicomImage, String> {
     };
 
     // Get image dimensions
-    let width = decoded.width() as u32;
-    let height = decoded.height() as u32;
+    let height = decoded.rows() as u32;
+    let width = decoded.columns() as u32;
 
     // Get image parameters from the decoded data
     let bits_allocated = obj.element(tags::BITS_ALLOCATED)
@@ -655,8 +654,8 @@ pub fn get_encoded_image(path: String) -> Result<Vec<u8>, String> {
 
     // Set up conversion options with automatic windowing
     let options = ConvertOptions::new()
-        .with_voi_lut(VoiLutOption::Auto) // Auto window leveling
-        .with_bit_depth(BitDepthOption::Bits8); // Force 8-bit output
+        .with_voi_lut(VoiLutOption::Default) // Auto window leveling
+        .with_bit_depth(BitDepthOption::Auto); // Force 8-bit output
 
     // Convert to dynamic image with appropriate options
     let dynamic_image = match decoded.to_dynamic_image_with_options(0, &options) {
