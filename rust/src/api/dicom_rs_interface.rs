@@ -32,7 +32,7 @@ pub struct DicomTag {
     pub value: DicomValueType,
 }
 
-// Enhanced metadata structure with UIDs needed for proper organization
+// Enhanced metadata structure with spatial information
 // #[frb(dart_metadata=("freezed"))]
 #[derive(Clone, Debug)]
 pub struct DicomMetadata {
@@ -46,10 +46,18 @@ pub struct DicomMetadata {
     pub instance_number: Option<i32>,
     pub series_number: Option<i32>,
     
-    // Adding important UIDs for proper organization
+    // Important UIDs for proper organization
     pub study_instance_uid: Option<String>,
     pub series_instance_uid: Option<String>,
     pub sop_instance_uid: Option<String>,
+    
+    // Spatial information for proper slice ordering
+    pub image_position: Option<Vec<f64>>,      // Image Position (Patient)
+    pub image_orientation: Option<Vec<f64>>,   // Image Orientation (Patient)
+    pub slice_location: Option<f64>,           // Slice Location
+    pub slice_thickness: Option<f64>,          // Slice Thickness
+    pub spacing_between_slices: Option<f64>,   // Spacing Between Slices
+    pub pixel_spacing: Option<Vec<f64>>,       // Pixel Spacing
 }
 
 // #[frb(dart_metadata=("freezed"))]
@@ -82,6 +90,8 @@ pub struct DicomInstance {
     pub path: String,
     pub sop_instance_uid: Option<String>,
     pub instance_number: Option<i32>,
+    pub image_position: Option<Vec<f64>>,      // For proper slice ordering
+    pub slice_location: Option<f64>,           // Alternative for ordering
     pub is_valid: bool,
 }
 
@@ -467,6 +477,16 @@ impl DicomHandler {
     pub fn load_directory_recursive_organized(&self, path: String) -> Result<Vec<DicomPatient>, String> {
         load_dicom_directory_organized(path, true)
     }
+    
+    /// Loads a directory and returns a complete study with metadata propagated to all slices
+    pub fn load_complete_study(&self, path: String) -> Result<DicomStudy, String> {
+        load_complete_study(path, false)
+    }
+    
+    /// Loads a directory recursively and returns a complete study with metadata propagated to all slices
+    pub fn load_complete_study_recursive(&self, path: String) -> Result<DicomStudy, String> {
+        load_complete_study(path, true)
+    }
 }
 
 /// Loads a DICOM file from the given path
@@ -493,54 +513,82 @@ pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
 
 /// Extracts common metadata from a DICOM object
 fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMetadata> {
-    let patient_name = obj.element_by_name("PatientName")
+    let patient_name = obj.element(tags::PATIENT_NAME)
         .ok()
         .and_then(|e| element_to_string(e));
 
-    let patient_id = obj.element_by_name("PatientID")
+    let patient_id = obj.element(tags::PATIENT_ID)
         .ok()
         .and_then(|e| element_to_string(e));
 
-    let study_date = obj.element_by_name("StudyDate")
+    let study_date = obj.element(tags::STUDY_DATE)
+        .ok()
+        .and_then(|e| element_to_string(e));
+    
+
+    let accession_number = obj.element(tags::ACCESSION_NUMBER)
+        .ok()
+        .and_then(|e| element_to_string(e));
+ 
+    let modality = obj.element(
+        tags::MODALITY
+    )
         .ok()
         .and_then(|e| element_to_string(e));
 
-    let accession_number = obj.element_by_name("AccessionNumber")
+    let study_description = obj.element(tags::STUDY_DESCRIPTION)
         .ok()
         .and_then(|e| element_to_string(e));
 
-    let modality = obj.element_by_name("Modality")
+    let series_description = obj.element(tags::SERIES_DESCRIPTION)
         .ok()
         .and_then(|e| element_to_string(e));
 
-    let study_description = obj.element_by_name("StudyDescription")
-        .ok()
-        .and_then(|e| element_to_string(e));
-
-    let series_description = obj.element_by_name("SeriesDescription")
-        .ok()
-        .and_then(|e| element_to_string(e));
-
-    let instance_number = obj.element_by_name("InstanceNumber")
+    let instance_number = obj.element(tags::INSTANCE_NUMBER)
         .ok()
         .and_then(|e| element_to_int(e));
 
-    let series_number = obj.element_by_name("SeriesNumber")
+    let series_number = obj.element(tags::SERIES_NUMBER)
         .ok()
         .and_then(|e| element_to_int(e));
     
     // Extract UIDs
-    let study_instance_uid = obj.element_by_name("StudyInstanceUID")
+    let study_instance_uid = obj.element(tags::STUDY_INSTANCE_UID)
         .ok()
         .and_then(|e| element_to_string(e));
         
-    let series_instance_uid = obj.element_by_name("SeriesInstanceUID")
+    let series_instance_uid = obj.element(tags::SERIES_INSTANCE_UID)
         .ok()
         .and_then(|e| element_to_string(e));
         
-    let sop_instance_uid = obj.element_by_name("SOPInstanceUID")
+    let sop_instance_uid = obj.element(tags::SOP_INSTANCE_UID)
         .ok()
         .and_then(|e| element_to_string(e));
+
+    // Extract spatial information
+    let image_position = obj.element(tags::IMAGE_POSITION_PATIENT)
+        .ok()
+        .and_then(|e| element_to_float64_vector(e));
+        
+    let image_orientation = obj.element(tags::IMAGE_ORIENTATION_PATIENT)
+        .ok()
+        .and_then(|e| element_to_float64_vector(e));
+        
+    let slice_location = obj.element(tags::SLICE_LOCATION)
+        .ok()
+        .and_then(|e| element_to_float64(e));
+        
+    let slice_thickness = obj.element(tags::SLICE_THICKNESS)
+        .ok()
+        .and_then(|e| element_to_float64(e));
+        
+    let spacing_between_slices = obj.element(tags::SPACING_BETWEEN_SLICES)
+        .ok()
+        .and_then(|e| element_to_float64(e));
+        
+    let pixel_spacing = obj.element(tags::PIXEL_SPACING)
+        .ok()
+        .and_then(|e| element_to_float64_vector(e));
 
     Ok(DicomMetadata {
         patient_name,
@@ -555,6 +603,12 @@ fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMeta
         study_instance_uid,
         series_instance_uid,
         sop_instance_uid,
+        image_position,
+        image_orientation,
+        slice_location,
+        slice_thickness,
+        spacing_between_slices,
+        pixel_spacing,
     })
 }
 
@@ -806,6 +860,12 @@ pub fn load_dicom_directory(dir_path: String) -> Result<Vec<DicomDirectoryEntry>
                                         study_instance_uid: None,
                                         series_instance_uid: None,
                                         sop_instance_uid: None,
+                                        image_position: None,
+                                        image_orientation: None,
+                                        slice_location: None,
+                                        slice_thickness: None,
+                                        spacing_between_slices: None,
+                                        pixel_spacing: None,
                                     },
                                     is_valid: true,
                                 });
@@ -829,6 +889,12 @@ pub fn load_dicom_directory(dir_path: String) -> Result<Vec<DicomDirectoryEntry>
                                 study_instance_uid: None,
                                 series_instance_uid: None,
                                 sop_instance_uid: None,
+                                image_position: None,
+                                image_orientation: None,
+                                slice_location: None,
+                                slice_thickness: None,
+                                spacing_between_slices: None,
+                                pixel_spacing: None,
                             },
                             is_valid: false,
                         });
@@ -895,11 +961,13 @@ fn organize_dicom_entries(entries: Vec<DicomDirectoryEntry>) -> Result<Vec<Dicom
         let study_uid = meta.study_instance_uid.clone().unwrap_or_else(|| "UNKNOWN".to_string());
         let series_uid = meta.series_instance_uid.clone().unwrap_or_else(|| "UNKNOWN".to_string());
         
-        // Create a new DICOM instance
+        // Create a new DICOM instance with spatial information
         let instance = DicomInstance {
             path: entry.path,
             sop_instance_uid: meta.sop_instance_uid.clone(),
             instance_number: meta.instance_number,
+            image_position: meta.image_position.clone(),
+            slice_location: meta.slice_location,
             is_valid: entry.is_valid,
         };
         
@@ -972,13 +1040,13 @@ fn organize_dicom_entries(entries: Vec<DicomDirectoryEntry>) -> Result<Vec<Dicom
     // Convert the HashMap to a Vec and sort
     let mut patients: Vec<DicomPatient> = patients_map.into_values().collect();
     
-    // Sort everything appropriately
+    // Sort everything appropriately with enhanced sorting
     sort_dicom_hierarchy(&mut patients);
     
     Ok(patients)
 }
 
-/// Sort the entire DICOM hierarchy
+/// Sort the entire DICOM hierarchy with improved spatial ordering
 fn sort_dicom_hierarchy(patients: &mut Vec<DicomPatient>) {
     // Sort patients by name (alphabetically)
     patients.sort_by(|a, b| {
@@ -1009,20 +1077,72 @@ fn sort_dicom_hierarchy(patients: &mut Vec<DicomPatient>) {
                 }
             });
             
-            // Sort instances within each series
+            // Sort instances within each series using spatial information
             for series in &mut study.series {
-                // Sort by instance number
-                series.instances.sort_by(|a, b| {
-                    match (&a.instance_number, &b.instance_number) {
-                        (Some(a_num), Some(b_num)) => a_num.cmp(b_num),
-                        (Some(_), None) => Ordering::Less,
-                        (None, Some(_)) => Ordering::Greater,
-                        (None, None) => Ordering::Equal,
-                    }
-                });
+                sort_instances_by_position(&mut series.instances);
             }
         }
     }
+}
+
+/// Sort instances based on spatial information - similar to how vtkDICOMImageReader does it
+fn sort_instances_by_position(instances: &mut Vec<DicomInstance>) {
+    // First, try to sort by slice location if available
+    let has_slice_locations = instances.iter().any(|i| i.slice_location.is_some());
+    
+    if has_slice_locations {
+        instances.sort_by(|a, b| {
+            match (a.slice_location, b.slice_location) {
+                (Some(loc_a), Some(loc_b)) => loc_a.partial_cmp(&loc_b).unwrap_or(Ordering::Equal),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (None, None) => Ordering::Equal,
+            }
+        });
+        return;
+    }
+    
+    // If no slice locations, try to sort by image position
+    let has_positions = instances.iter().any(|i| i.image_position.is_some() && i.image_position.as_ref().unwrap().len() >= 3);
+    
+    if has_positions {
+        // Determine the primary direction (usually the Z component for axial slices)
+        // This is similar to how VTK determines the proper sorting order
+        
+        // First instance position
+        if let Some(first_instance) = instances.first() {
+            if let Some(pos0) = &first_instance.image_position {
+                if pos0.len() >= 3 {
+                    // Sort primarily by the z-position (index 2)
+                    instances.sort_by(|a, b| {
+                        if let (Some(pos_a), Some(pos_b)) = (&a.image_position, &b.image_position) {
+                            if pos_a.len() >= 3 && pos_b.len() >= 3 {
+                                return pos_a[2].partial_cmp(&pos_b[2]).unwrap_or(Ordering::Equal);
+                            }
+                        }
+                        // Fall back to instance number as before
+                        match (a.instance_number, b.instance_number) {
+                            (Some(a_num), Some(b_num)) => a_num.cmp(&b_num),
+                            (Some(_), None) => Ordering::Less,
+                            (None, Some(_)) => Ordering::Greater,
+                            (None, None) => Ordering::Equal,
+                        }
+                    });
+                    return;
+                }
+            }
+        }
+    }
+    
+    // Fall back to instance number if neither spatial information is available
+    instances.sort_by(|a, b| {
+        match (a.instance_number, b.instance_number) {
+            (Some(a_num), Some(b_num)) => a_num.cmp(&b_num),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        }
+    });
 }
 
 // Helper function to sort DICOM directory entries
@@ -1103,6 +1223,12 @@ fn process_directory_recursive(
                                             study_instance_uid: None,
                                             series_instance_uid: None,
                                             sop_instance_uid: None,
+                                            image_position: None,
+                                            image_orientation: None,
+                                            slice_location: None,
+                                            slice_thickness: None,
+                                            spacing_between_slices: None,
+                                            pixel_spacing: None,
                                         },
                                         is_valid: true,
                                     });
@@ -1126,6 +1252,12 @@ fn process_directory_recursive(
                                     study_instance_uid: None,
                                     series_instance_uid: None,
                                     sop_instance_uid: None,
+                                    image_position: None,
+                                    image_orientation: None,
+                                    slice_location: None,
+                                    slice_thickness: None,
+                                    spacing_between_slices: None,
+                                    pixel_spacing: None,
                                 },
                                 is_valid: false,
                             });
@@ -1137,4 +1269,287 @@ fn process_directory_recursive(
     }
 
     Ok(())
+}
+
+// New helper function to extract float64 vectors
+fn element_to_float64_vector(elem: &InMemElement) -> Option<Vec<f64>> {
+    match elem.value() {
+        Value::Primitive(prim) => match prim {
+            PrimitiveValue::F64(v) => Some(v.iter().map(|&x| x).collect()),
+            PrimitiveValue::F32(v) => Some(v.iter().map(|&x| x as f64).collect()),
+            // Also handle decimal strings that represent coordinates
+            PrimitiveValue::Str(s) => {
+                let parts: Vec<f64> = s.split('\\')
+                    .filter_map(|part| part.trim().parse::<f64>().ok())
+                    .collect();
+                if parts.is_empty() { None } else { Some(parts) }
+            },
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+// Helper function to extract a single float64 value
+fn element_to_float64(elem: &InMemElement) -> Option<f64> {
+    match elem.value() {
+        Value::Primitive(prim) => match prim {
+            PrimitiveValue::F64(v) => {
+                if v.len() > 0 {
+                    Some(v[0])
+                } else {
+                    None
+                }
+            },
+            PrimitiveValue::F32(v) => {
+                if v.len() > 0 {
+                    Some(v[0] as f64)
+                } else {
+                    None
+                }
+            },
+            PrimitiveValue::Str(s) => s.trim().parse::<f64>().ok(),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Loads a complete study with propagated metadata
+pub fn load_complete_study(dir_path: String, recursive: bool) -> Result<DicomStudy, String> {
+    // First collect all DICOM files
+    let entries = if recursive {
+        load_dicom_directory_recursive(dir_path)?
+    } else {
+        load_dicom_directory(dir_path)?
+    };
+    
+    // Early return if no valid DICOM files found
+    if entries.is_empty() {
+        return Err("No valid DICOM files found in directory".to_string());
+    }
+    
+    // Organize files and extract study information
+    let patients = organize_dicom_entries(entries)?;
+    
+    // Check if any patients were found
+    if patients.is_empty() {
+        return Err("No valid patient information found in DICOM files".to_string());
+    }
+    
+    // Get the first patient (assuming single patient per directory)
+    let patient = &patients[0];
+    
+    // Check if this patient has any studies
+    if patient.studies.is_empty() {
+        return Err("No valid studies found for patient".to_string());
+    }
+    
+    // Get the first study (assuming single study per directory)
+    let study = patient.studies[0].clone();
+    
+    // Propagate metadata across all series and instances
+    let propagated_study = propagate_study_metadata(study)?;
+    
+    Ok(propagated_study)
+}
+
+/// Propagates metadata across all series and instances in a study
+fn propagate_study_metadata(study: DicomStudy) -> Result<DicomStudy, String> {
+    let mut propagated_study = study.clone();
+    
+    // Collect and merge metadata across all series instances
+    let common_metadata = collect_common_study_metadata(&study);
+    
+    // Update series with propagated metadata
+    for series in &mut propagated_study.series {
+        let series_metadata = collect_common_series_metadata(&series);
+        
+        // Propagate metadata to each instance
+        for instance in &mut series.instances {
+            // If this is a valid DICOM file with missing metadata, we'll update it
+            if instance.is_valid {
+                // Load the file to get instance-specific metadata
+                if let Ok(file_obj) = FileDicomObject::<InMemDicomObject>::open_file(&instance.path) {
+                    if let Ok(mut instance_metadata) = extract_metadata(&file_obj) {
+                        // Apply study-level metadata if missing
+                        if instance_metadata.patient_name.is_none() {
+                            instance_metadata.patient_name = common_metadata.patient_name.clone();
+                        }
+                        if instance_metadata.patient_id.is_none() {
+                            instance_metadata.patient_id = common_metadata.patient_id.clone();
+                        }
+                        if instance_metadata.study_date.is_none() {
+                            instance_metadata.study_date = common_metadata.study_date.clone();
+                        }
+                        if instance_metadata.study_description.is_none() {
+                            instance_metadata.study_description = common_metadata.study_description.clone();
+                        }
+                        if instance_metadata.accession_number.is_none() {
+                            instance_metadata.accession_number = common_metadata.accession_number.clone();
+                        }
+                        if instance_metadata.study_instance_uid.is_none() {
+                            instance_metadata.study_instance_uid = common_metadata.study_instance_uid.clone();
+                        }
+                        
+                        // Apply series-level metadata if missing
+                        if instance_metadata.series_description.is_none() {
+                            instance_metadata.series_description = series_metadata.series_description.clone();
+                        }
+                        if instance_metadata.modality.is_none() {
+                            instance_metadata.modality = series_metadata.modality.clone();
+                        }
+                        if instance_metadata.series_number.is_none() {
+                            instance_metadata.series_number = series_metadata.series_number;
+                        }
+                        if instance_metadata.series_instance_uid.is_none() {
+                            instance_metadata.series_instance_uid = series_metadata.series_instance_uid.clone();
+                        }
+                        
+                        // Update instance with propagated metadata
+                        if instance.sop_instance_uid.is_none() {
+                            instance.sop_instance_uid = instance_metadata.sop_instance_uid.clone();
+                        }
+                        if instance.instance_number.is_none() {
+                            instance.instance_number = instance_metadata.instance_number;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(propagated_study)
+}
+
+/// Collects common metadata across a study
+fn collect_common_study_metadata(study: &DicomStudy) -> DicomMetadata {
+    let mut common_metadata = DicomMetadata {
+        patient_name: None,
+        patient_id: None,
+        study_date: None,
+        accession_number: None,
+        modality: None,
+        study_description: None,
+        series_description: None,
+        instance_number: None,
+        series_number: None,
+        study_instance_uid: None,
+        series_instance_uid: None,
+        sop_instance_uid: None,
+        image_position: None,
+        image_orientation: None,
+        slice_location: None,
+        slice_thickness: None,
+        spacing_between_slices: None,
+        pixel_spacing: None,
+    };
+    
+    // Set study-level metadata
+    common_metadata.study_instance_uid = study.study_instance_uid.clone();
+    common_metadata.study_date = study.study_date.clone();
+    common_metadata.study_description = study.study_description.clone();
+    common_metadata.accession_number = study.accession_number.clone();
+    
+    // Collect patient information from series if available
+    for series in &study.series {
+        for instance in &series.instances {
+            if instance.is_valid {
+                if let Ok(file_obj) = FileDicomObject::<InMemDicomObject>::open_file(&instance.path) {
+                    if let Ok(metadata) = extract_metadata(&file_obj) {
+                        // Set patient information if not already set
+                        if common_metadata.patient_name.is_none() {
+                            common_metadata.patient_name = metadata.patient_name;
+                        }
+                        if common_metadata.patient_id.is_none() {
+                            common_metadata.patient_id = metadata.patient_id;
+                        }
+                        // Once we have all the metadata we need, we can break
+                        if common_metadata.patient_name.is_some() && common_metadata.patient_id.is_some() {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // Break the outer loop if we have all metadata
+        if common_metadata.patient_name.is_some() && common_metadata.patient_id.is_some() {
+            break;
+        }
+    }
+    
+    common_metadata
+}
+
+/// Collects common metadata across a series
+fn collect_common_series_metadata(series: &DicomSeries) -> DicomMetadata {
+    let mut common_metadata = DicomMetadata {
+        patient_name: None,
+        patient_id: None,
+        study_date: None,
+        accession_number: None,
+        modality: None,
+        study_description: None,
+        series_description: None,
+        instance_number: None,
+        series_number: None,
+        study_instance_uid: None,
+        series_instance_uid: None,
+        sop_instance_uid: None,
+        image_position: None,
+        image_orientation: None,
+        slice_location: None,
+        slice_thickness: None,
+        spacing_between_slices: None,
+        pixel_spacing: None,
+    };
+    
+    // Set series-level metadata
+    common_metadata.series_instance_uid = series.series_instance_uid.clone();
+    common_metadata.series_number = series.series_number;
+    common_metadata.series_description = series.series_description.clone();
+    common_metadata.modality = series.modality.clone();
+    
+    // Try to get additional metadata from instances
+    for instance in &series.instances {
+        if instance.is_valid {
+            if let Ok(file_obj) = FileDicomObject::<InMemDicomObject>::open_file(&instance.path) {
+                if let Ok(metadata) = extract_metadata(&file_obj) {
+                    // Fill in missing values
+                    if common_metadata.modality.is_none() {
+                        common_metadata.modality = metadata.modality;
+                    }
+                    if common_metadata.series_description.is_none() {
+                        common_metadata.series_description = metadata.series_description;
+                    }
+                    if common_metadata.series_instance_uid.is_none() {
+                        common_metadata.series_instance_uid = metadata.series_instance_uid;
+                    }
+                    if common_metadata.series_number.is_none() {
+                        common_metadata.series_number = metadata.series_number;
+                    }
+                    
+                    // Get spacing information
+                    if common_metadata.slice_thickness.is_none() {
+                        common_metadata.slice_thickness = metadata.slice_thickness;
+                    }
+                    if common_metadata.spacing_between_slices.is_none() {
+                        common_metadata.spacing_between_slices = metadata.spacing_between_slices;
+                    }
+                    if common_metadata.pixel_spacing.is_none() {
+                        common_metadata.pixel_spacing = metadata.pixel_spacing;
+                    }
+                    
+                    // Once we have all the metadata we need, we can break
+                    if common_metadata.modality.is_some() && 
+                       common_metadata.series_description.is_some() &&
+                       common_metadata.series_number.is_some() {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    common_metadata
 }

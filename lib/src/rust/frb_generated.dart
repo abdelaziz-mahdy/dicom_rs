@@ -62,7 +62,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.8.0';
 
   @override
-  int get rustContentHash => -657833462;
+  int get rustContentHash => 32432661;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -107,6 +107,17 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<String>> crateApiDicomRsInterfaceDicomHandlerListTags({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomStudy> crateApiDicomRsInterfaceDicomHandlerLoadCompleteStudy({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomStudy>
+  crateApiDicomRsInterfaceDicomHandlerLoadCompleteStudyRecursive({
     required DicomHandler that,
     required String path,
   });
@@ -159,6 +170,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<String>> crateApiDicomRsInterfaceListAllTags({
     required String path,
+  });
+
+  Future<DicomStudy> crateApiDicomRsInterfaceLoadCompleteStudy({
+    required String dirPath,
+    required bool recursive,
   });
 
   Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceLoadDicomDirectory({
@@ -467,6 +483,81 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DicomStudy> crateApiDicomRsInterfaceDicomHandlerLoadCompleteStudy({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_study,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiDicomRsInterfaceDicomHandlerLoadCompleteStudyConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiDicomRsInterfaceDicomHandlerLoadCompleteStudyConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_load_complete_study",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<DicomStudy>
+  crateApiDicomRsInterfaceDicomHandlerLoadCompleteStudyRecursive({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_study,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiDicomRsInterfaceDicomHandlerLoadCompleteStudyRecursiveConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiDicomRsInterfaceDicomHandlerLoadCompleteStudyRecursiveConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_load_complete_study_recursive",
+        argNames: ["that", "path"],
+      );
+
+  @override
   Future<List<DicomDirectoryEntry>>
   crateApiDicomRsInterfaceDicomHandlerLoadDirectory({
     required DicomHandler that,
@@ -481,7 +572,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 11,
             port: port_,
           );
         },
@@ -518,7 +609,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 12,
             port: port_,
           );
         },
@@ -556,7 +647,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 13,
             port: port_,
           );
         },
@@ -594,7 +685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 14,
             port: port_,
           );
         },
@@ -631,7 +722,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 15,
             port: port_,
           );
         },
@@ -661,7 +752,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -691,7 +782,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -721,7 +812,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -753,7 +844,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 19,
             port: port_,
           );
         },
@@ -784,7 +875,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 20,
             port: port_,
           );
         },
@@ -814,7 +905,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 21,
             port: port_,
           );
         },
@@ -833,6 +924,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_all_tags", argNames: ["path"]);
 
   @override
+  Future<DicomStudy> crateApiDicomRsInterfaceLoadCompleteStudy({
+    required String dirPath,
+    required bool recursive,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dirPath, serializer);
+          sse_encode_bool(recursive, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_study,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceLoadCompleteStudyConstMeta,
+        argValues: [dirPath, recursive],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceLoadCompleteStudyConstMeta =>
+      const TaskConstMeta(
+        debugName: "load_complete_study",
+        argNames: ["dirPath", "recursive"],
+      );
+
+  @override
   Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceLoadDicomDirectory({
     required String dirPath,
   }) {
@@ -844,7 +970,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 23,
             port: port_,
           );
         },
@@ -880,7 +1006,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 24,
             port: port_,
           );
         },
@@ -916,7 +1042,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 25,
             port: port_,
           );
         },
@@ -951,7 +1077,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 26,
             port: port_,
           );
         },
@@ -985,6 +1111,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DicomHandler dco_decode_box_autoadd_dicom_handler(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_dicom_handler(raw);
+  }
+
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
   }
 
   @protected
@@ -1058,13 +1190,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DicomInstance dco_decode_dicom_instance(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return DicomInstance(
       path: dco_decode_String(arr[0]),
       sopInstanceUid: dco_decode_opt_String(arr[1]),
       instanceNumber: dco_decode_opt_box_autoadd_i_32(arr[2]),
-      isValid: dco_decode_bool(arr[3]),
+      imagePosition: dco_decode_opt_list_prim_f_64_strict(arr[3]),
+      sliceLocation: dco_decode_opt_box_autoadd_f_64(arr[4]),
+      isValid: dco_decode_bool(arr[5]),
     );
   }
 
@@ -1072,8 +1206,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DicomMetadata dco_decode_dicom_metadata(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 18)
+      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
     return DicomMetadata(
       patientName: dco_decode_opt_String(arr[0]),
       patientId: dco_decode_opt_String(arr[1]),
@@ -1087,6 +1221,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       studyInstanceUid: dco_decode_opt_String(arr[9]),
       seriesInstanceUid: dco_decode_opt_String(arr[10]),
       sopInstanceUid: dco_decode_opt_String(arr[11]),
+      imagePosition: dco_decode_opt_list_prim_f_64_strict(arr[12]),
+      imageOrientation: dco_decode_opt_list_prim_f_64_strict(arr[13]),
+      sliceLocation: dco_decode_opt_box_autoadd_f_64(arr[14]),
+      sliceThickness: dco_decode_opt_box_autoadd_f_64(arr[15]),
+      spacingBetweenSlices: dco_decode_opt_box_autoadd_f_64(arr[16]),
+      pixelSpacing: dco_decode_opt_list_prim_f_64_strict(arr[17]),
     );
   }
 
@@ -1179,6 +1319,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double dco_decode_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -1235,6 +1381,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Float64List dco_decode_list_prim_f_64_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as Float64List;
+  }
+
+  @protected
   Int32List dco_decode_list_prim_i_32_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Int32List;
@@ -1253,6 +1405,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_32(raw);
@@ -1262,6 +1420,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int? dco_decode_opt_box_autoadd_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_16(raw);
+  }
+
+  @protected
+  Float64List? dco_decode_opt_list_prim_f_64_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_prim_f_64_strict(raw);
   }
 
   @protected
@@ -1307,6 +1471,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_dicom_handler(deserializer));
+  }
+
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_f_64(deserializer));
   }
 
   @protected
@@ -1388,11 +1558,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_path = sse_decode_String(deserializer);
     var var_sopInstanceUid = sse_decode_opt_String(deserializer);
     var var_instanceNumber = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_imagePosition = sse_decode_opt_list_prim_f_64_strict(deserializer);
+    var var_sliceLocation = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_isValid = sse_decode_bool(deserializer);
     return DicomInstance(
       path: var_path,
       sopInstanceUid: var_sopInstanceUid,
       instanceNumber: var_instanceNumber,
+      imagePosition: var_imagePosition,
+      sliceLocation: var_sliceLocation,
       isValid: var_isValid,
     );
   }
@@ -1412,6 +1586,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_studyInstanceUid = sse_decode_opt_String(deserializer);
     var var_seriesInstanceUid = sse_decode_opt_String(deserializer);
     var var_sopInstanceUid = sse_decode_opt_String(deserializer);
+    var var_imagePosition = sse_decode_opt_list_prim_f_64_strict(deserializer);
+    var var_imageOrientation = sse_decode_opt_list_prim_f_64_strict(
+      deserializer,
+    );
+    var var_sliceLocation = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_sliceThickness = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_spacingBetweenSlices = sse_decode_opt_box_autoadd_f_64(
+      deserializer,
+    );
+    var var_pixelSpacing = sse_decode_opt_list_prim_f_64_strict(deserializer);
     return DicomMetadata(
       patientName: var_patientName,
       patientId: var_patientId,
@@ -1425,6 +1609,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       studyInstanceUid: var_studyInstanceUid,
       seriesInstanceUid: var_seriesInstanceUid,
       sopInstanceUid: var_sopInstanceUid,
+      imagePosition: var_imagePosition,
+      imageOrientation: var_imageOrientation,
+      sliceLocation: var_sliceLocation,
+      sliceThickness: var_sliceThickness,
+      spacingBetweenSlices: var_spacingBetweenSlices,
+      pixelSpacing: var_pixelSpacing,
     );
   }
 
@@ -1520,6 +1710,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat32();
+  }
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
   }
 
   @protected
@@ -1626,6 +1822,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Float64List sse_decode_list_prim_f_64_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getFloat64List(len_);
+  }
+
+  @protected
   Int32List sse_decode_list_prim_i_32_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -1651,6 +1854,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_f_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1667,6 +1881,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_u_16(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  Float64List? sse_decode_opt_list_prim_f_64_strict(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_prim_f_64_strict(deserializer));
     } else {
       return null;
     }
@@ -1714,6 +1941,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_dicom_handler(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self, serializer);
   }
 
   @protected
@@ -1773,6 +2006,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.path, serializer);
     sse_encode_opt_String(self.sopInstanceUid, serializer);
     sse_encode_opt_box_autoadd_i_32(self.instanceNumber, serializer);
+    sse_encode_opt_list_prim_f_64_strict(self.imagePosition, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.sliceLocation, serializer);
     sse_encode_bool(self.isValid, serializer);
   }
 
@@ -1791,6 +2026,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.studyInstanceUid, serializer);
     sse_encode_opt_String(self.seriesInstanceUid, serializer);
     sse_encode_opt_String(self.sopInstanceUid, serializer);
+    sse_encode_opt_list_prim_f_64_strict(self.imagePosition, serializer);
+    sse_encode_opt_list_prim_f_64_strict(self.imageOrientation, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.sliceLocation, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.sliceThickness, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.spacingBetweenSlices, serializer);
+    sse_encode_opt_list_prim_f_64_strict(self.pixelSpacing, serializer);
   }
 
   @protected
@@ -1864,6 +2105,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_32(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat32(self);
+  }
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
   }
 
   @protected
@@ -1964,6 +2211,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_prim_f_64_strict(
+    Float64List self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putFloat64List(self);
+  }
+
+  @protected
   void sse_encode_list_prim_i_32_strict(
     Int32List self,
     SseSerializer serializer,
@@ -1994,6 +2251,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_i_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2010,6 +2277,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_u_16(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_list_prim_f_64_strict(
+    Float64List? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_prim_f_64_strict(self, serializer);
     }
   }
 

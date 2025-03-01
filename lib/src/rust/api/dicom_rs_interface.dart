@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dicom_rs_interface.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `convert_value_to_dicom_type`, `element_to_int`, `element_to_string`, `element_to_u16`, `element_to_u32`, `extract_all_tags`, `extract_metadata`, `organize_dicom_entries`, `process_directory_recursive`, `sort_dicom_entries`, `sort_dicom_hierarchy`
+// These functions are ignored because they are not marked as `pub`: `collect_common_series_metadata`, `collect_common_study_metadata`, `convert_value_to_dicom_type`, `element_to_float64_vector`, `element_to_float64`, `element_to_int`, `element_to_string`, `element_to_u16`, `element_to_u32`, `extract_all_tags`, `extract_metadata`, `organize_dicom_entries`, `process_directory_recursive`, `propagate_study_metadata`, `sort_dicom_entries`, `sort_dicom_hierarchy`, `sort_instances_by_position`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Loads a DICOM file from the given path
@@ -59,6 +59,15 @@ Future<List<DicomPatient>> loadDicomDirectoryOrganized({
   required String dirPath,
   required bool recursive,
 }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectoryOrganized(
+  dirPath: dirPath,
+  recursive: recursive,
+);
+
+/// Loads a complete study with propagated metadata
+Future<DicomStudy> loadCompleteStudy({
+  required String dirPath,
+  required bool recursive,
+}) => RustLib.instance.api.crateApiDicomRsInterfaceLoadCompleteStudy(
   dirPath: dirPath,
   recursive: recursive,
 );
@@ -159,6 +168,23 @@ class DicomHandler {
   /// Gets a list of all tag names in a DICOM file
   Future<List<String>> listTags({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerListTags(that: this, path: path);
+
+  /// Loads a directory and returns a complete study with metadata propagated to all slices
+  Future<DicomStudy> loadCompleteStudy({required String path}) => RustLib
+      .instance
+      .api
+      .crateApiDicomRsInterfaceDicomHandlerLoadCompleteStudy(
+        that: this,
+        path: path,
+      );
+
+  /// Loads a directory recursively and returns a complete study with metadata propagated to all slices
+  Future<DicomStudy> loadCompleteStudyRecursive({required String path}) =>
+      RustLib.instance.api
+          .crateApiDicomRsInterfaceDicomHandlerLoadCompleteStudyRecursive(
+            that: this,
+            path: path,
+          );
 
   /// Loads all DICOM files from a directory (non-recursive)
   Future<List<DicomDirectoryEntry>> loadDirectory({required String path}) =>
@@ -270,12 +296,16 @@ class DicomInstance {
   final String path;
   final String? sopInstanceUid;
   final int? instanceNumber;
+  final Float64List? imagePosition;
+  final double? sliceLocation;
   final bool isValid;
 
   const DicomInstance({
     required this.path,
     this.sopInstanceUid,
     this.instanceNumber,
+    this.imagePosition,
+    this.sliceLocation,
     required this.isValid,
   });
 
@@ -284,6 +314,8 @@ class DicomInstance {
       path.hashCode ^
       sopInstanceUid.hashCode ^
       instanceNumber.hashCode ^
+      imagePosition.hashCode ^
+      sliceLocation.hashCode ^
       isValid.hashCode;
 
   @override
@@ -294,6 +326,8 @@ class DicomInstance {
           path == other.path &&
           sopInstanceUid == other.sopInstanceUid &&
           instanceNumber == other.instanceNumber &&
+          imagePosition == other.imagePosition &&
+          sliceLocation == other.sliceLocation &&
           isValid == other.isValid;
 }
 
@@ -310,6 +344,12 @@ class DicomMetadata {
   final String? studyInstanceUid;
   final String? seriesInstanceUid;
   final String? sopInstanceUid;
+  final Float64List? imagePosition;
+  final Float64List? imageOrientation;
+  final double? sliceLocation;
+  final double? sliceThickness;
+  final double? spacingBetweenSlices;
+  final Float64List? pixelSpacing;
 
   const DicomMetadata({
     this.patientName,
@@ -324,6 +364,12 @@ class DicomMetadata {
     this.studyInstanceUid,
     this.seriesInstanceUid,
     this.sopInstanceUid,
+    this.imagePosition,
+    this.imageOrientation,
+    this.sliceLocation,
+    this.sliceThickness,
+    this.spacingBetweenSlices,
+    this.pixelSpacing,
   });
 
   @override
@@ -339,7 +385,13 @@ class DicomMetadata {
       seriesNumber.hashCode ^
       studyInstanceUid.hashCode ^
       seriesInstanceUid.hashCode ^
-      sopInstanceUid.hashCode;
+      sopInstanceUid.hashCode ^
+      imagePosition.hashCode ^
+      imageOrientation.hashCode ^
+      sliceLocation.hashCode ^
+      sliceThickness.hashCode ^
+      spacingBetweenSlices.hashCode ^
+      pixelSpacing.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -357,7 +409,13 @@ class DicomMetadata {
           seriesNumber == other.seriesNumber &&
           studyInstanceUid == other.studyInstanceUid &&
           seriesInstanceUid == other.seriesInstanceUid &&
-          sopInstanceUid == other.sopInstanceUid;
+          sopInstanceUid == other.sopInstanceUid &&
+          imagePosition == other.imagePosition &&
+          imageOrientation == other.imageOrientation &&
+          sliceLocation == other.sliceLocation &&
+          sliceThickness == other.sliceThickness &&
+          spacingBetweenSlices == other.spacingBetweenSlices &&
+          pixelSpacing == other.pixelSpacing;
 }
 
 class DicomPatient {
