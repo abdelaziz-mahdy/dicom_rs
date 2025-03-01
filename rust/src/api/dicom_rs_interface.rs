@@ -1,39 +1,84 @@
 use anyhow::Result;
 use dicom::{
-    core::value::{PrimitiveValue, Value},
+    core::value::{PrimitiveValue, Value, DataSetSequence},
     dictionary_std::{self, tags},
     object::{FileDicomObject, InMemDicomObject, mem::InMemElement},
 };
 use dicom::core::DataDictionary;
+// Import Tag correctly from dicom object module
+use dicom::object::Tag;
 use std::{fs, io::Cursor, path::Path, collections::HashMap};
 use std::cmp::Ordering;
 
 // Add dicom-pixeldata for better image handling
 use dicom_pixeldata::{image, PixelDecoder, ConvertOptions, VoiLutOption, BitDepthOption};
 
+// Add this at the top of the file with other tag definitions
+
+
 // #[frb(dart_metadata=("freezed"))]
+/// Represents different types of DICOM values that can be extracted from a DICOM file.
+/// 
+/// DICOM data can be stored in various formats, and this enum provides a convenient
+/// way to represent these different value types in a unified manner.
 #[derive(Clone, Debug)]
 pub enum DicomValueType {
+    /// String value (e.g., patient name, study description)
     Str(String),
+    /// Integer value (e.g., series number, instance number)
     Int(i32),
+    /// Floating point value (e.g., slice thickness)
     Float(f32),
+    /// List of integers (e.g., image dimensions)
     IntList(Vec<i32>),
+    /// List of floating point values (e.g., image position, orientation)
     FloatList(Vec<f32>),
+    /// List of strings (e.g., referenced study sequence)
     StrList(Vec<String>),
+    /// Represents an unknown or unsupported value type
     Unknown,
 }
 
 // #[frb(dart_metadata=("freezed"))]
+/// Represents a single DICOM tag with its value and metadata.
+/// 
+/// A DICOM tag consists of a unique identifier (tag), a value representation (VR),
+/// a descriptive name, and the actual data value.
 #[derive(Clone, Debug)]
 pub struct DicomTag {
+    /// The tag identifier in format 'GGGGEEEE' where G=group and E=element
     pub tag: String,
+    /// Value Representation - the DICOM data type (e.g., "CS", "DS", "UI")
     pub vr: String,
+    /// Human-readable name of the tag (e.g., "Patient Name", "Study Date")
     pub name: String,
+    /// The actual value of the tag
     pub value: DicomValueType,
+}
+
+// New structure to hold complete DICOM metadata map
+// #[frb(dart_metadata=("freezed"))]
+/// Complete mapping of all DICOM metadata in a file, organized both as a flat map
+/// and hierarchically by group.
+/// 
+/// This provides two different ways to access the same data:
+/// 1. By direct tag lookup using the full tag identifier
+/// 2. By group and element lookup for hierarchical navigation
+#[derive(Clone, Debug)]
+pub struct DicomMetadataMap {
+    /// Flat map of all tags indexed by their full tag identifier
+    pub tags: HashMap<String, DicomTag>,
+    /// Hierarchical map organized by group (first 4 digits of tag) and then by element
+    pub group_elements: HashMap<String, HashMap<String, DicomTag>>,
 }
 
 // Enhanced metadata structure with spatial information
 // #[frb(dart_metadata=("freezed"))]
+/// Core metadata extracted from a DICOM file with focus on patient, study, and spatial information.
+/// 
+/// This structure contains the most commonly used DICOM metadata for organizing and
+/// displaying medical images, including patient demographics, study information,
+/// and spatial positioning data needed for proper 3D reconstruction.
 #[derive(Clone, Debug)]
 pub struct DicomMetadata {
     pub patient_name: Option<String>,
@@ -61,6 +106,11 @@ pub struct DicomMetadata {
 }
 
 // #[frb(dart_metadata=("freezed"))]
+/// Represents a DICOM image's pixel data and associated parameters.
+/// 
+/// Contains the raw pixel data along with all the necessary information to
+/// properly interpret and display the image, including dimensions, bit depth,
+/// photometric interpretation, etc.
 #[derive(Clone, Debug)]
 pub struct DicomImage {
     pub width: u32,
@@ -76,6 +126,10 @@ pub struct DicomImage {
 }
 
 // #[frb(dart_metadata=("freezed"))]
+/// Complete representation of a DICOM file including its path, metadata, and all tags.
+/// 
+/// This structure provides access to both the commonly used metadata and the
+/// complete set of DICOM tags found in a file.
 #[derive(Clone, Debug)]
 pub struct DicomFile {
     pub path: String,
@@ -85,6 +139,10 @@ pub struct DicomFile {
 
 // Individual DICOM instance (file) with path and validity
 // #[frb(dart_metadata=("freezed"))]
+/// Represents a single DICOM instance (file) with spatial information for proper ordering.
+/// 
+/// Contains the minimal information needed to identify and spatially locate a DICOM
+/// instance within a series, which is essential for proper 3D reconstruction.
 #[derive(Clone, Debug)]
 pub struct DicomInstance {
     pub path: String,
@@ -97,6 +155,10 @@ pub struct DicomInstance {
 
 // Series containing instances
 // #[frb(dart_metadata=("freezed"))]
+/// Represents a DICOM series containing multiple image instances.
+/// 
+/// A series typically represents a single acquisition of images with the same
+/// imaging parameters, such as a CT scan or MRI sequence.
 #[derive(Clone, Debug)]
 pub struct DicomSeries {
     pub series_instance_uid: Option<String>,
@@ -108,6 +170,10 @@ pub struct DicomSeries {
 
 // Study containing series
 // #[frb(dart_metadata=("freezed"))]
+/// Represents a DICOM study containing multiple series.
+/// 
+/// A study represents a collection of image series acquired during a single
+/// patient visit, often including different types of image acquisitions.
 #[derive(Clone, Debug)]
 pub struct DicomStudy {
     pub study_instance_uid: Option<String>,
@@ -119,6 +185,10 @@ pub struct DicomStudy {
 
 // Patient containing studies
 // #[frb(dart_metadata=("freezed"))]
+/// Represents a patient with associated DICOM studies.
+/// 
+/// The top level of the DICOM information hierarchy, containing all studies
+/// associated with a particular patient.
 #[derive(Clone, Debug)]
 pub struct DicomPatient {
     pub patient_id: Option<String>,
@@ -128,6 +198,11 @@ pub struct DicomPatient {
 
 // Legacy structure for backward compatibility
 // #[frb(dart_metadata=("freezed"))]
+/// Legacy structure for backward compatibility, representing a single DICOM file
+/// found in a directory scan.
+/// 
+/// This structure provides a simpler, flat representation of DICOM data
+/// for scenarios where the hierarchical organization isn't needed.
 #[derive(Clone, Debug)]
 pub struct DicomDirectoryEntry {
     pub path: String,
@@ -135,10 +210,46 @@ pub struct DicomDirectoryEntry {
     pub is_valid: bool,
 }
 
+// DICOMDIR related structures
+// #[frb(dart_metadata=("freezed"))]
+/// Represents an entry in a DICOMDIR file, which can be a PATIENT, STUDY, SERIES, or IMAGE record.
+/// 
+/// DICOMDIR files are special DICOM files that serve as directories or catalogs of other
+/// DICOM files, typically found on removable media like CDs/DVDs or in PACS archives.
+#[derive(Clone, Debug)]
+pub struct DicomDirEntry {
+    pub path: String,
+    pub type_name: String,  // PATIENT, STUDY, SERIES, IMAGE, etc.
+    pub metadata: HashMap<String, DicomValueType>,
+    pub children: Vec<DicomDirEntry>,
+}
+
 // New DicomHandler struct to provide a cleaner interface
 // #[frb(dart_metadata=("freezed"))]
+/// Main interface for interacting with DICOM files and directories.
+/// 
+/// This handler provides a comprehensive set of methods for working with DICOM data,
+/// including loading files, extracting metadata, organizing files into proper patient/study/series
+/// hierarchies, and handling specialized formats like DICOMDIR.
 #[derive(Clone, Debug, Default)]
 pub struct DicomHandler {}
+
+// New struct to represent a 3D image volume.
+/// Represents a 3D volume constructed from a series of 2D DICOM slices.
+/// 
+/// This structure contains the assembled volumetric data from multiple DICOM slices,
+/// along with spatial information needed for proper 3D visualization and processing.
+/// The pixel_data is organized as a contiguous 3D array with dimensions width × height × depth.
+#[derive(Clone, Debug)]
+pub struct DicomVolume {
+    pub width: u32,
+    pub height: u32,
+    pub depth: u32,
+    pub pixel_data: Vec<u8>,       // Concatenated pixel data for all slices.
+    pub spacing: (f64, f64, f64),    // (spacing_x, spacing_y, spacing_z)
+    pub data_type: String,         // For example: "unsigned char", "short", etc.
+    pub num_components: u32,
+}
 
 // Helper functions for working with SmallVec values
 
@@ -399,22 +510,86 @@ fn convert_value_to_dicom_type(value: &Value<InMemDicomObject>) -> DicomValueTyp
 
 // Implementation of DicomHandler methods
 impl DicomHandler {
-    /// Creates a new DicomHandler instance
+    /// Creates a new DicomHandler instance.
+    /// 
+    /// # Returns
+    /// 
+    /// A new DicomHandler object ready to use for DICOM operations.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let handler = DicomHandler::new();
+    /// ```
     pub fn new() -> Self {
         Self {}
     }
 
-    /// Loads a DICOM file and returns detailed information
+    /// Loads a DICOM file and returns detailed information including all metadata and tags.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOM file to load
+    /// 
+    /// # Returns
+    /// 
+    /// A DicomFile containing the file path, metadata, and all tags, or an error if the file
+    /// cannot be loaded or is not a valid DICOM file.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let dicom_file = handler.load_file("/path/to/file.dcm")?;
+    /// println!("Patient name: {:?}", dicom_file.metadata.patient_name);
+    /// ```
     pub fn load_file(&self, path: String) -> Result<DicomFile, String> {
         load_dicom_file(path)
     }
     
-    /// Checks if a file is a valid DICOM file
+    /// Checks if a file is a valid DICOM file.
+    /// 
+    /// This is a lightweight check that only verifies the DICOM file header and doesn't
+    /// load the entire file or parse its contents.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the file to check
+    /// 
+    /// # Returns
+    /// 
+    /// `true` if the file is a valid DICOM file, `false` otherwise.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// if handler.is_valid_dicom("/path/to/file.dcm") {
+    ///     println!("This is a valid DICOM file");
+    /// }
+    /// ```
     pub fn is_valid_dicom(&self, path: String) -> bool {
         is_dicom_file(path)
     }
     
-    /// Gets all metadata from a DICOM file
+    /// Gets common metadata from a DICOM file.
+    /// 
+    /// Extracts frequently used metadata like patient information, study details,
+    /// and spatial data, without loading all tags.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOM file
+    /// 
+    /// # Returns
+    /// 
+    /// A DicomMetadata structure containing the extracted metadata, or an error if
+    /// the file cannot be loaded or parsed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let metadata = handler.get_metadata("/path/to/file.dcm")?;
+    /// println!("Patient: {:?}, Study: {:?}", metadata.patient_name, metadata.study_description);
+    /// ```
     pub fn get_metadata(&self, path: String) -> Result<DicomMetadata, String> {
         let file_path = Path::new(&path);
 
@@ -426,7 +601,25 @@ impl DicomHandler {
         extract_metadata(&obj).map_err(|e| e.to_string())
     }
     
-    /// Gets a list of all tags in a DICOM file
+    /// Gets a complete list of all tags present in a DICOM file.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOM file
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of DicomTag structures containing all tags found in the file,
+    /// or an error if the file cannot be loaded or parsed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let tags = handler.get_all_tags("/path/to/file.dcm")?;
+    /// for tag in tags {
+    ///     println!("{}: {:?}", tag.name, tag.value);
+    /// }
+    /// ```
     pub fn get_all_tags(&self, path: String) -> Result<Vec<DicomTag>, String> {
         let file_path = Path::new(&path);
 
@@ -438,58 +631,376 @@ impl DicomHandler {
         extract_all_tags(&obj).map_err(|e| e.to_string())
     }
     
-    /// Gets the value of a specific tag
+    /// Gets the value of a specific tag identified by its name.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOM file
+    /// * `tag_name` - The name of the tag to retrieve (e.g., "PatientName")
+    /// 
+    /// # Returns
+    /// 
+    /// The value of the requested tag as a DicomValueType, or an error if the file
+    /// cannot be loaded or the tag is not found.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let value = handler.get_tag_value("/path/to/file.dcm", "PatientName")?;
+    /// if let DicomValueType::Str(name) = value {
+    ///     println!("Patient name: {}", name);
+    /// }
+    /// ```
     pub fn get_tag_value(&self, path: String, tag_name: String) -> Result<DicomValueType, String> {
         get_tag_value(path, tag_name)
     }
     
-    /// Extracts raw pixel data from a DICOM file
+    /// Extracts raw pixel data and image parameters from a DICOM file.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOM file
+    /// 
+    /// # Returns
+    /// 
+    /// A DicomImage structure containing the pixel data and associated parameters,
+    /// or an error if the file cannot be loaded or the pixel data cannot be decoded.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let image = handler.get_pixel_data("/path/to/file.dcm")?;
+    /// println!("Image dimensions: {}x{}, {} bits", image.width, image.height, image.bits_allocated);
+    /// ```
     pub fn get_pixel_data(&self, path: String) -> Result<DicomImage, String> {
         extract_pixel_data(path)
     }
     
-    /// Gets image bytes encoded as PNG from a DICOM file
+    /// Gets image bytes encoded as PNG from a DICOM file for easy display.
+    /// 
+    /// This function handles windowing (contrast/brightness) automatically and
+    /// converts the DICOM pixel data to a standard PNG format suitable for display
+    /// in image viewers or web browsers.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOM file
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of bytes containing the PNG-encoded image, or an error if the file
+    /// cannot be loaded or encoded.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let png_bytes = handler.get_image_bytes("/path/to/file.dcm")?;
+    /// std::fs::write("output.png", &png_bytes)?;
+    /// ```
     pub fn get_image_bytes(&self, path: String) -> Result<Vec<u8>, String> {
         get_encoded_image(path)
     }
     
-    /// Loads all DICOM files from a directory (non-recursive)
+    /// Loads all DICOM files from a directory (non-recursive).
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the directory to scan
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of DicomDirectoryEntry structures, each representing one DICOM file
+    /// found in the directory, or an error if the directory cannot be accessed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let entries = handler.load_directory("/path/to/dicom/folder")?;
+    /// println!("Found {} DICOM files", entries.len());
+    /// ```
     pub fn load_directory(&self, path: String) -> Result<Vec<DicomDirectoryEntry>, String> {
         load_dicom_directory(path)
     }
     
-    /// Loads all DICOM files from a directory recursively
+    /// Loads all DICOM files from a directory and its subdirectories recursively.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the root directory to scan
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of DicomDirectoryEntry structures representing all DICOM files
+    /// found in the directory tree, or an error if directories cannot be accessed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let entries = handler.load_directory_recursive("/path/to/root/folder")?;
+    /// println!("Found {} DICOM files in all subdirectories", entries.len());
+    /// ```
     pub fn load_directory_recursive(&self, path: String) -> Result<Vec<DicomDirectoryEntry>, String> {
         load_dicom_directory_recursive(path)
     }
 
-    /// Gets a list of all tag names in a DICOM file
+    /// Gets a list of all tag names present in a DICOM file.
+    /// 
+    /// This is a simpler alternative to get_all_tags() that returns only the names
+    /// of the tags without their values, useful for UI dropdowns or tag selection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOM file
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of strings containing the names of all tags found in the file,
+    /// or an error if the file cannot be loaded or parsed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let tag_names = handler.list_tags("/path/to/file.dcm")?;
+    /// for name in tag_names {
+    ///     println!("Available tag: {}", name);
+    /// }
+    /// ```
     pub fn list_tags(&self, path: String) -> Result<Vec<String>, String> {
         list_all_tags(path)
     }
 
-    /// Loads all DICOM files from a directory (non-recursive) and groups by patient/study/series
+    /// Loads all DICOM files from a directory (non-recursive) and organizes them into a 
+    /// patient-study-series hierarchy.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the directory to scan
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of DicomPatient structures, each containing the hierarchical organization
+    /// of studies, series, and instances, or an error if the directory cannot be accessed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let patients = handler.load_directory_organized("/path/to/dicom/folder")?;
+    /// for patient in patients {
+    ///     println!("Patient: {:?}, Studies: {}", patient.patient_name, patient.studies.len());
+    /// }
+    /// ```
     pub fn load_directory_organized(&self, path: String) -> Result<Vec<DicomPatient>, String> {
         load_dicom_directory_organized(path, false)
     }
     
-    /// Loads all DICOM files from a directory recursively and groups by patient/study/series
+    /// Loads all DICOM files from a directory and its subdirectories recursively, 
+    /// and organizes them into a patient-study-series hierarchy.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the root directory to scan
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of DicomPatient structures containing the hierarchical organization
+    /// of all DICOM files found in the directory tree, or an error if directories
+    /// cannot be accessed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let patients = handler.load_directory_recursive_organized("/path/to/root/folder")?;
+    /// println!("Found {} patients across all subdirectories", patients.len());
+    /// ```
     pub fn load_directory_recursive_organized(&self, path: String) -> Result<Vec<DicomPatient>, String> {
         load_dicom_directory_organized(path, true)
     }
     
-    /// Loads a directory and returns a complete study with metadata propagated to all slices
+    /// Loads a directory and returns a complete study with metadata propagated to all slices.
+    /// 
+    /// This method is optimized for loading a single study from a directory, ensuring that
+    /// missing metadata is properly filled in across all slices for consistent display.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the directory containing the study
+    /// 
+    /// # Returns
+    /// 
+    /// A DicomStudy structure containing the complete study information with consistent
+    /// metadata across all series and instances, or an error if the directory cannot
+    /// be accessed or does not contain a valid study.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let study = handler.load_complete_study("/path/to/study/folder")?;
+    /// println!("Study: {:?}, Series: {}", study.study_description, study.series.len());
+    /// ```
     pub fn load_complete_study(&self, path: String) -> Result<DicomStudy, String> {
         load_complete_study(path, false)
     }
     
-    /// Loads a directory recursively and returns a complete study with metadata propagated to all slices
+    /// Loads a directory recursively and returns a complete study with metadata propagated to all slices.
+    /// 
+    /// Similar to load_complete_study(), but searches through subdirectories as well,
+    /// useful when studies are organized in a deeper folder structure.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the root directory to scan
+    /// 
+    /// # Returns
+    /// 
+    /// A DicomStudy structure containing the complete study information with consistent
+    /// metadata across all series and instances, or an error if directories cannot be
+    /// accessed or do not contain a valid study.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let study = handler.load_complete_study_recursive("/path/to/root/folder")?;
+    /// println!("Found study: {:?} with {} series", study.study_description, study.series.len());
+    /// ```
     pub fn load_complete_study_recursive(&self, path: String) -> Result<DicomStudy, String> {
         load_complete_study(path, true)
     }
+
+    /// Extracts all metadata from a DICOM file as a complete metadata map.
+    /// 
+    /// This provides both a flat and hierarchical representation of all metadata in the file,
+    /// allowing for more advanced navigation and lookup of DICOM attributes.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOM file
+    /// 
+    /// # Returns
+    /// 
+    /// A DicomMetadataMap containing both flat and hierarchical representations of all
+    /// metadata in the file, or an error if the file cannot be loaded or parsed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let metadata_map = handler.get_all_metadata("/path/to/file.dcm")?;
+    /// // Access by direct tag
+    /// let patient_name = metadata_map.tags.get("00100010");
+    /// // Access by group and element
+    /// let patient_id = metadata_map.group_elements.get("0010").and_then(|g| g.get("0020"));
+    /// ```
+    pub fn get_all_metadata(&self, path: String) -> Result<DicomMetadataMap, String> {
+        extract_all_metadata(&path)
+    }
+
+    /// Unified function to load DICOM files from a directory, handling both regular DICOM files and DICOMDIR.
+    /// 
+    /// This method automatically detects if a DICOMDIR file is present in the directory and uses it
+    /// for more efficient loading if available, otherwise falls back to scanning for individual DICOM files.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the directory to scan
+    /// * `recursive` - Whether to scan subdirectories recursively
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of DicomDirectoryEntry structures representing all DICOM files found,
+    /// or an error if directories cannot be accessed.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// // Will automatically use DICOMDIR if present
+    /// let entries = handler.load_directory_unified("/path/to/dicom/folder", false)?;
+    /// println!("Loaded {} DICOM files", entries.len());
+    /// ```
+    pub fn load_directory_unified(&self, path: String, recursive: bool) -> Result<Vec<DicomDirectoryEntry>, String> {
+        load_dicom_directory_unified(path, recursive)
+    }
+    
+    /// Check if a file is a DICOMDIR file.
+    /// 
+    /// DICOMDIR files are special DICOM files that serve as a directory or catalog of other DICOM files,
+    /// typically found on removable media like CDs/DVDs or in PACS archives.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the file to check
+    /// 
+    /// # Returns
+    /// 
+    /// `true` if the file is a DICOMDIR file, `false` otherwise
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// if handler.is_dicomdir("/path/to/DICOMDIR") {
+    ///     println!("This is a DICOMDIR catalog file");
+    /// }
+    /// ```
+    pub fn is_dicomdir(&self, path: String) -> bool {
+        is_dicomdir_file(&path)
+    }
+    
+    /// Parse a DICOMDIR file and return its hierarchical structure.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the DICOMDIR file
+    /// 
+    /// # Returns
+    /// 
+    /// A DicomDirEntry structure representing the root of the DICOMDIR hierarchy,
+    /// or an error if the file cannot be loaded or is not a valid DICOMDIR file.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let dicomdir = handler.parse_dicomdir("/path/to/DICOMDIR")?;
+    /// println!("DICOMDIR contains {} top-level entries", dicomdir.children.len());
+    /// ```
+    pub fn parse_dicomdir(&self, path: String) -> Result<DicomDirEntry, String> {
+        parse_dicomdir_file(path)
+    }
+
+    /// Loads a multi-slice volume from a directory of DICOM files.
+    /// 
+    /// This function loads all DICOM files in a directory, sorts them by spatial position,
+    /// and assembles them into a single 3D volume suitable for 3D visualization or processing.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - The path to the directory containing the DICOM slices
+    /// 
+    /// # Returns
+    /// 
+    /// A DicomVolume structure containing the assembled 3D volume data and associated
+    /// spatial information, or an error if the directory cannot be accessed or does not
+    /// contain a valid set of DICOM slices.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let volume = handler.load_volume("/path/to/slice/folder")?;
+    /// println!("Volume dimensions: {}x{}x{}", volume.width, volume.height, volume.depth);
+    /// println!("Voxel spacing: {:?}", volume.spacing);
+    /// ```
+    pub fn load_volume(&self, path: String) -> Result<DicomVolume, String> {
+        load_volume_from_directory(path)
+    }
 }
 
-/// Loads a DICOM file from the given path
+/// Loads a DICOM file from the given path and extracts all its data.
+/// 
+/// # Arguments
+/// 
+/// * `path` - The path to the DICOM file to load
+/// 
+/// # Returns
+/// 
+/// A DicomFile containing the file path, metadata, and all tags, or an error if the file
+/// cannot be loaded or is not a valid DICOM file.
 pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
     let file_path = Path::new(&path);
 
@@ -1553,3 +2064,558 @@ fn collect_common_series_metadata(series: &DicomSeries) -> DicomMetadata {
     
     common_metadata
 }
+
+/// Extract all metadata from a DICOM file as a complete map
+pub fn extract_all_metadata(path: &str) -> Result<DicomMetadataMap, String> {
+    let file_path = Path::new(path);
+
+    let obj = match FileDicomObject::<InMemDicomObject>::open_file(file_path) {
+        Ok(obj) => obj,
+        Err(e) => return Err(format!("Failed to open DICOM file: {}", e)),
+    };
+
+    let mut tags = HashMap::new();
+    let mut group_elements = HashMap::new();
+    let dict = dictionary_std::StandardDataDictionary;
+
+    for elem in obj.iter() {
+        let tag_value = elem.header().tag;
+        let group = format!("{:04X}", tag_value.group());
+        let element = format!("{:04X}", tag_value.element());
+        let tag_str = format!("{}{}", group, element);
+        let vr = elem.header().vr.to_string();
+
+        let name = dict
+            .by_tag(elem.header().tag)
+            .map(|entry| entry.alias.to_string())
+            .unwrap_or_else(|| format!("Unknown ({},{}) Group", group, element));
+
+        let value = convert_value_to_dicom_type(elem.value());
+
+        let dicom_tag = DicomTag {
+            tag: tag_str.clone(),
+            vr: vr.to_string(),
+            name: name.clone(),
+            value: value.clone(),
+        };
+
+        // Add to flat map
+        tags.insert(tag_str.clone(), dicom_tag.clone());
+
+        // Add to grouped map
+        let group_map = group_elements.entry(group).or_insert_with(HashMap::new);
+        group_map.insert(element, dicom_tag);
+    }
+
+    Ok(DicomMetadataMap {
+        tags,
+        group_elements,
+    })
+}
+
+/// Check if a file is a DICOMDIR file
+pub fn is_dicomdir_file(path: &str) -> bool {
+    let file_path = Path::new(path);
+    
+    if !file_path.exists() || file_path.is_dir() {
+        return false;
+    }
+    
+    // First check if it's a valid DICOM file
+    if !is_dicom_file(path.to_string()) {
+        return false;
+    }
+    
+    // Then check if it has the correct Media Storage SOP Class UID for DICOMDIR
+    if let Ok(obj) = FileDicomObject::<InMemDicomObject>::open_file(file_path) {
+        if let Ok(elem) = obj.element(tags::MEDIA_STORAGE_SOP_CLASS_UID) {
+            if let Some(sop_class) = element_to_string(elem) {
+                // DICOMDIR has this specific SOP class UID
+                return sop_class == "1.2.840.10008.1.3.10"; // Media Storage Directory Storage
+            }
+        }
+    }
+    
+    false
+}
+
+/// Parse a DICOMDIR file and return its structure
+pub fn parse_dicomdir_file(path: String) -> Result<DicomDirEntry, String> {
+    let file_path = Path::new(&path);
+    
+    if (!file_path.exists()) {
+        return Err(format!("File not found: {}", path));
+    }
+    
+    if (!is_dicomdir_file(&path)) {
+        return Err(format!("Not a valid DICOMDIR file: {}", path));
+    }
+    
+    let obj = match FileDicomObject::<InMemDicomObject>::open_file(file_path) {
+        Ok(obj) => obj,
+        Err(e) => return Err(format!("Failed to open DICOMDIR file: {}", e)),
+    };
+    
+    // DICOMDIR contains a directory record sequence
+    let dir_record_sequence = match obj.element(tags::DIRECTORY_RECORD_SEQUENCE) {
+        Ok(elem) => elem,
+        Err(e) => return Err(format!("Failed to find directory record sequence: {}", e)),
+    };
+    
+    let mut root = DicomDirEntry {
+        path: path.clone(),
+        type_name: "ROOT".to_string(),
+        metadata: HashMap::new(),
+        children: Vec::new(),
+    };
+    
+    // Add basic metadata to the root
+    if let Ok(elem) = obj.element(tags::MEDIA_STORAGE_SOP_INSTANCE_UID) {
+        if let Some(uid) = element_to_string(elem) {
+            root.metadata.insert("MediaStorageSOPInstanceUID".to_string(), DicomValueType::Str(uid));
+        }
+    }
+    
+    // Parse the directory records into a hierarchical structure
+    if let Value::Sequence(seq) = dir_record_sequence.value() {
+        parse_dicomdir_records(seq, &mut root, file_path.parent().unwrap_or(Path::new("")));
+    }
+    
+    // Return the root directory entry
+    Ok(root)
+}
+
+/// Parse the directory records into a hierarchical structure
+fn parse_dicomdir_records(seq: &DataSetSequence<InMemDicomObject>, parent: &mut DicomDirEntry, base_path: &Path) {
+    // DataSetSequence is not an iterator, we need to use its .items() method to get access to records
+    for record in seq.items() {
+        // Get record type
+        let record_type = record.element(tags::DIRECTORY_RECORD_TYPE)
+            .ok()
+            .and_then(|e| element_to_string(e))
+            .unwrap_or_else(|| "UNKNOWN".to_string());
+            
+        let mut entry = DicomDirEntry {
+            path: "".to_string(),
+            type_name: record_type.clone(),
+            metadata: HashMap::new(),
+            children: Vec::new(),
+        };
+        
+        // Extract common metadata
+        extract_dicomdir_record_metadata(record, &mut entry);
+        
+        // Handle file references for IMAGE records
+        if record_type == "IMAGE" {
+            if let Ok(elem) = record.element(tags::REFERENCED_FILE_ID) {
+                if let Some(file_path) = element_to_string(elem) {
+                    // Convert backslash-separated path to proper path
+                    let path_parts: Vec<&str> = file_path.split('\\').collect();
+                    let file_path = path_parts.join(std::path::MAIN_SEPARATOR.to_string().as_str());
+                    let full_path = base_path.join(file_path);
+                    
+                    if let Some(path_str) = full_path.to_str() {
+                        entry.path = path_str.to_string();
+                    }
+                }
+            }
+        }
+        
+        // Handle lower-level directory records (recursive)
+        // Using Tag::from for the Lower Level Directory Record Sequence (0004,1420)
+        let lower_level_tag = Tag::from((0x0004, 0x1420));
+        if let Ok(elem) = record.element(lower_level_tag) {
+            if let Value::Sequence(ref lower_seq) = elem.value() {
+                // Pass a reference to lower_seq to match the expected type
+                parse_dicomdir_records(lower_seq, &mut entry, base_path);
+            }
+        }
+        
+        // Add this entry to parent's children
+        parent.children.push(entry);
+    }
+}
+
+/// Extract metadata from a DICOMDIR record
+fn extract_dicomdir_record_metadata(record: &InMemDicomObject, entry: &mut DicomDirEntry) {
+    // Common DICOMDIR record elements to extract
+    let tags_to_extract = [
+        (tags::SPECIFIC_CHARACTER_SET, "SpecificCharacterSet"),
+        (tags::PATIENT_ID, "PatientID"),
+        (tags::PATIENT_NAME, "PatientName"),
+        (tags::PATIENT_BIRTH_DATE, "PatientBirthDate"),
+        (tags::PATIENT_SEX, "PatientSex"),
+        (tags::STUDY_DATE, "StudyDate"),
+        (tags::STUDY_TIME, "StudyTime"),
+        (tags::STUDY_DESCRIPTION, "StudyDescription"),
+        (tags::STUDY_INSTANCE_UID, "StudyInstanceUID"),
+        (tags::SERIES_DESCRIPTION, "SeriesDescription"),
+        (tags::SERIES_NUMBER, "SeriesNumber"),
+        (tags::MODALITY, "Modality"),
+        (tags::SERIES_INSTANCE_UID, "SeriesInstanceUID"),
+        (tags::INSTANCE_NUMBER, "InstanceNumber"),
+        (tags::SOP_INSTANCE_UID, "SOPInstanceUID"),
+        // Add more tags as needed
+    ];
+    
+    for (tag, name) in tags_to_extract.iter() {
+        if let Ok(elem) = record.element(*tag) {
+            let value = convert_value_to_dicom_type(elem.value());
+            entry.metadata.insert(name.to_string(), value);
+        }
+    }
+}
+
+/// Unified function to load DICOM files from a directory, handling both regular DICOM files and DICOMDIR
+pub fn load_dicom_directory_unified(dir_path: String, recursive: bool) -> Result<Vec<DicomDirectoryEntry>, String> {
+    let path = Path::new(&dir_path);
+    
+    if !path.exists() || !path.is_dir() {
+        return Err(format!("Invalid directory path: {}", dir_path));
+    }
+    
+    // First, check for DICOMDIR file in the directory
+    let potential_dicomdir = path.join("DICOMDIR");
+    let potential_dicomdir_lower = path.join("dicomdir");
+    
+    if potential_dicomdir.exists() && is_dicomdir_file(potential_dicomdir.to_str().unwrap_or("")) {
+        return load_from_dicomdir(potential_dicomdir.to_str().unwrap_or("").to_string());
+    } else if potential_dicomdir_lower.exists() && is_dicomdir_file(potential_dicomdir_lower.to_str().unwrap_or("")) {
+        return load_from_dicomdir(potential_dicomdir_lower.to_str().unwrap_or("").to_string());
+    }
+    
+    // If no DICOMDIR found, use the regular directory loading functions
+    if recursive {
+        load_dicom_directory_recursive(dir_path)
+    } else {
+        load_dicom_directory(dir_path)
+    }
+}
+
+/// Load DICOM files from a DICOMDIR catalog
+fn load_from_dicomdir(dicomdir_path: String) -> Result<Vec<DicomDirectoryEntry>, String> {
+    // Parse the DICOMDIR file
+    let dicomdir = parse_dicomdir_file(dicomdir_path.clone())?;
+    
+    let mut result = Vec::new();
+    
+    // Process the directory structure recursively
+    process_dicomdir_entries(&dicomdir, &mut result);
+    
+    if result.is_empty() {
+        return Err(format!("No valid DICOM images found in DICOMDIR: {}", dicomdir_path));
+    }
+    
+    // Sort the results using proper sorting algorithm for 3D space
+    sort_dicom_entries_by_position(&mut result);
+    
+    Ok(result)
+}
+
+/// Process DICOMDIR entries recursively to extract file paths and metadata
+fn process_dicomdir_entries(entry: &DicomDirEntry, result: &mut Vec<DicomDirectoryEntry>) {
+    // If this is an IMAGE entry with a valid path, add it to our results
+    if entry.type_name == "IMAGE" && !entry.path.is_empty() && Path::new(&entry.path).exists() {
+        // Create metadata from the available DICOMDIR information
+        let metadata = create_metadata_from_dicomdir_entry(entry);
+        
+        // Augment with full metadata if possible by loading the actual file
+        let mut dicom_entry = DicomDirectoryEntry {
+            path: entry.path.clone(),
+            metadata,
+            is_valid: true,
+        };
+        
+        // Try to load the actual file to get complete metadata
+        if let Ok(obj) = FileDicomObject::<InMemDicomObject>::open_file(&entry.path) {
+            if let Ok(full_metadata) = extract_metadata(&obj) {
+                dicom_entry.metadata = full_metadata;
+            }
+        }
+        
+        result.push(dicom_entry);
+    }
+    
+    // Process children recursively
+    for child in &entry.children {
+        process_dicomdir_entries(child, result);
+    }
+}
+
+/// Create basic metadata from a DICOMDIR entry
+fn create_metadata_from_dicomdir_entry(entry: &DicomDirEntry) -> DicomMetadata {
+    let mut metadata = DicomMetadata {
+        patient_name: None,
+        patient_id: None,
+        study_date: None,
+        accession_number: None,
+        modality: None,
+        study_description: None,
+        series_description: None,
+        instance_number: None,
+        series_number: None,
+        study_instance_uid: None,
+        series_instance_uid: None,
+        sop_instance_uid: None,
+        image_position: None,
+        image_orientation: None,
+        slice_location: None,
+        slice_thickness: None,
+        spacing_between_slices: None,
+        pixel_spacing: None,
+    };
+    
+    // Extract metadata from the DICOMDIR entry
+    for (key, value) in &entry.metadata {
+        match key.as_str() {
+            "PatientName" => {
+                if let DicomValueType::Str(name) = value {
+                    metadata.patient_name = Some(name.clone());
+                }
+            },
+            "PatientID" => {
+                if let DicomValueType::Str(id) = value {
+                    metadata.patient_id = Some(id.clone());
+                }
+            },
+            "StudyDate" => {
+                if let DicomValueType::Str(date) = value {
+                    metadata.study_date = Some(date.clone());
+                }
+            },
+            "StudyDescription" => {
+                if let DicomValueType::Str(desc) = value {
+                    metadata.study_description = Some(desc.clone());
+                }
+            },
+            "SeriesDescription" => {
+                if let DicomValueType::Str(desc) = value {
+                    metadata.series_description = Some(desc.clone());
+                }
+            },
+            "StudyInstanceUID" => {
+                if let DicomValueType::Str(uid) = value {
+                    metadata.study_instance_uid = Some(uid.clone());
+                }
+            },
+            "SeriesInstanceUID" => {
+                if let DicomValueType::Str(uid) = value {
+                    metadata.series_instance_uid = Some(uid.clone());
+                }
+            },
+            "SOPInstanceUID" => {
+                if let DicomValueType::Str(uid) = value {
+                    metadata.sop_instance_uid = Some(uid.clone());
+                }
+            },
+            "InstanceNumber" => {
+                if let DicomValueType::Int(num) = value {
+                    metadata.instance_number = Some(*num);
+                }
+            },
+            "SeriesNumber" => {
+                if let DicomValueType::Int(num) = value {
+                    metadata.series_number = Some(*num);
+                }
+            },
+            "Modality" => {
+                if let DicomValueType::Str(modality) = value {
+                    metadata.modality = Some(modality.clone());
+                }
+            },
+            _ => {}
+        }
+    }
+    
+    metadata
+}
+
+/// Sort DICOM entries based on position in 3D space using Image Position Patient
+fn sort_dicom_entries_by_position(entries: &mut Vec<DicomDirectoryEntry>) {
+    // First determine if we have Image Position Patient data
+    let has_positions = entries.iter().any(|e| e.metadata.image_position.is_some());
+    
+    if has_positions {
+        // Step 1: Compute the normal vector based on Image Orientation Patient
+        // from the first entry that has orientation data
+        let mut normal = [0.0, 0.0, 1.0]; // Default Z direction
+        
+        for entry in entries.iter() {
+            if let Some(orient) = &entry.metadata.image_orientation {
+                if orient.len() >= 6 {
+                    // Cross product of the first two orientation vectors
+                    // consistent with DICOM and VTK approach
+                    normal[0] = (orient[1] * orient[5]) - (orient[2] * orient[4]);
+                    normal[1] = (orient[2] * orient[3]) - (orient[0] * orient[5]);
+                    normal[2] = (orient[0] * orient[4]) - (orient[1] * orient[3]);
+                    break;
+                }
+            }
+        }
+        
+        // Step 2: Sort by projection of position onto the normal vector
+        entries.sort_by(|a, b| {
+            // Create owned default vectors to avoid temporary value issues
+            let default_pos = vec![0.0, 0.0, 0.0];
+            let pos_a = a.metadata.image_position.as_ref().unwrap_or(&default_pos);
+            let pos_b = b.metadata.image_position.as_ref().unwrap_or(&default_pos);
+            
+            let proj_a = if pos_a.len() >= 3 {
+                (normal[0] * pos_a[0]) + (normal[1] * pos_a[1]) + (normal[2] * pos_a[2])
+            } else { 0.0 };
+            
+            let proj_b = if pos_b.len() >= 3 {
+                (normal[0] * pos_b[0]) + (normal[1] * pos_b[1]) + (normal[2] * pos_b[2])
+            } else { 0.0 };
+            
+            proj_a.partial_cmp(&proj_b).unwrap_or(Ordering::Equal)
+        });
+        return;
+    }
+    
+    // If no positions, try slice location
+    let has_slice_loc = entries.iter().any(|e| e.metadata.slice_location.is_some());
+    if has_slice_loc {
+        entries.sort_by(|a, b| {
+            match (a.metadata.slice_location, b.metadata.slice_location) {
+                (Some(loc_a), Some(loc_b)) => loc_a.partial_cmp(&loc_b).unwrap_or(Ordering::Equal),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (None, None) => Ordering::Equal,
+            }
+        });
+        return;
+    }
+    
+    // As a last resort, sort by instance number
+    sort_dicom_entries(entries);
+}
+
+/// Compute correct slice spacing based on consecutive slices
+pub fn compute_slice_spacing(entries: &Vec<DicomDirectoryEntry>) -> Option<f64> {
+    if entries.len() < 2 {
+        return None;
+    }
+
+    // Try using image position patient
+    let has_positions = entries.iter().any(|e| e.metadata.image_position.is_some() && 
+                                            e.metadata.image_position.as_ref().unwrap().len() >= 3);
+    if has_positions {
+        // Find two consecutive slices with valid positions
+        for i in 0..entries.len()-1 {
+            if let (Some(pos1), Some(pos2)) = (&entries[i].metadata.image_position, &entries[i+1].metadata.image_position) {
+                if pos1.len() >= 3 && pos2.len() >= 3 {
+                    // Compute Euclidean distance between positions
+                    let dx = pos2[0] - pos1[0];
+                    let dy = pos2[1] - pos1[1];
+                    let dz = pos2[2] - pos1[2];
+                    return Some((dx*dx + dy*dy + dz*dz).sqrt());
+                }
+            }
+        }
+    }
+    
+    // Try using slice location
+    let has_slice_loc = entries.iter().any(|e| e.metadata.slice_location.is_some());
+    if has_slice_loc {
+        for i in 0..entries.len()-1 {
+            if let (Some(loc1), Some(loc2)) = (entries[i].metadata.slice_location, entries[i+1].metadata.slice_location) {
+                return Some((loc2 - loc1).abs());
+            }
+        }
+    }
+    
+    // Fall back to slice thickness if available
+    entries.iter()
+        .find_map(|e| e.metadata.slice_thickness)
+}
+
+/// Flip the image data vertically. This function assumes that pixel_data is
+/// organized as a contiguous array with each row of length `row_length` bytes.
+/// It creates a new Vec<u8> with the rows in reverse order.
+/// This mimics the VTK logic where the image's first row (top-left) is moved to the bottom.
+pub fn flip_vertically(pixel_data: &[u8], height: u32, row_length: usize) -> Vec<u8> {
+    let height_usize = height as usize;
+    let mut flipped = Vec::with_capacity(pixel_data.len());
+    for row in 0..height_usize {
+        let start = (height_usize - 1 - row) * row_length;
+        let end = start + row_length;
+        flipped.extend_from_slice(&pixel_data[start..end]);
+    }
+    flipped
+}
+
+/// Compute the row length (in bytes) for an image slice.
+/// Assumes row_length = width * (bits_allocated/8) * samples_per_pixel.
+fn compute_row_length(width: u32, bits_allocated: u16, samples_per_pixel: u16) -> usize {
+    let bytes_per_sample = ((bits_allocated as usize) + 7) / 8;
+    (width as usize) * bytes_per_sample * (samples_per_pixel as usize)
+}
+
+/// Loads a multi-slice volume from a directory of DICOM files using VTK-like logic.
+/// 1. It lists all DICOM files (using your existing load_dicom_directory function).
+/// 2. It sorts the files using spatial information (image position and/or slice location).
+/// 3. It reads and vertically flips each slice's pixel data.
+/// 4. It assembles all slices into one contiguous buffer.
+pub fn load_volume_from_directory(dir_path: String) -> Result<DicomVolume, String> {
+    // Load directory entries (non-recursive for simplicity)
+    let mut entries = load_dicom_directory(dir_path.clone())?;
+    if entries.is_empty() {
+        return Err("No valid DICOM files found in directory".to_string());
+    }
+    
+    // Sort the entries based on spatial information.
+    // (This function uses image position data, slice location, or instance number,
+    // similar to how vtkDICOMImageReader sorts files.)
+    sort_dicom_entries_by_position(&mut entries);
+
+    // Open the first file to retrieve common image parameters.
+    let first_entry = &entries[0];
+    let first_image = extract_pixel_data(first_entry.path.clone())?;
+    let width = first_image.width;
+    let height = first_image.height;
+    let bits_allocated = first_image.bits_allocated;
+    let samples_per_pixel = first_image.samples_per_pixel;
+    let row_length = compute_row_length(width, bits_allocated, samples_per_pixel);
+    
+    // Allocate a buffer for the full volume.
+    let depth = entries.len() as u32;
+    let slice_size = row_length * (height as usize);
+    let mut volume_buffer = Vec::with_capacity(slice_size * (depth as usize));
+
+    // For each sorted file, decode pixel data, flip vertically, and copy into volume.
+    for entry in entries.iter() {
+        let image = extract_pixel_data(entry.path.clone())?;
+        // Flip the image vertically (VTK does this because DICOM's first row is upper left)
+        let flipped_slice = flip_vertically(&image.pixel_data, image.height, row_length);
+        volume_buffer.extend(flipped_slice);
+    }
+    
+    // Compute spacing:
+    // Use pixel spacing from the first slice (usually [spacing_x, spacing_y])
+    // and compute slice spacing from consecutive slices.
+    let spacing_xy = match &first_entry.metadata.pixel_spacing {
+        Some(ps) if ps.len() >= 2 => (ps[0], ps[1]),
+        _ => (1.0, 1.0)
+    };
+    // Use compute_slice_spacing to compute spacing_z
+    let spacing_z = compute_slice_spacing(&entries).unwrap_or(1.0);
+    
+    // Set data type and number of components based on the first image
+    let data_type = if bits_allocated <= 8 {
+        "unsigned char".to_string()
+    } else {
+        "unsigned short".to_string()
+    };
+    
+    Ok(DicomVolume {
+        width,
+        height,
+        depth,
+        pixel_data: volume_buffer,
+        spacing: (spacing_xy.0, spacing_xy.1, spacing_z),
+        data_type,
+        num_components: samples_per_pixel as u32,
+    })
+}
+

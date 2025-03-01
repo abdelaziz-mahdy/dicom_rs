@@ -62,7 +62,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.8.0';
 
   @override
-  int get rustContentHash => 32432661;
+  int get rustContentHash => -204723926;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -73,7 +73,16 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<double?> crateApiDicomRsInterfaceComputeSliceSpacing({
+    required List<DicomDirectoryEntry> entries,
+  });
+
   Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerDefault();
+
+  Future<DicomMetadataMap> crateApiDicomRsInterfaceDicomHandlerGetAllMetadata({
+    required DicomHandler that,
+    required String path,
+  });
 
   Future<List<DicomTag>> crateApiDicomRsInterfaceDicomHandlerGetAllTags({
     required DicomHandler that,
@@ -99,6 +108,11 @@ abstract class RustLibApi extends BaseApi {
     required DicomHandler that,
     required String path,
     required String tagName,
+  });
+
+  Future<bool> crateApiDicomRsInterfaceDicomHandlerIsDicomdir({
+    required DicomHandler that,
+    required String path,
   });
 
   Future<bool> crateApiDicomRsInterfaceDicomHandlerIsValidDicom({
@@ -146,15 +160,42 @@ abstract class RustLibApi extends BaseApi {
     required String path,
   });
 
+  Future<List<DicomDirectoryEntry>>
+  crateApiDicomRsInterfaceDicomHandlerLoadDirectoryUnified({
+    required DicomHandler that,
+    required String path,
+    required bool recursive,
+  });
+
   Future<DicomFile> crateApiDicomRsInterfaceDicomHandlerLoadFile({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomVolume> crateApiDicomRsInterfaceDicomHandlerLoadVolume({
     required DicomHandler that,
     required String path,
   });
 
   Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerNew();
 
+  Future<DicomDirEntry> crateApiDicomRsInterfaceDicomHandlerParseDicomdir({
+    required DicomHandler that,
+    required String path,
+  });
+
+  Future<DicomMetadataMap> crateApiDicomRsInterfaceExtractAllMetadata({
+    required String path,
+  });
+
   Future<DicomImage> crateApiDicomRsInterfaceExtractPixelData({
     required String path,
+  });
+
+  Future<Uint8List> crateApiDicomRsInterfaceFlipVertically({
+    required List<int> pixelData,
+    required int height,
+    required BigInt rowLength,
   });
 
   Future<Uint8List> crateApiDicomRsInterfaceGetEncodedImage({
@@ -167,6 +208,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<bool> crateApiDicomRsInterfaceIsDicomFile({required String path});
+
+  Future<bool> crateApiDicomRsInterfaceIsDicomdirFile({required String path});
 
   Future<List<String>> crateApiDicomRsInterfaceListAllTags({
     required String path,
@@ -192,7 +235,21 @@ abstract class RustLibApi extends BaseApi {
     required String dirPath,
   });
 
+  Future<List<DicomDirectoryEntry>>
+  crateApiDicomRsInterfaceLoadDicomDirectoryUnified({
+    required String dirPath,
+    required bool recursive,
+  });
+
   Future<DicomFile> crateApiDicomRsInterfaceLoadDicomFile({
+    required String path,
+  });
+
+  Future<DicomVolume> crateApiDicomRsInterfaceLoadVolumeFromDirectory({
+    required String dirPath,
+  });
+
+  Future<DicomDirEntry> crateApiDicomRsInterfaceParseDicomdirFile({
     required String path,
   });
 }
@@ -206,6 +263,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  Future<double?> crateApiDicomRsInterfaceComputeSliceSpacing({
+    required List<DicomDirectoryEntry> entries,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_dicom_directory_entry(entries, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_f_64,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceComputeSliceSpacingConstMeta,
+        argValues: [entries],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceComputeSliceSpacingConstMeta =>
+      const TaskConstMeta(
+        debugName: "compute_slice_spacing",
+        argNames: ["entries"],
+      );
+
+  @override
   Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerDefault() {
     return handler.executeNormal(
       NormalTask(
@@ -214,7 +304,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 2,
             port: port_,
           );
         },
@@ -233,6 +323,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "dicom_handler_default", argNames: []);
 
   @override
+  Future<DicomMetadataMap> crateApiDicomRsInterfaceDicomHandlerGetAllMetadata({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_metadata_map,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceDicomHandlerGetAllMetadataConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiDicomRsInterfaceDicomHandlerGetAllMetadataConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_get_all_metadata",
+        argNames: ["that", "path"],
+      );
+
+  @override
   Future<List<DicomTag>> crateApiDicomRsInterfaceDicomHandlerGetAllTags({
     required DicomHandler that,
     required String path,
@@ -246,7 +372,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 4,
             port: port_,
           );
         },
@@ -281,7 +407,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 5,
             port: port_,
           );
         },
@@ -317,7 +443,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 6,
             port: port_,
           );
         },
@@ -352,7 +478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 7,
             port: port_,
           );
         },
@@ -390,7 +516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 8,
             port: port_,
           );
         },
@@ -412,6 +538,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiDicomRsInterfaceDicomHandlerIsDicomdir({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceDicomHandlerIsDicomdirConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerIsDicomdirConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_is_dicomdir",
+        argNames: ["that", "path"],
+      );
+
+  @override
   Future<bool> crateApiDicomRsInterfaceDicomHandlerIsValidDicom({
     required DicomHandler that,
     required String path,
@@ -425,7 +586,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 10,
             port: port_,
           );
         },
@@ -461,7 +622,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 11,
             port: port_,
           );
         },
@@ -496,7 +657,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 12,
             port: port_,
           );
         },
@@ -534,7 +695,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 13,
             port: port_,
           );
         },
@@ -572,7 +733,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 14,
             port: port_,
           );
         },
@@ -609,7 +770,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 15,
             port: port_,
           );
         },
@@ -647,7 +808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 16,
             port: port_,
           );
         },
@@ -685,7 +846,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 17,
             port: port_,
           );
         },
@@ -709,6 +870,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<DicomDirectoryEntry>>
+  crateApiDicomRsInterfaceDicomHandlerLoadDirectoryUnified({
+    required DicomHandler that,
+    required String path,
+    required bool recursive,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          sse_encode_bool(recursive, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 18,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_dicom_directory_entry,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiDicomRsInterfaceDicomHandlerLoadDirectoryUnifiedConstMeta,
+        argValues: [that, path, recursive],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiDicomRsInterfaceDicomHandlerLoadDirectoryUnifiedConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_load_directory_unified",
+        argNames: ["that", "path", "recursive"],
+      );
+
+  @override
   Future<DicomFile> crateApiDicomRsInterfaceDicomHandlerLoadFile({
     required DicomHandler that,
     required String path,
@@ -722,7 +923,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 19,
             port: port_,
           );
         },
@@ -744,6 +945,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DicomVolume> crateApiDicomRsInterfaceDicomHandlerLoadVolume({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_volume,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceDicomHandlerLoadVolumeConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerLoadVolumeConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_load_volume",
+        argNames: ["that", "path"],
+      );
+
+  @override
   Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerNew() {
     return handler.executeNormal(
       NormalTask(
@@ -752,7 +988,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 21,
             port: port_,
           );
         },
@@ -771,6 +1007,75 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "dicom_handler_new", argNames: []);
 
   @override
+  Future<DicomDirEntry> crateApiDicomRsInterfaceDicomHandlerParseDicomdir({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_dir_entry,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceDicomHandlerParseDicomdirConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiDicomRsInterfaceDicomHandlerParseDicomdirConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_parse_dicomdir",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<DicomMetadataMap> crateApiDicomRsInterfaceExtractAllMetadata({
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_metadata_map,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceExtractAllMetadataConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceExtractAllMetadataConstMeta =>
+      const TaskConstMeta(
+        debugName: "extract_all_metadata",
+        argNames: ["path"],
+      );
+
+  @override
   Future<DicomImage> crateApiDicomRsInterfaceExtractPixelData({
     required String path,
   }) {
@@ -782,7 +1087,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 24,
             port: port_,
           );
         },
@@ -801,6 +1106,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "extract_pixel_data", argNames: ["path"]);
 
   @override
+  Future<Uint8List> crateApiDicomRsInterfaceFlipVertically({
+    required List<int> pixelData,
+    required int height,
+    required BigInt rowLength,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(pixelData, serializer);
+          sse_encode_u_32(height, serializer);
+          sse_encode_usize(rowLength, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceFlipVerticallyConstMeta,
+        argValues: [pixelData, height, rowLength],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceFlipVerticallyConstMeta =>
+      const TaskConstMeta(
+        debugName: "flip_vertically",
+        argNames: ["pixelData", "height", "rowLength"],
+      );
+
+  @override
   Future<Uint8List> crateApiDicomRsInterfaceGetEncodedImage({
     required String path,
   }) {
@@ -812,7 +1154,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 26,
             port: port_,
           );
         },
@@ -844,7 +1186,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 27,
             port: port_,
           );
         },
@@ -875,7 +1217,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 28,
             port: port_,
           );
         },
@@ -894,6 +1236,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "is_dicom_file", argNames: ["path"]);
 
   @override
+  Future<bool> crateApiDicomRsInterfaceIsDicomdirFile({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceIsDicomdirFileConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceIsDicomdirFileConstMeta =>
+      const TaskConstMeta(debugName: "is_dicomdir_file", argNames: ["path"]);
+
+  @override
   Future<List<String>> crateApiDicomRsInterfaceListAllTags({
     required String path,
   }) {
@@ -905,7 +1275,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 30,
             port: port_,
           );
         },
@@ -937,7 +1307,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 31,
             port: port_,
           );
         },
@@ -970,7 +1340,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1006,7 +1376,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1042,7 +1412,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1066,6 +1436,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<DicomDirectoryEntry>>
+  crateApiDicomRsInterfaceLoadDicomDirectoryUnified({
+    required String dirPath,
+    required bool recursive,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dirPath, serializer);
+          sse_encode_bool(recursive, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_dicom_directory_entry,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceLoadDicomDirectoryUnifiedConstMeta,
+        argValues: [dirPath, recursive],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiDicomRsInterfaceLoadDicomDirectoryUnifiedConstMeta =>
+      const TaskConstMeta(
+        debugName: "load_dicom_directory_unified",
+        argNames: ["dirPath", "recursive"],
+      );
+
+  @override
   Future<DicomFile> crateApiDicomRsInterfaceLoadDicomFile({
     required String path,
   }) {
@@ -1077,7 +1484,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1094,6 +1501,103 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDicomRsInterfaceLoadDicomFileConstMeta =>
       const TaskConstMeta(debugName: "load_dicom_file", argNames: ["path"]);
+
+  @override
+  Future<DicomVolume> crateApiDicomRsInterfaceLoadVolumeFromDirectory({
+    required String dirPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dirPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 37,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_volume,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceLoadVolumeFromDirectoryConstMeta,
+        argValues: [dirPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceLoadVolumeFromDirectoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "load_volume_from_directory",
+        argNames: ["dirPath"],
+      );
+
+  @override
+  Future<DicomDirEntry> crateApiDicomRsInterfaceParseDicomdirFile({
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 38,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_dir_entry,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceParseDicomdirFileConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceParseDicomdirFileConstMeta =>
+      const TaskConstMeta(debugName: "parse_dicomdir_file", argNames: ["path"]);
+
+  @protected
+  Map<String, Map<String, DicomTag>> dco_decode_Map_String_Map_String_dicom_tag(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Map.fromEntries(
+      dco_decode_list_record_string_map_string_dicom_tag(
+        raw,
+      ).map((e) => MapEntry(e.$1, e.$2)),
+    );
+  }
+
+  @protected
+  Map<String, DicomTag> dco_decode_Map_String_dicom_tag(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Map.fromEntries(
+      dco_decode_list_record_string_dicom_tag(
+        raw,
+      ).map((e) => MapEntry(e.$1, e.$2)),
+    );
+  }
+
+  @protected
+  Map<String, DicomValueType> dco_decode_Map_String_dicom_value_type(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Map.fromEntries(
+      dco_decode_list_record_string_dicom_value_type(
+        raw,
+      ).map((e) => MapEntry(e.$1, e.$2)),
+    );
+  }
 
   @protected
   String dco_decode_String(dynamic raw) {
@@ -1129,6 +1633,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_box_autoadd_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  DicomDirEntry dco_decode_dicom_dir_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return DicomDirEntry(
+      path: dco_decode_String(arr[0]),
+      typeName: dco_decode_String(arr[1]),
+      metadata: dco_decode_Map_String_dicom_value_type(arr[2]),
+      children: dco_decode_list_dicom_dir_entry(arr[3]),
+    );
   }
 
   @protected
@@ -1231,6 +1749,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DicomMetadataMap dco_decode_dicom_metadata_map(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DicomMetadataMap(
+      tags: dco_decode_Map_String_dicom_tag(arr[0]),
+      groupElements: dco_decode_Map_String_Map_String_dicom_tag(arr[1]),
+    );
+  }
+
+  @protected
   DicomPatient dco_decode_dicom_patient(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1313,6 +1843,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DicomVolume dco_decode_dicom_volume(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return DicomVolume(
+      width: dco_decode_u_32(arr[0]),
+      height: dco_decode_u_32(arr[1]),
+      depth: dco_decode_u_32(arr[2]),
+      pixelData: dco_decode_list_prim_u_8_strict(arr[3]),
+      spacing: dco_decode_record_f_64_f_64_f_64(arr[4]),
+      dataType: dco_decode_String(arr[5]),
+      numComponents: dco_decode_u_32(arr[6]),
+    );
+  }
+
+  @protected
   double dco_decode_f_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
@@ -1334,6 +1881,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<DicomDirEntry> dco_decode_list_dicom_dir_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_dicom_dir_entry).toList();
   }
 
   @protected
@@ -1393,9 +1946,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as List<int>;
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  List<(String, DicomTag)> dco_decode_list_record_string_dicom_tag(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_record_string_dicom_tag)
+        .toList();
+  }
+
+  @protected
+  List<(String, DicomValueType)> dco_decode_list_record_string_dicom_value_type(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_record_string_dicom_value_type)
+        .toList();
+  }
+
+  @protected
+  List<(String, Map<String, DicomTag>)>
+  dco_decode_list_record_string_map_string_dicom_tag(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_record_string_map_string_dicom_tag)
+        .toList();
   }
 
   @protected
@@ -1429,6 +2017,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  (double, double, double) dco_decode_record_f_64_f_64_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3) {
+      throw Exception('Expected 3 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_f_64(arr[0]),
+      dco_decode_f_64(arr[1]),
+      dco_decode_f_64(arr[2]),
+    );
+  }
+
+  @protected
+  (String, DicomTag) dco_decode_record_string_dicom_tag(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (dco_decode_String(arr[0]), dco_decode_dicom_tag(arr[1]));
+  }
+
+  @protected
+  (String, DicomValueType) dco_decode_record_string_dicom_value_type(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (dco_decode_String(arr[0]), dco_decode_dicom_value_type(arr[1]));
+  }
+
+  @protected
+  (String, Map<String, DicomTag>) dco_decode_record_string_map_string_dicom_tag(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (dco_decode_String(arr[0]), dco_decode_Map_String_dicom_tag(arr[1]));
+  }
+
+  @protected
   int dco_decode_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -1450,6 +2086,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void dco_decode_unit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return;
+  }
+
+  @protected
+  BigInt dco_decode_usize(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
+  }
+
+  @protected
+  Map<String, Map<String, DicomTag>> sse_decode_Map_String_Map_String_dicom_tag(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_list_record_string_map_string_dicom_tag(
+      deserializer,
+    );
+    return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
+  Map<String, DicomTag> sse_decode_Map_String_dicom_tag(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_list_record_string_dicom_tag(deserializer);
+    return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
+  Map<String, DicomValueType> sse_decode_Map_String_dicom_value_type(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_list_record_string_dicom_value_type(deserializer);
+    return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
   }
 
   @protected
@@ -1489,6 +2160,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_16(deserializer));
+  }
+
+  @protected
+  DicomDirEntry sse_decode_dicom_dir_entry(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_path = sse_decode_String(deserializer);
+    var var_typeName = sse_decode_String(deserializer);
+    var var_metadata = sse_decode_Map_String_dicom_value_type(deserializer);
+    var var_children = sse_decode_list_dicom_dir_entry(deserializer);
+    return DicomDirEntry(
+      path: var_path,
+      typeName: var_typeName,
+      metadata: var_metadata,
+      children: var_children,
+    );
   }
 
   @protected
@@ -1619,6 +2305,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DicomMetadataMap sse_decode_dicom_metadata_map(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_tags = sse_decode_Map_String_dicom_tag(deserializer);
+    var var_groupElements = sse_decode_Map_String_Map_String_dicom_tag(
+      deserializer,
+    );
+    return DicomMetadataMap(tags: var_tags, groupElements: var_groupElements);
+  }
+
+  @protected
   DicomPatient sse_decode_dicom_patient(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_patientId = sse_decode_opt_String(deserializer);
@@ -1707,6 +2403,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DicomVolume sse_decode_dicom_volume(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_depth = sse_decode_u_32(deserializer);
+    var var_pixelData = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_spacing = sse_decode_record_f_64_f_64_f_64(deserializer);
+    var var_dataType = sse_decode_String(deserializer);
+    var var_numComponents = sse_decode_u_32(deserializer);
+    return DicomVolume(
+      width: var_width,
+      height: var_height,
+      depth: var_depth,
+      pixelData: var_pixelData,
+      spacing: var_spacing,
+      dataType: var_dataType,
+      numComponents: var_numComponents,
+    );
+  }
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat32();
@@ -1732,6 +2449,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DicomDirEntry> sse_decode_list_dicom_dir_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DicomDirEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_dicom_dir_entry(deserializer));
     }
     return ans_;
   }
@@ -1836,10 +2567,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  List<(String, DicomTag)> sse_decode_list_record_string_dicom_tag(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, DicomTag)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_string_dicom_tag(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<(String, DicomValueType)> sse_decode_list_record_string_dicom_value_type(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, DicomValueType)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_string_dicom_value_type(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<(String, Map<String, DicomTag>)>
+  sse_decode_list_record_string_map_string_dicom_tag(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, Map<String, DicomTag>)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_string_map_string_dicom_tag(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -1900,6 +2681,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  (double, double, double) sse_decode_record_f_64_f_64_f_64(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_f_64(deserializer);
+    var var_field1 = sse_decode_f_64(deserializer);
+    var var_field2 = sse_decode_f_64(deserializer);
+    return (var_field0, var_field1, var_field2);
+  }
+
+  @protected
+  (String, DicomTag) sse_decode_record_string_dicom_tag(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_dicom_tag(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
+  (String, DicomValueType) sse_decode_record_string_dicom_value_type(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_dicom_value_type(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
+  (String, Map<String, DicomTag>) sse_decode_record_string_map_string_dicom_tag(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_Map_String_dicom_tag(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
   int sse_decode_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint16();
@@ -1920,6 +2742,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_decode_unit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  void sse_encode_Map_String_Map_String_dicom_tag(
+    Map<String, Map<String, DicomTag>> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_record_string_map_string_dicom_tag(
+      self.entries.map((e) => (e.key, e.value)).toList(),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_Map_String_dicom_tag(
+    Map<String, DicomTag> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_record_string_dicom_tag(
+      self.entries.map((e) => (e.key, e.value)).toList(),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_Map_String_dicom_value_type(
+    Map<String, DicomValueType> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_record_string_dicom_value_type(
+      self.entries.map((e) => (e.key, e.value)).toList(),
+      serializer,
+    );
   }
 
   @protected
@@ -1959,6 +2823,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self, serializer);
+  }
+
+  @protected
+  void sse_encode_dicom_dir_entry(
+    DicomDirEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.path, serializer);
+    sse_encode_String(self.typeName, serializer);
+    sse_encode_Map_String_dicom_value_type(self.metadata, serializer);
+    sse_encode_list_dicom_dir_entry(self.children, serializer);
   }
 
   @protected
@@ -2035,6 +2911,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_dicom_metadata_map(
+    DicomMetadataMap self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_Map_String_dicom_tag(self.tags, serializer);
+    sse_encode_Map_String_Map_String_dicom_tag(self.groupElements, serializer);
+  }
+
+  @protected
   void sse_encode_dicom_patient(DicomPatient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_String(self.patientId, serializer);
@@ -2102,6 +2988,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_dicom_volume(DicomVolume self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_u_32(self.depth, serializer);
+    sse_encode_list_prim_u_8_strict(self.pixelData, serializer);
+    sse_encode_record_f_64_f_64_f_64(self.spacing, serializer);
+    sse_encode_String(self.dataType, serializer);
+    sse_encode_u_32(self.numComponents, serializer);
+  }
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat32(self);
@@ -2125,6 +3023,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_dicom_dir_entry(
+    List<DicomDirEntry> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_dicom_dir_entry(item, serializer);
     }
   }
 
@@ -2231,6 +3141,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_prim_u_8_loose(
+    List<int> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint8List(
+      self is Uint8List ? self : Uint8List.fromList(self),
+    );
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -2238,6 +3160,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_list_record_string_dicom_tag(
+    List<(String, DicomTag)> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_string_dicom_tag(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_record_string_dicom_value_type(
+    List<(String, DicomValueType)> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_string_dicom_value_type(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_record_string_map_string_dicom_tag(
+    List<(String, Map<String, DicomTag>)> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_string_map_string_dicom_tag(item, serializer);
+    }
   }
 
   @protected
@@ -2294,6 +3252,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_record_f_64_f_64_f_64(
+    (double, double, double) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.$1, serializer);
+    sse_encode_f_64(self.$2, serializer);
+    sse_encode_f_64(self.$3, serializer);
+  }
+
+  @protected
+  void sse_encode_record_string_dicom_tag(
+    (String, DicomTag) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.$1, serializer);
+    sse_encode_dicom_tag(self.$2, serializer);
+  }
+
+  @protected
+  void sse_encode_record_string_dicom_value_type(
+    (String, DicomValueType) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.$1, serializer);
+    sse_encode_dicom_value_type(self.$2, serializer);
+  }
+
+  @protected
+  void sse_encode_record_string_map_string_dicom_tag(
+    (String, Map<String, DicomTag>) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.$1, serializer);
+    sse_encode_Map_String_dicom_tag(self.$2, serializer);
+  }
+
+  @protected
   void sse_encode_u_16(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint16(self);
@@ -2314,5 +3313,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
   }
 }

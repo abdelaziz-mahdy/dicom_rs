@@ -21,6 +21,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   @protected
+  Map<String, Map<String, DicomTag>> dco_decode_Map_String_Map_String_dicom_tag(
+    dynamic raw,
+  );
+
+  @protected
+  Map<String, DicomTag> dco_decode_Map_String_dicom_tag(dynamic raw);
+
+  @protected
+  Map<String, DicomValueType> dco_decode_Map_String_dicom_value_type(
+    dynamic raw,
+  );
+
+  @protected
   String dco_decode_String(dynamic raw);
 
   @protected
@@ -37,6 +50,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_box_autoadd_u_16(dynamic raw);
+
+  @protected
+  DicomDirEntry dco_decode_dicom_dir_entry(dynamic raw);
 
   @protected
   DicomDirectoryEntry dco_decode_dicom_directory_entry(dynamic raw);
@@ -57,6 +73,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DicomMetadata dco_decode_dicom_metadata(dynamic raw);
 
   @protected
+  DicomMetadataMap dco_decode_dicom_metadata_map(dynamic raw);
+
+  @protected
   DicomPatient dco_decode_dicom_patient(dynamic raw);
 
   @protected
@@ -72,6 +91,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DicomValueType dco_decode_dicom_value_type(dynamic raw);
 
   @protected
+  DicomVolume dco_decode_dicom_volume(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
@@ -82,6 +104,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<DicomDirEntry> dco_decode_list_dicom_dir_entry(dynamic raw);
 
   @protected
   List<DicomDirectoryEntry> dco_decode_list_dicom_directory_entry(dynamic raw);
@@ -111,7 +136,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Int32List dco_decode_list_prim_i_32_strict(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<(String, DicomTag)> dco_decode_list_record_string_dicom_tag(dynamic raw);
+
+  @protected
+  List<(String, DicomValueType)> dco_decode_list_record_string_dicom_value_type(
+    dynamic raw,
+  );
+
+  @protected
+  List<(String, Map<String, DicomTag>)>
+  dco_decode_list_record_string_map_string_dicom_tag(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -129,6 +169,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Float64List? dco_decode_opt_list_prim_f_64_strict(dynamic raw);
 
   @protected
+  (double, double, double) dco_decode_record_f_64_f_64_f_64(dynamic raw);
+
+  @protected
+  (String, DicomTag) dco_decode_record_string_dicom_tag(dynamic raw);
+
+  @protected
+  (String, DicomValueType) dco_decode_record_string_dicom_value_type(
+    dynamic raw,
+  );
+
+  @protected
+  (String, Map<String, DicomTag>) dco_decode_record_string_map_string_dicom_tag(
+    dynamic raw,
+  );
+
+  @protected
   int dco_decode_u_16(dynamic raw);
 
   @protected
@@ -139,6 +195,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  BigInt dco_decode_usize(dynamic raw);
+
+  @protected
+  Map<String, Map<String, DicomTag>> sse_decode_Map_String_Map_String_dicom_tag(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Map<String, DicomTag> sse_decode_Map_String_dicom_tag(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Map<String, DicomValueType> sse_decode_Map_String_dicom_value_type(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -161,6 +235,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer);
 
   @protected
+  DicomDirEntry sse_decode_dicom_dir_entry(SseDeserializer deserializer);
+
+  @protected
   DicomDirectoryEntry sse_decode_dicom_directory_entry(
     SseDeserializer deserializer,
   );
@@ -181,6 +258,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DicomMetadata sse_decode_dicom_metadata(SseDeserializer deserializer);
 
   @protected
+  DicomMetadataMap sse_decode_dicom_metadata_map(SseDeserializer deserializer);
+
+  @protected
   DicomPatient sse_decode_dicom_patient(SseDeserializer deserializer);
 
   @protected
@@ -196,6 +276,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DicomValueType sse_decode_dicom_value_type(SseDeserializer deserializer);
 
   @protected
+  DicomVolume sse_decode_dicom_volume(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
@@ -206,6 +289,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<DicomDirEntry> sse_decode_list_dicom_dir_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DicomDirectoryEntry> sse_decode_list_dicom_directory_entry(
@@ -241,7 +329,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Int32List sse_decode_list_prim_i_32_strict(SseDeserializer deserializer);
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<(String, DicomTag)> sse_decode_list_record_string_dicom_tag(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<(String, DicomValueType)> sse_decode_list_record_string_dicom_value_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<(String, Map<String, DicomTag>)>
+  sse_decode_list_record_string_map_string_dicom_tag(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
@@ -261,6 +368,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (double, double, double) sse_decode_record_f_64_f_64_f_64(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  (String, DicomTag) sse_decode_record_string_dicom_tag(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  (String, DicomValueType) sse_decode_record_string_dicom_value_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  (String, Map<String, DicomTag>) sse_decode_record_string_map_string_dicom_tag(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_u_16(SseDeserializer deserializer);
 
   @protected
@@ -271,6 +398,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  void sse_encode_Map_String_Map_String_dicom_tag(
+    Map<String, Map<String, DicomTag>> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_Map_String_dicom_tag(
+    Map<String, DicomTag> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_Map_String_dicom_value_type(
+    Map<String, DicomValueType> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -294,6 +442,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_dicom_dir_entry(DicomDirEntry self, SseSerializer serializer);
+
+  @protected
   void sse_encode_dicom_directory_entry(
     DicomDirectoryEntry self,
     SseSerializer serializer,
@@ -315,6 +466,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_dicom_metadata(DicomMetadata self, SseSerializer serializer);
 
   @protected
+  void sse_encode_dicom_metadata_map(
+    DicomMetadataMap self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_dicom_patient(DicomPatient self, SseSerializer serializer);
 
   @protected
@@ -333,6 +490,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_dicom_volume(DicomVolume self, SseSerializer serializer);
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
@@ -343,6 +503,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_dicom_dir_entry(
+    List<DicomDirEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_dicom_directory_entry(
@@ -396,8 +562,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_record_string_dicom_tag(
+    List<(String, DicomTag)> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_record_string_dicom_value_type(
+    List<(String, DicomValueType)> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_record_string_map_string_dicom_tag(
+    List<(String, Map<String, DicomTag>)> self,
     SseSerializer serializer,
   );
 
@@ -420,6 +607,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_record_f_64_f_64_f_64(
+    (double, double, double) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_string_dicom_tag(
+    (String, DicomTag) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_string_dicom_value_type(
+    (String, DicomValueType) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_string_map_string_dicom_tag(
+    (String, Map<String, DicomTag>) self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_u_16(int self, SseSerializer serializer);
 
   @protected
@@ -430,6 +641,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
 }
 
 // Section: wire_class

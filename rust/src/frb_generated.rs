@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.8.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 32432661;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -204723926;
 
 // Section: executor
 
@@ -45,6 +45,44 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
+fn wire__crate__api__dicom_rs_interface__compute_slice_spacing_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "compute_slice_spacing",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_entries =
+                <Vec<crate::api::dicom_rs_interface::DicomDirectoryEntry>>::sse_decode(
+                    &mut deserializer,
+                );
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::dicom_rs_interface::compute_slice_spacing(&api_entries),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__dicom_rs_interface__dicom_handler_default_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -72,6 +110,43 @@ fn wire__crate__api__dicom_rs_interface__dicom_handler_default_impl(
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok(
                         crate::api::dicom_rs_interface::DicomHandler::default(),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__dicom_rs_interface__dicom_handler_get_all_metadata_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dicom_handler_get_all_metadata",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <crate::api::dicom_rs_interface::DicomHandler>::sse_decode(&mut deserializer);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::dicom_rs_interface::DicomHandler::get_all_metadata(
+                        &api_that, api_path,
                     )?;
                     Ok(output_ok)
                 })())
@@ -260,6 +335,45 @@ fn wire__crate__api__dicom_rs_interface__dicom_handler_get_tag_value_impl(
                         &api_that,
                         api_path,
                         api_tag_name,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__dicom_rs_interface__dicom_handler_is_dicomdir_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dicom_handler_is_dicomdir",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <crate::api::dicom_rs_interface::DicomHandler>::sse_decode(&mut deserializer);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::dicom_rs_interface::DicomHandler::is_dicomdir(
+                            &api_that, api_path,
+                        ),
                     )?;
                     Ok(output_ok)
                 })())
@@ -526,6 +640,47 @@ let api_path = <String>::sse_decode(&mut deserializer);deserializer.end(); move 
                     })())
                 } })
 }
+fn wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_unified_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dicom_handler_load_directory_unified",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <crate::api::dicom_rs_interface::DicomHandler>::sse_decode(&mut deserializer);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_recursive = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::dicom_rs_interface::DicomHandler::load_directory_unified(
+                            &api_that,
+                            api_path,
+                            api_recursive,
+                        )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__dicom_rs_interface__dicom_handler_load_file_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -555,6 +710,43 @@ fn wire__crate__api__dicom_rs_interface__dicom_handler_load_file_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::dicom_rs_interface::DicomHandler::load_file(
+                        &api_that, api_path,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__dicom_rs_interface__dicom_handler_load_volume_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dicom_handler_load_volume",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <crate::api::dicom_rs_interface::DicomHandler>::sse_decode(&mut deserializer);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::dicom_rs_interface::DicomHandler::load_volume(
                         &api_that, api_path,
                     )?;
                     Ok(output_ok)
@@ -596,6 +788,77 @@ fn wire__crate__api__dicom_rs_interface__dicom_handler_new_impl(
         },
     )
 }
+fn wire__crate__api__dicom_rs_interface__dicom_handler_parse_dicomdir_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dicom_handler_parse_dicomdir",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <crate::api::dicom_rs_interface::DicomHandler>::sse_decode(&mut deserializer);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::dicom_rs_interface::DicomHandler::parse_dicomdir(
+                        &api_that, api_path,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__dicom_rs_interface__extract_all_metadata_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "extract_all_metadata",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::dicom_rs_interface::extract_all_metadata(&api_path)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__dicom_rs_interface__extract_pixel_data_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -623,6 +886,46 @@ fn wire__crate__api__dicom_rs_interface__extract_pixel_data_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::dicom_rs_interface::extract_pixel_data(api_path)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__dicom_rs_interface__flip_vertically_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "flip_vertically",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_pixel_data = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_height = <u32>::sse_decode(&mut deserializer);
+            let api_row_length = <usize>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::dicom_rs_interface::flip_vertically(
+                            &api_pixel_data,
+                            api_height,
+                            api_row_length,
+                        ))?;
                     Ok(output_ok)
                 })())
             }
@@ -725,6 +1028,41 @@ fn wire__crate__api__dicom_rs_interface__is_dicom_file_impl(
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok(
                         crate::api::dicom_rs_interface::is_dicom_file(api_path),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__dicom_rs_interface__is_dicomdir_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "is_dicomdir_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::dicom_rs_interface::is_dicomdir_file(&api_path),
                     )?;
                     Ok(output_ok)
                 })())
@@ -908,6 +1246,43 @@ fn wire__crate__api__dicom_rs_interface__load_dicom_directory_recursive_impl(
         },
     )
 }
+fn wire__crate__api__dicom_rs_interface__load_dicom_directory_unified_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "load_dicom_directory_unified",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_dir_path = <String>::sse_decode(&mut deserializer);
+            let api_recursive = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::dicom_rs_interface::load_dicom_directory_unified(
+                        api_dir_path,
+                        api_recursive,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__dicom_rs_interface__load_dicom_file_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -941,8 +1316,112 @@ fn wire__crate__api__dicom_rs_interface__load_dicom_file_impl(
         },
     )
 }
+fn wire__crate__api__dicom_rs_interface__load_volume_from_directory_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "load_volume_from_directory",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_dir_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::dicom_rs_interface::load_volume_from_directory(api_dir_path)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__dicom_rs_interface__parse_dicomdir_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "parse_dicomdir_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::dicom_rs_interface::parse_dicomdir_file(api_path)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 
 // Section: dart2rust
+
+impl SseDecode
+    for std::collections::HashMap<
+        String,
+        std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <Vec<(
+            String,
+            std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+        )>>::sse_decode(deserializer);
+        return inner.into_iter().collect();
+    }
+}
+
+impl SseDecode for std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner =
+            <Vec<(String, crate::api::dicom_rs_interface::DicomTag)>>::sse_decode(deserializer);
+        return inner.into_iter().collect();
+    }
+}
+
+impl SseDecode
+    for std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomValueType>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <Vec<(String, crate::api::dicom_rs_interface::DicomValueType)>>::sse_decode(
+            deserializer,
+        );
+        return inner.into_iter().collect();
+    }
+}
 
 impl SseDecode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -956,6 +1435,26 @@ impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
+impl SseDecode for crate::api::dicom_rs_interface::DicomDirEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_typeName = <String>::sse_decode(deserializer);
+        let mut var_metadata = <std::collections::HashMap<
+            String,
+            crate::api::dicom_rs_interface::DicomValueType,
+        >>::sse_decode(deserializer);
+        let mut var_children =
+            <Vec<crate::api::dicom_rs_interface::DicomDirEntry>>::sse_decode(deserializer);
+        return crate::api::dicom_rs_interface::DicomDirEntry {
+            path: var_path,
+            type_name: var_typeName,
+            metadata: var_metadata,
+            children: var_children,
+        };
     }
 }
 
@@ -1089,6 +1588,24 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomMetadata {
     }
 }
 
+impl SseDecode for crate::api::dicom_rs_interface::DicomMetadataMap {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_tags = <std::collections::HashMap<
+            String,
+            crate::api::dicom_rs_interface::DicomTag,
+        >>::sse_decode(deserializer);
+        let mut var_groupElements = <std::collections::HashMap<
+            String,
+            std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+        >>::sse_decode(deserializer);
+        return crate::api::dicom_rs_interface::DicomMetadataMap {
+            tags: var_tags,
+            group_elements: var_groupElements,
+        };
+    }
+}
+
 impl SseDecode for crate::api::dicom_rs_interface::DicomPatient {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1198,6 +1715,28 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomValueType {
     }
 }
 
+impl SseDecode for crate::api::dicom_rs_interface::DicomVolume {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_width = <u32>::sse_decode(deserializer);
+        let mut var_height = <u32>::sse_decode(deserializer);
+        let mut var_depth = <u32>::sse_decode(deserializer);
+        let mut var_pixelData = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_spacing = <(f64, f64, f64)>::sse_decode(deserializer);
+        let mut var_dataType = <String>::sse_decode(deserializer);
+        let mut var_numComponents = <u32>::sse_decode(deserializer);
+        return crate::api::dicom_rs_interface::DicomVolume {
+            width: var_width,
+            height: var_height,
+            depth: var_depth,
+            pixel_data: var_pixelData,
+            spacing: var_spacing,
+            data_type: var_dataType,
+            num_components: var_numComponents,
+        };
+    }
+}
+
 impl SseDecode for f32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1226,6 +1765,20 @@ impl SseDecode for Vec<String> {
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::dicom_rs_interface::DicomDirEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::dicom_rs_interface::DicomDirEntry>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -1363,6 +1916,56 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<(String, crate::api::dicom_rs_interface::DicomTag)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(
+                <(String, crate::api::dicom_rs_interface::DicomTag)>::sse_decode(deserializer),
+            );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<(String, crate::api::dicom_rs_interface::DicomValueType)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(
+                <(String, crate::api::dicom_rs_interface::DicomValueType)>::sse_decode(
+                    deserializer,
+                ),
+            );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode
+    for Vec<(
+        String,
+        std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+    )>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<(
+                String,
+                std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+            )>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1418,6 +2021,52 @@ impl SseDecode for Option<Vec<f64>> {
     }
 }
 
+impl SseDecode for (f64, f64, f64) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <f64>::sse_decode(deserializer);
+        let mut var_field1 = <f64>::sse_decode(deserializer);
+        let mut var_field2 = <f64>::sse_decode(deserializer);
+        return (var_field0, var_field1, var_field2);
+    }
+}
+
+impl SseDecode for (String, crate::api::dicom_rs_interface::DicomTag) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <String>::sse_decode(deserializer);
+        let mut var_field1 = <crate::api::dicom_rs_interface::DicomTag>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
+impl SseDecode for (String, crate::api::dicom_rs_interface::DicomValueType) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <String>::sse_decode(deserializer);
+        let mut var_field1 =
+            <crate::api::dicom_rs_interface::DicomValueType>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
+impl SseDecode
+    for (
+        String,
+        std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+    )
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <String>::sse_decode(deserializer);
+        let mut var_field1 = <std::collections::HashMap<
+            String,
+            crate::api::dicom_rs_interface::DicomTag,
+        >>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
 impl SseDecode for u16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1444,6 +2093,13 @@ impl SseDecode for () {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
 }
 
+impl SseDecode for usize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
+    }
+}
+
 fn pde_ffi_dispatcher_primary_impl(
     func_id: i32,
     port: flutter_rust_bridge::for_generated::MessagePort,
@@ -1453,32 +2109,44 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-                        1 => wire__crate__api__dicom_rs_interface__dicom_handler_default_impl(port, ptr, rust_vec_len, data_len),
-2 => wire__crate__api__dicom_rs_interface__dicom_handler_get_all_tags_impl(port, ptr, rust_vec_len, data_len),
-3 => wire__crate__api__dicom_rs_interface__dicom_handler_get_image_bytes_impl(port, ptr, rust_vec_len, data_len),
-4 => wire__crate__api__dicom_rs_interface__dicom_handler_get_metadata_impl(port, ptr, rust_vec_len, data_len),
-5 => wire__crate__api__dicom_rs_interface__dicom_handler_get_pixel_data_impl(port, ptr, rust_vec_len, data_len),
-6 => wire__crate__api__dicom_rs_interface__dicom_handler_get_tag_value_impl(port, ptr, rust_vec_len, data_len),
-7 => wire__crate__api__dicom_rs_interface__dicom_handler_is_valid_dicom_impl(port, ptr, rust_vec_len, data_len),
-8 => wire__crate__api__dicom_rs_interface__dicom_handler_list_tags_impl(port, ptr, rust_vec_len, data_len),
-9 => wire__crate__api__dicom_rs_interface__dicom_handler_load_complete_study_impl(port, ptr, rust_vec_len, data_len),
-10 => wire__crate__api__dicom_rs_interface__dicom_handler_load_complete_study_recursive_impl(port, ptr, rust_vec_len, data_len),
-11 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_impl(port, ptr, rust_vec_len, data_len),
-12 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_organized_impl(port, ptr, rust_vec_len, data_len),
-13 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_recursive_impl(port, ptr, rust_vec_len, data_len),
-14 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_recursive_organized_impl(port, ptr, rust_vec_len, data_len),
-15 => wire__crate__api__dicom_rs_interface__dicom_handler_load_file_impl(port, ptr, rust_vec_len, data_len),
-16 => wire__crate__api__dicom_rs_interface__dicom_handler_new_impl(port, ptr, rust_vec_len, data_len),
-17 => wire__crate__api__dicom_rs_interface__extract_pixel_data_impl(port, ptr, rust_vec_len, data_len),
-18 => wire__crate__api__dicom_rs_interface__get_encoded_image_impl(port, ptr, rust_vec_len, data_len),
-19 => wire__crate__api__dicom_rs_interface__get_tag_value_impl(port, ptr, rust_vec_len, data_len),
-20 => wire__crate__api__dicom_rs_interface__is_dicom_file_impl(port, ptr, rust_vec_len, data_len),
-21 => wire__crate__api__dicom_rs_interface__list_all_tags_impl(port, ptr, rust_vec_len, data_len),
-22 => wire__crate__api__dicom_rs_interface__load_complete_study_impl(port, ptr, rust_vec_len, data_len),
-23 => wire__crate__api__dicom_rs_interface__load_dicom_directory_impl(port, ptr, rust_vec_len, data_len),
-24 => wire__crate__api__dicom_rs_interface__load_dicom_directory_organized_impl(port, ptr, rust_vec_len, data_len),
-25 => wire__crate__api__dicom_rs_interface__load_dicom_directory_recursive_impl(port, ptr, rust_vec_len, data_len),
-26 => wire__crate__api__dicom_rs_interface__load_dicom_file_impl(port, ptr, rust_vec_len, data_len),
+                        1 => wire__crate__api__dicom_rs_interface__compute_slice_spacing_impl(port, ptr, rust_vec_len, data_len),
+2 => wire__crate__api__dicom_rs_interface__dicom_handler_default_impl(port, ptr, rust_vec_len, data_len),
+3 => wire__crate__api__dicom_rs_interface__dicom_handler_get_all_metadata_impl(port, ptr, rust_vec_len, data_len),
+4 => wire__crate__api__dicom_rs_interface__dicom_handler_get_all_tags_impl(port, ptr, rust_vec_len, data_len),
+5 => wire__crate__api__dicom_rs_interface__dicom_handler_get_image_bytes_impl(port, ptr, rust_vec_len, data_len),
+6 => wire__crate__api__dicom_rs_interface__dicom_handler_get_metadata_impl(port, ptr, rust_vec_len, data_len),
+7 => wire__crate__api__dicom_rs_interface__dicom_handler_get_pixel_data_impl(port, ptr, rust_vec_len, data_len),
+8 => wire__crate__api__dicom_rs_interface__dicom_handler_get_tag_value_impl(port, ptr, rust_vec_len, data_len),
+9 => wire__crate__api__dicom_rs_interface__dicom_handler_is_dicomdir_impl(port, ptr, rust_vec_len, data_len),
+10 => wire__crate__api__dicom_rs_interface__dicom_handler_is_valid_dicom_impl(port, ptr, rust_vec_len, data_len),
+11 => wire__crate__api__dicom_rs_interface__dicom_handler_list_tags_impl(port, ptr, rust_vec_len, data_len),
+12 => wire__crate__api__dicom_rs_interface__dicom_handler_load_complete_study_impl(port, ptr, rust_vec_len, data_len),
+13 => wire__crate__api__dicom_rs_interface__dicom_handler_load_complete_study_recursive_impl(port, ptr, rust_vec_len, data_len),
+14 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_impl(port, ptr, rust_vec_len, data_len),
+15 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_organized_impl(port, ptr, rust_vec_len, data_len),
+16 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_recursive_impl(port, ptr, rust_vec_len, data_len),
+17 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_recursive_organized_impl(port, ptr, rust_vec_len, data_len),
+18 => wire__crate__api__dicom_rs_interface__dicom_handler_load_directory_unified_impl(port, ptr, rust_vec_len, data_len),
+19 => wire__crate__api__dicom_rs_interface__dicom_handler_load_file_impl(port, ptr, rust_vec_len, data_len),
+20 => wire__crate__api__dicom_rs_interface__dicom_handler_load_volume_impl(port, ptr, rust_vec_len, data_len),
+21 => wire__crate__api__dicom_rs_interface__dicom_handler_new_impl(port, ptr, rust_vec_len, data_len),
+22 => wire__crate__api__dicom_rs_interface__dicom_handler_parse_dicomdir_impl(port, ptr, rust_vec_len, data_len),
+23 => wire__crate__api__dicom_rs_interface__extract_all_metadata_impl(port, ptr, rust_vec_len, data_len),
+24 => wire__crate__api__dicom_rs_interface__extract_pixel_data_impl(port, ptr, rust_vec_len, data_len),
+25 => wire__crate__api__dicom_rs_interface__flip_vertically_impl(port, ptr, rust_vec_len, data_len),
+26 => wire__crate__api__dicom_rs_interface__get_encoded_image_impl(port, ptr, rust_vec_len, data_len),
+27 => wire__crate__api__dicom_rs_interface__get_tag_value_impl(port, ptr, rust_vec_len, data_len),
+28 => wire__crate__api__dicom_rs_interface__is_dicom_file_impl(port, ptr, rust_vec_len, data_len),
+29 => wire__crate__api__dicom_rs_interface__is_dicomdir_file_impl(port, ptr, rust_vec_len, data_len),
+30 => wire__crate__api__dicom_rs_interface__list_all_tags_impl(port, ptr, rust_vec_len, data_len),
+31 => wire__crate__api__dicom_rs_interface__load_complete_study_impl(port, ptr, rust_vec_len, data_len),
+32 => wire__crate__api__dicom_rs_interface__load_dicom_directory_impl(port, ptr, rust_vec_len, data_len),
+33 => wire__crate__api__dicom_rs_interface__load_dicom_directory_organized_impl(port, ptr, rust_vec_len, data_len),
+34 => wire__crate__api__dicom_rs_interface__load_dicom_directory_recursive_impl(port, ptr, rust_vec_len, data_len),
+35 => wire__crate__api__dicom_rs_interface__load_dicom_directory_unified_impl(port, ptr, rust_vec_len, data_len),
+36 => wire__crate__api__dicom_rs_interface__load_dicom_file_impl(port, ptr, rust_vec_len, data_len),
+37 => wire__crate__api__dicom_rs_interface__load_volume_from_directory_impl(port, ptr, rust_vec_len, data_len),
+38 => wire__crate__api__dicom_rs_interface__parse_dicomdir_file_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -1497,6 +2165,29 @@ fn pde_ffi_dispatcher_sync_impl(
 
 // Section: rust2dart
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomDirEntry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.path.into_into_dart().into_dart(),
+            self.type_name.into_into_dart().into_dart(),
+            self.metadata.into_into_dart().into_dart(),
+            self.children.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::dicom_rs_interface::DicomDirEntry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dicom_rs_interface::DicomDirEntry>
+    for crate::api::dicom_rs_interface::DicomDirEntry
+{
+    fn into_into_dart(self) -> crate::api::dicom_rs_interface::DicomDirEntry {
+        self
+    }
+}
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomDirectoryEntry {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -1650,6 +2341,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::dicom_rs_interface::DicomMeta
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomMetadataMap {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.tags.into_into_dart().into_dart(),
+            self.group_elements.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::dicom_rs_interface::DicomMetadataMap
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dicom_rs_interface::DicomMetadataMap>
+    for crate::api::dicom_rs_interface::DicomMetadataMap
+{
+    fn into_into_dart(self) -> crate::api::dicom_rs_interface::DicomMetadataMap {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomPatient {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1782,6 +2494,69 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::dicom_rs_interface::DicomValu
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomVolume {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.depth.into_into_dart().into_dart(),
+            self.pixel_data.into_into_dart().into_dart(),
+            self.spacing.into_into_dart().into_dart(),
+            self.data_type.into_into_dart().into_dart(),
+            self.num_components.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::dicom_rs_interface::DicomVolume
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dicom_rs_interface::DicomVolume>
+    for crate::api::dicom_rs_interface::DicomVolume
+{
+    fn into_into_dart(self) -> crate::api::dicom_rs_interface::DicomVolume {
+        self
+    }
+}
+
+impl SseEncode
+    for std::collections::HashMap<
+        String,
+        std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<(
+            String,
+            std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+        )>>::sse_encode(self.into_iter().collect(), serializer);
+    }
+}
+
+impl SseEncode for std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<(String, crate::api::dicom_rs_interface::DicomTag)>>::sse_encode(
+            self.into_iter().collect(),
+            serializer,
+        );
+    }
+}
+
+impl SseEncode
+    for std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomValueType>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<(String, crate::api::dicom_rs_interface::DicomValueType)>>::sse_encode(
+            self.into_iter().collect(),
+            serializer,
+        );
+    }
+}
 
 impl SseEncode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1794,6 +2569,16 @@ impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_u8(self as _).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::dicom_rs_interface::DicomDirEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.path, serializer);
+        <String>::sse_encode(self.type_name, serializer);
+        <std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomValueType>>::sse_encode(self.metadata, serializer);
+        <Vec<crate::api::dicom_rs_interface::DicomDirEntry>>::sse_encode(self.children, serializer);
     }
 }
 
@@ -1869,6 +2654,19 @@ impl SseEncode for crate::api::dicom_rs_interface::DicomMetadata {
         <Option<f64>>::sse_encode(self.slice_thickness, serializer);
         <Option<f64>>::sse_encode(self.spacing_between_slices, serializer);
         <Option<Vec<f64>>>::sse_encode(self.pixel_spacing, serializer);
+    }
+}
+
+impl SseEncode for crate::api::dicom_rs_interface::DicomMetadataMap {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>>::sse_encode(
+            self.tags, serializer,
+        );
+        <std::collections::HashMap<
+            String,
+            std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+        >>::sse_encode(self.group_elements, serializer);
     }
 }
 
@@ -1954,6 +2752,19 @@ impl SseEncode for crate::api::dicom_rs_interface::DicomValueType {
     }
 }
 
+impl SseEncode for crate::api::dicom_rs_interface::DicomVolume {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.width, serializer);
+        <u32>::sse_encode(self.height, serializer);
+        <u32>::sse_encode(self.depth, serializer);
+        <Vec<u8>>::sse_encode(self.pixel_data, serializer);
+        <(f64, f64, f64)>::sse_encode(self.spacing, serializer);
+        <String>::sse_encode(self.data_type, serializer);
+        <u32>::sse_encode(self.num_components, serializer);
+    }
+}
+
 impl SseEncode for f32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1981,6 +2792,16 @@ impl SseEncode for Vec<String> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::dicom_rs_interface::DicomDirEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::dicom_rs_interface::DicomDirEntry>::sse_encode(item, serializer);
         }
     }
 }
@@ -2085,6 +2906,46 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Vec<(String, crate::api::dicom_rs_interface::DicomTag)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(String, crate::api::dicom_rs_interface::DicomTag)>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<(String, crate::api::dicom_rs_interface::DicomValueType)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(String, crate::api::dicom_rs_interface::DicomValueType)>::sse_encode(
+                item, serializer,
+            );
+        }
+    }
+}
+
+impl SseEncode
+    for Vec<(
+        String,
+        std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+    )>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(
+                String,
+                std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+            )>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2135,6 +2996,46 @@ impl SseEncode for Option<Vec<f64>> {
     }
 }
 
+impl SseEncode for (f64, f64, f64) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.0, serializer);
+        <f64>::sse_encode(self.1, serializer);
+        <f64>::sse_encode(self.2, serializer);
+    }
+}
+
+impl SseEncode for (String, crate::api::dicom_rs_interface::DicomTag) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.0, serializer);
+        <crate::api::dicom_rs_interface::DicomTag>::sse_encode(self.1, serializer);
+    }
+}
+
+impl SseEncode for (String, crate::api::dicom_rs_interface::DicomValueType) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.0, serializer);
+        <crate::api::dicom_rs_interface::DicomValueType>::sse_encode(self.1, serializer);
+    }
+}
+
+impl SseEncode
+    for (
+        String,
+        std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>,
+    )
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.0, serializer);
+        <std::collections::HashMap<String, crate::api::dicom_rs_interface::DicomTag>>::sse_encode(
+            self.1, serializer,
+        );
+    }
+}
+
 impl SseEncode for u16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2159,6 +3060,16 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for usize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer
+            .cursor
+            .write_u64::<NativeEndian>(self as _)
+            .unwrap();
+    }
 }
 
 #[cfg(not(target_family = "wasm"))]

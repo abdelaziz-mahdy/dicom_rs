@@ -42,6 +42,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   bool _isLoading = false;
   Uint8List? _currentImageBytes;
   DicomMetadata? _currentMetadata;
+  DicomMetadataMap? _currentAllMetadata; // New state variable for complete metadata
   String? _directoryPath;
 
   Future<void> _pickDirectory() async {
@@ -180,10 +181,14 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     try {
       final imageBytes = await _dicomHandler.getImageBytes(path: path);
       final metadata = await _dicomHandler.getMetadata(path: path);
+      
+      // Use the new API to load all metadata
+      final allMetadata = await _dicomHandler.getAllMetadata(path: path);
 
       setState(() {
         _currentImageBytes = imageBytes;
         _currentMetadata = metadata;
+        _currentAllMetadata = allMetadata; // Store the complete metadata
       });
     } catch (e) {
       ScaffoldMessenger.of(
@@ -222,6 +227,29 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       }
     }
   }
+  
+  // New method to show full metadata for the current slice
+  void _showFullMetadata() {
+    if (_currentAllMetadata == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('DICOM Metadata - Slice ${_currentSliceIndex + 1}/${_dicomFiles.length}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: MetadataViewer(metadata: _currentAllMetadata!),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -236,6 +264,13 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
                 'Dir: ${_directoryPath!.split('/').last}',
                 style: const TextStyle(fontSize: 14),
               ),
+            ),
+          // Add a button to show metadata when an image is loaded
+          if (_currentImageBytes != null)
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              tooltip: 'Show Full Metadata',
+              onPressed: _showFullMetadata,
             ),
         ],
       ),
@@ -464,6 +499,111 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
         tooltip: 'Load DICOM Directory',
         child: const Icon(Icons.folder_open),
       ),
+    );
+  }
+}
+
+// New widget to display the metadata in a structured way
+class MetadataViewer extends StatelessWidget {
+  final DicomMetadataMap metadata;
+
+  const MetadataViewer({super.key, required this.metadata});
+
+  @override
+  Widget build(BuildContext context) {
+    // Create a more structured display by organizing tags by groups
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const TabBar(
+            tabs: [
+              Tab(text: 'By Group'),
+              Tab(text: 'All Tags'),
+            ],
+            labelColor: Colors.blue,
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                // Group view
+                _buildGroupsView(),
+                // Flat view
+                _buildAllTagsView(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupsView() {
+    // Sort groups by number
+    final groups = metadata.groupElements.keys.toList()
+      ..sort();
+    
+    return ListView.builder(
+      itemCount: groups.length,
+      itemBuilder: (context, index) {
+        final groupKey = groups[index];
+        final groupElements = metadata.groupElements[groupKey]!;
+        
+        return ExpansionTile(
+          title: Text('Group: $groupKey'),
+          children: groupElements.entries.map((entry) {
+            final tag = entry.value;
+            return _buildTagRow(tag);
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildAllTagsView() {
+    // Sort tags by tag ID
+    final allTags = metadata.tags.values.toList()
+      ..sort((a, b) => a.tag.compareTo(b.tag));
+    
+    return ListView.builder(
+      itemCount: allTags.length,
+      itemBuilder: (context, index) {
+        return _buildTagRow(allTags[index]);
+      },
+    );
+  }
+
+  Widget _buildTagRow(DicomTag tag) {
+    String valueText = '';
+    
+    switch (tag.value) {
+      case DicomValueType_Str(:final field0):
+        valueText = field0;
+      case DicomValueType_Int(:final field0):
+        valueText = field0.toString();
+      case DicomValueType_Float(:final field0):
+        valueText = field0.toString();
+      case DicomValueType_StrList(:final field0):
+        valueText = field0.join(', ');
+      case DicomValueType_IntList(:final field0):
+        valueText = field0.join(', ');
+      case DicomValueType_FloatList(:final field0):
+        valueText = field0.join(', ');
+      case DicomValueType_Unknown():
+        valueText = '<unknown>';
+    }
+    
+    return ListTile(
+      dense: true,
+      title: Text(tag.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Tag: ${tag.tag} | VR: ${tag.vr}', style: const TextStyle(fontSize: 12)),
+          Text(valueText),
+        ],
+      ),
+      isThreeLine: true,
     );
   }
 }
