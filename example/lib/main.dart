@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import 'package:file_picker/file_picker.dart';
@@ -38,10 +39,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   Uint8List? _currentImageBytes;
   DicomMetadata? _currentMetadata;
 
-  // Min and max values for windowing
-  double _minValue = 0;
-  double _maxValue = 255;
-
   Future<void> _pickDirectory() async {
     setState(() => _isLoading = true);
 
@@ -64,7 +61,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
         }
       }
     } catch (e) {
-      
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error loading directory: $e')));
@@ -110,6 +106,16 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     _loadDicomImage(_dicomFiles[_currentIndex].path);
   }
 
+  void _handleScroll(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      if (event.scrollDelta.dy > 0) {
+        _nextImage();
+      } else if (event.scrollDelta.dy < 0) {
+        _previousImage();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,14 +125,20 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Column(
                 children: [
-                  // Image display area
+                  // Image display area with scroll listener
                   Expanded(
                     flex: 3,
-                    child: Center(
-                      child:
-                          _currentImageBytes != null
-                              ? Image.memory(_currentImageBytes!)
-                              : const Text('No image loaded'),
+                    child: Listener(
+                      onPointerSignal: _handleScroll,
+                      child: Center(
+                        child:
+                            _currentImageBytes != null
+                                ? Image.memory(
+                                  _currentImageBytes!,
+                                  gaplessPlayback: true,
+                                )
+                                : const Text('No image loaded'),
+                      ),
                     ),
                   ),
 
@@ -153,56 +165,19 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
                       ),
                     ),
 
-                  // Min and Max sliders
+                  // Instructions for scrolling
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            const Text('Min: '),
-                            Expanded(
-                              child: Slider(
-                                min: 0,
-                                max: 255,
-                                value: _minValue,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _minValue =
-                                        value < _maxValue ? value : _minValue;
-                                  });
-                                  // In a real implementation, you would apply windowing here
-                                },
-                              ),
-                            ),
-                            Text(_minValue.toStringAsFixed(0)),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            const Text('Max: '),
-                            Expanded(
-                              child: Slider(
-                                min: 0,
-                                max: 255,
-                                value: _maxValue,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _maxValue =
-                                        value > _minValue ? value : _maxValue;
-                                  });
-                                  // In a real implementation, you would apply windowing here
-                                },
-                              ),
-                            ),
-                            Text(_maxValue.toStringAsFixed(0)),
-                          ],
-                        ),
-                      ],
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      'Scroll up/down to navigate between slices',
+                      style: TextStyle(
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ),
 
-                  // Navigation controls
+                  // Navigation controls (keeping as alternative)
                   if (_dicomFiles.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.all(8.0),
