@@ -1,21 +1,18 @@
 use anyhow::Result;
 use dicom::{
-    core::{
-        header::{Header, Tag},
-        value::{PrimitiveValue, Value},
-    },
+    core::value::{PrimitiveValue, Value},
     dictionary_std::{self, tags},
-    object::{FileDicomObject, InMemDicomObject, mem::InMemElement, DicomObject},
+    object::{FileDicomObject, InMemDicomObject, mem::InMemElement},
 };
-use dicom::core::DataDictionary;  // Add this trait import
-use flutter_rust_bridge::frb;
-use std::{fs, io::Cursor, path::Path};
+use dicom::core::DataDictionary;
+use std::{fs, io::Cursor, path::Path, collections::HashMap};
+use std::cmp::Ordering;
 
 // Add dicom-pixeldata for better image handling
-use dicom_pixeldata::{image,PixelDecoder, ConvertOptions, VoiLutOption, BitDepthOption};
+use dicom_pixeldata::{image, PixelDecoder, ConvertOptions, VoiLutOption, BitDepthOption};
 
 // #[frb(dart_metadata=("freezed"))]
-// #[derive(Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum DicomValueType {
     Str(String),
     Int(i32),
@@ -27,7 +24,7 @@ pub enum DicomValueType {
 }
 
 // #[frb(dart_metadata=("freezed"))]
-// #[derive(Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct DicomTag {
     pub tag: String,
     pub vr: String,
@@ -35,8 +32,9 @@ pub struct DicomTag {
     pub value: DicomValueType,
 }
 
+// Enhanced metadata structure with UIDs needed for proper organization
 // #[frb(dart_metadata=("freezed"))]
-// #[derive(Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct DicomMetadata {
     pub patient_name: Option<String>,
     pub patient_id: Option<String>,
@@ -47,10 +45,15 @@ pub struct DicomMetadata {
     pub series_description: Option<String>,
     pub instance_number: Option<i32>,
     pub series_number: Option<i32>,
+    
+    // Adding important UIDs for proper organization
+    pub study_instance_uid: Option<String>,
+    pub series_instance_uid: Option<String>,
+    pub sop_instance_uid: Option<String>,
 }
 
 // #[frb(dart_metadata=("freezed"))]
-// #[derive(Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct DicomImage {
     pub width: u32,
     pub height: u32,
@@ -65,15 +68,57 @@ pub struct DicomImage {
 }
 
 // #[frb(dart_metadata=("freezed"))]
-// #[derive(Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct DicomFile {
     pub path: String,
     pub metadata: DicomMetadata,
     pub all_tags: Vec<DicomTag>,
 }
 
+// Individual DICOM instance (file) with path and validity
 // #[frb(dart_metadata=("freezed"))]
-// #[derive(Clone, Debug)]
+#[derive(Clone, Debug)]
+pub struct DicomInstance {
+    pub path: String,
+    pub sop_instance_uid: Option<String>,
+    pub instance_number: Option<i32>,
+    pub is_valid: bool,
+}
+
+// Series containing instances
+// #[frb(dart_metadata=("freezed"))]
+#[derive(Clone, Debug)]
+pub struct DicomSeries {
+    pub series_instance_uid: Option<String>,
+    pub series_number: Option<i32>,
+    pub series_description: Option<String>,
+    pub modality: Option<String>,
+    pub instances: Vec<DicomInstance>,
+}
+
+// Study containing series
+// #[frb(dart_metadata=("freezed"))]
+#[derive(Clone, Debug)]
+pub struct DicomStudy {
+    pub study_instance_uid: Option<String>,
+    pub study_date: Option<String>,
+    pub study_description: Option<String>,
+    pub accession_number: Option<String>,
+    pub series: Vec<DicomSeries>,
+}
+
+// Patient containing studies
+// #[frb(dart_metadata=("freezed"))]
+#[derive(Clone, Debug)]
+pub struct DicomPatient {
+    pub patient_id: Option<String>,
+    pub patient_name: Option<String>,
+    pub studies: Vec<DicomStudy>,
+}
+
+// Legacy structure for backward compatibility
+// #[frb(dart_metadata=("freezed"))]
+#[derive(Clone, Debug)]
 pub struct DicomDirectoryEntry {
     pub path: String,
     pub metadata: DicomMetadata,
@@ -82,7 +127,7 @@ pub struct DicomDirectoryEntry {
 
 // New DicomHandler struct to provide a cleaner interface
 // #[frb(dart_metadata=("freezed"))]
-// #[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct DicomHandler {}
 
 // Helper functions for working with SmallVec values
@@ -412,6 +457,16 @@ impl DicomHandler {
     pub fn list_tags(&self, path: String) -> Result<Vec<String>, String> {
         list_all_tags(path)
     }
+
+    /// Loads all DICOM files from a directory (non-recursive) and groups by patient/study/series
+    pub fn load_directory_organized(&self, path: String) -> Result<Vec<DicomPatient>, String> {
+        load_dicom_directory_organized(path, false)
+    }
+    
+    /// Loads all DICOM files from a directory recursively and groups by patient/study/series
+    pub fn load_directory_recursive_organized(&self, path: String) -> Result<Vec<DicomPatient>, String> {
+        load_dicom_directory_organized(path, true)
+    }
 }
 
 /// Loads a DICOM file from the given path
@@ -473,6 +528,19 @@ fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMeta
     let series_number = obj.element_by_name("SeriesNumber")
         .ok()
         .and_then(|e| element_to_int(e));
+    
+    // Extract UIDs
+    let study_instance_uid = obj.element_by_name("StudyInstanceUID")
+        .ok()
+        .and_then(|e| element_to_string(e));
+        
+    let series_instance_uid = obj.element_by_name("SeriesInstanceUID")
+        .ok()
+        .and_then(|e| element_to_string(e));
+        
+    let sop_instance_uid = obj.element_by_name("SOPInstanceUID")
+        .ok()
+        .and_then(|e| element_to_string(e));
 
     Ok(DicomMetadata {
         patient_name,
@@ -484,6 +552,9 @@ fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMeta
         series_description,
         instance_number,
         series_number,
+        study_instance_uid,
+        series_instance_uid,
+        sop_instance_uid,
     })
 }
 
@@ -732,6 +803,9 @@ pub fn load_dicom_directory(dir_path: String) -> Result<Vec<DicomDirectoryEntry>
                                         series_description: None,
                                         instance_number: None,
                                         series_number: None,
+                                        study_instance_uid: None,
+                                        series_instance_uid: None,
+                                        sop_instance_uid: None,
                                     },
                                     is_valid: true,
                                 });
@@ -752,6 +826,9 @@ pub fn load_dicom_directory(dir_path: String) -> Result<Vec<DicomDirectoryEntry>
                                 series_description: None,
                                 instance_number: None,
                                 series_number: None,
+                                study_instance_uid: None,
+                                series_instance_uid: None,
+                                sop_instance_uid: None,
                             },
                             is_valid: false,
                         });
@@ -786,6 +863,166 @@ pub fn load_dicom_directory_recursive(
     sort_dicom_entries(&mut result);
 
     Ok(result)
+}
+
+/// Load all DICOM files from a directory and organize them hierarchically
+pub fn load_dicom_directory_organized(dir_path: String, recursive: bool) -> Result<Vec<DicomPatient>, String> {
+    // First collect all DICOM files
+    let entries = if recursive {
+        load_dicom_directory_recursive(dir_path)?
+    } else {
+        load_dicom_directory(dir_path)?
+    };
+    
+    // Organize them hierarchically
+    organize_dicom_entries(entries)
+}
+
+/// Organize flat list of DICOM entries into a hierarchical structure
+fn organize_dicom_entries(entries: Vec<DicomDirectoryEntry>) -> Result<Vec<DicomPatient>, String> {
+    // Maps to keep track of unique patients, studies, and series
+    let mut patients_map: HashMap<String, DicomPatient> = HashMap::new();
+    
+    for entry in entries {
+        if !entry.is_valid {
+            continue; // Skip invalid entries
+        }
+        
+        let meta = &entry.metadata;
+        
+        // Use defaults for missing identifiers
+        let patient_id = meta.patient_id.clone().unwrap_or_else(|| "UNKNOWN".to_string());
+        let study_uid = meta.study_instance_uid.clone().unwrap_or_else(|| "UNKNOWN".to_string());
+        let series_uid = meta.series_instance_uid.clone().unwrap_or_else(|| "UNKNOWN".to_string());
+        
+        // Create a new DICOM instance
+        let instance = DicomInstance {
+            path: entry.path,
+            sop_instance_uid: meta.sop_instance_uid.clone(),
+            instance_number: meta.instance_number,
+            is_valid: entry.is_valid,
+        };
+        
+        // Get or create the patient
+        let patient = patients_map.entry(patient_id.clone()).or_insert_with(|| {
+            DicomPatient {
+                patient_id: Some(patient_id.clone()),
+                patient_name: meta.patient_name.clone(),
+                studies: Vec::new(),
+            }
+        });
+        
+        // Find the study for this patient
+        let mut found_study = false;
+        for study in &mut patient.studies {
+            if let Some(existing_uid) = &study.study_instance_uid {
+                if *existing_uid == study_uid {
+                    found_study = true;
+                    
+                    // Find the series for this study
+                    let mut found_series = false;
+                    for series in &mut study.series {
+                        if let Some(existing_series_uid) = &series.series_instance_uid {
+                            if *existing_series_uid == series_uid {
+                                found_series = true;
+                                
+                                // Add the instance to this series
+                                series.instances.push(instance.clone());
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If series not found, create a new one
+                    if !found_series {
+                        let new_series = DicomSeries {
+                            series_instance_uid: Some(series_uid.clone()),
+                            series_number: meta.series_number,
+                            series_description: meta.series_description.clone(),
+                            modality: meta.modality.clone(),
+                            instances: vec![instance.clone()],
+                        };
+                        study.series.push(new_series);
+                    }
+                    
+                    break;
+                }
+            }
+        }
+        
+        // If study not found, create a new one
+        if !found_study {
+            let new_study = DicomStudy {
+                study_instance_uid: Some(study_uid),
+                study_date: meta.study_date.clone(),
+                study_description: meta.study_description.clone(),
+                accession_number: meta.accession_number.clone(),
+                series: vec![DicomSeries {
+                    series_instance_uid: Some(series_uid),
+                    series_number: meta.series_number,
+                    series_description: meta.series_description.clone(),
+                    modality: meta.modality.clone(),
+                    instances: vec![instance],
+                }],
+            };
+            patient.studies.push(new_study);
+        }
+    }
+    
+    // Convert the HashMap to a Vec and sort
+    let mut patients: Vec<DicomPatient> = patients_map.into_values().collect();
+    
+    // Sort everything appropriately
+    sort_dicom_hierarchy(&mut patients);
+    
+    Ok(patients)
+}
+
+/// Sort the entire DICOM hierarchy
+fn sort_dicom_hierarchy(patients: &mut Vec<DicomPatient>) {
+    // Sort patients by name (alphabetically)
+    patients.sort_by(|a, b| {
+        let name_a = &a.patient_name.as_deref().unwrap_or("Unknown");
+        let name_b = &b.patient_name.as_deref().unwrap_or("Unknown");
+        name_a.cmp(name_b)
+    });
+    
+    // Sort each patient's studies
+    for patient in patients {
+        // Sort studies by date (newest first)
+        patient.studies.sort_by(|a, b| {
+            let date_a = &a.study_date.as_deref().unwrap_or("");
+            let date_b = &b.study_date.as_deref().unwrap_or("");
+            // Reverse comparison to get newest first
+            date_b.cmp(date_a)
+        });
+        
+        // Sort each study's series
+        for study in &mut patient.studies {
+            // Sort series by series number
+            study.series.sort_by(|a, b| {
+                match (&a.series_number, &b.series_number) {
+                    (Some(a_num), Some(b_num)) => a_num.cmp(b_num),
+                    (Some(_), None) => Ordering::Less,
+                    (None, Some(_)) => Ordering::Greater,
+                    (None, None) => Ordering::Equal,
+                }
+            });
+            
+            // Sort instances within each series
+            for series in &mut study.series {
+                // Sort by instance number
+                series.instances.sort_by(|a, b| {
+                    match (&a.instance_number, &b.instance_number) {
+                        (Some(a_num), Some(b_num)) => a_num.cmp(b_num),
+                        (Some(_), None) => Ordering::Less,
+                        (None, Some(_)) => Ordering::Greater,
+                        (None, None) => Ordering::Equal,
+                    }
+                });
+            }
+        }
+    }
 }
 
 // Helper function to sort DICOM directory entries
@@ -863,6 +1100,9 @@ fn process_directory_recursive(
                                             series_description: None,
                                             instance_number: None,
                                             series_number: None,
+                                            study_instance_uid: None,
+                                            series_instance_uid: None,
+                                            sop_instance_uid: None,
                                         },
                                         is_valid: true,
                                     });
@@ -883,6 +1123,9 @@ fn process_directory_recursive(
                                     series_description: None,
                                     instance_number: None,
                                     series_number: None,
+                                    study_instance_uid: None,
+                                    series_instance_uid: None,
+                                    sop_instance_uid: None,
                                 },
                                 is_valid: false,
                             });
