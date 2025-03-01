@@ -1852,10 +1852,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       width: dco_decode_u_32(arr[0]),
       height: dco_decode_u_32(arr[1]),
       depth: dco_decode_u_32(arr[2]),
-      pixelData: dco_decode_list_prim_u_8_strict(arr[3]),
-      spacing: dco_decode_record_f_64_f_64_f_64(arr[4]),
-      dataType: dco_decode_String(arr[5]),
-      numComponents: dco_decode_u_32(arr[6]),
+      spacing: dco_decode_record_f_64_f_64_f_64(arr[3]),
+      dataType: dco_decode_String(arr[4]),
+      numComponents: dco_decode_u_32(arr[5]),
+      slices: dco_decode_list_list_prim_u_8_strict(arr[6]),
     );
   }
 
@@ -1925,6 +1925,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DicomTag> dco_decode_list_dicom_tag(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_dicom_tag).toList();
+  }
+
+  @protected
+  List<Uint8List> dco_decode_list_list_prim_u_8_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_list_prim_u_8_strict).toList();
   }
 
   @protected
@@ -2408,18 +2414,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_width = sse_decode_u_32(deserializer);
     var var_height = sse_decode_u_32(deserializer);
     var var_depth = sse_decode_u_32(deserializer);
-    var var_pixelData = sse_decode_list_prim_u_8_strict(deserializer);
     var var_spacing = sse_decode_record_f_64_f_64_f_64(deserializer);
     var var_dataType = sse_decode_String(deserializer);
     var var_numComponents = sse_decode_u_32(deserializer);
+    var var_slices = sse_decode_list_list_prim_u_8_strict(deserializer);
     return DicomVolume(
       width: var_width,
       height: var_height,
       depth: var_depth,
-      pixelData: var_pixelData,
       spacing: var_spacing,
       dataType: var_dataType,
       numComponents: var_numComponents,
+      slices: var_slices,
     );
   }
 
@@ -2541,6 +2547,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <DicomTag>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_dicom_tag(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Uint8List> sse_decode_list_list_prim_u_8_strict(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Uint8List>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_list_prim_u_8_strict(deserializer));
     }
     return ans_;
   }
@@ -2993,10 +3013,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.width, serializer);
     sse_encode_u_32(self.height, serializer);
     sse_encode_u_32(self.depth, serializer);
-    sse_encode_list_prim_u_8_strict(self.pixelData, serializer);
     sse_encode_record_f_64_f_64_f_64(self.spacing, serializer);
     sse_encode_String(self.dataType, serializer);
     sse_encode_u_32(self.numComponents, serializer);
+    sse_encode_list_list_prim_u_8_strict(self.slices, serializer);
   }
 
   @protected
@@ -3107,6 +3127,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_dicom_tag(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_list_prim_u_8_strict(
+    List<Uint8List> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_list_prim_u_8_strict(item, serializer);
     }
   }
 

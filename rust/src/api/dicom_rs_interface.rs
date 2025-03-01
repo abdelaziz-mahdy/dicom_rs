@@ -245,10 +245,11 @@ pub struct DicomVolume {
     pub width: u32,
     pub height: u32,
     pub depth: u32,
-    pub pixel_data: Vec<u8>,       // Concatenated pixel data for all slices.
     pub spacing: (f64, f64, f64),    // (spacing_x, spacing_y, spacing_z)
-    pub data_type: String,         // For example: "unsigned char", "short", etc.
+    pub data_type: String,         // e.g., "unsigned char" or "unsigned short"
     pub num_components: u32,
+    /// New field: PNG‑encoded image for each slice
+    pub slices: Vec<Vec<u8>>,
 }
 
 // Helper functions for working with SmallVec values
@@ -1194,7 +1195,7 @@ pub fn extract_pixel_data(path: String) -> Result<DicomImage, String> {
     let photometric_interpretation = obj.element(tags::PHOTOMETRIC_INTERPRETATION)
         .map_err(|e| format!("Failed to get photometric interpretation: {}", e))?;
     let photometric_interpretation = element_to_string(photometric_interpretation)
-        .ok_or_else(|| "Invalid photometric interpretation format".to_string())?;
+        .unwrap_or_else(|| "MONOCHROME2".to_string()); // Default to MONOCHROME2 if missing or invalid
 
     let samples_per_pixel = obj.element(tags::SAMPLES_PER_PIXEL)
         .map_err(|e| format!("Failed to get samples per pixel: {}", e))?;
@@ -1206,10 +1207,40 @@ pub fn extract_pixel_data(path: String) -> Result<DicomImage, String> {
         .ok()
         .and_then(|e| element_to_u16(e));
 
-    // Extract raw pixel data bytes using the native conversion method
+    // Extract raw pixel data bytes using a more robust approach with error handling
     let pixel_data_bytes = match decoded.to_vec() {
         Ok(data) => data,
-        Err(e) => return Err(format!("Failed to convert pixel data to vector: {}", e)),
+        Err(e) => {
+            // Try an alternative approach with direct frame access
+            let frames_count = decoded.number_of_frames();
+            
+            if frames_count > 0 {
+                let mut buffer = Vec::new();
+                
+                // Try to get raw frame data
+                let frame_bytes = match decoded.frame_data(0) {
+                    Ok(data) => data.to_vec(),
+                    Err(_) => {
+                        // Last resort: try to access the raw pixel data directly
+                        match obj.element(tags::PIXEL_DATA) {
+                            Ok(pixel_data_elem) => {
+                                if let Value::Primitive(PrimitiveValue::U8(bytes)) = pixel_data_elem.value() {
+                                    bytes.to_vec()
+                                } else {
+                                    return Err(format!("Cannot extract raw pixel data: unsupported format"));
+                                }
+                            },
+                            Err(_) => return Err(format!("Failed to access pixel data element"))
+                        }
+                    }
+                };
+                
+                buffer.extend_from_slice(&frame_bytes);
+                buffer
+            } else {
+                return Err(format!("Failed to convert pixel data to vector: {}", e));
+            }
+        }
     };
 
     Ok(DicomImage {
@@ -2430,50 +2461,66 @@ fn create_metadata_from_dicomdir_entry(entry: &DicomDirEntry) -> DicomMetadata {
     metadata
 }
 
-/// Sort DICOM entries based on position in 3D space using Image Position Patient
 fn sort_dicom_entries_by_position(entries: &mut Vec<DicomDirectoryEntry>) {
-    // First determine if we have Image Position Patient data
-    let has_positions = entries.iter().any(|e| e.metadata.image_position.is_some());
-    
-    if has_positions {
-        // Step 1: Compute the normal vector based on Image Orientation Patient
-        // from the first entry that has orientation data
-        let mut normal = [0.0, 0.0, 1.0]; // Default Z direction
-        
+    // Check if any entry has valid Image Position and Orientation Patient data.
+    if let Some(first_with_orientation) = entries.iter().find(|e| {
+        e.metadata.image_orientation.as_ref().map(|v| v.len() >= 6).unwrap_or(false) &&
+        e.metadata.image_position.as_ref().map(|v| v.len() >= 3).unwrap_or(false)
+    }) {
+        // Use the orientation from the first entry with valid orientation.
+        let orient = first_with_orientation.metadata.image_orientation.as_ref().unwrap();
+        let mut normal = [0.0, 0.0, 1.0];
+        normal[0] = (orient[1] * orient[5]) - (orient[2] * orient[4]);
+        normal[1] = (orient[2] * orient[3]) - (orient[0] * orient[5]);
+        normal[2] = (orient[0] * orient[4]) - (orient[1] * orient[3]);
+
+        // Look for the first two entries with valid image position.
+        let mut proj_vals = Vec::new();
         for entry in entries.iter() {
-            if let Some(orient) = &entry.metadata.image_orientation {
-                if orient.len() >= 6 {
-                    // Cross product of the first two orientation vectors
-                    // consistent with DICOM and VTK approach
-                    normal[0] = (orient[1] * orient[5]) - (orient[2] * orient[4]);
-                    normal[1] = (orient[2] * orient[3]) - (orient[0] * orient[5]);
-                    normal[2] = (orient[0] * orient[4]) - (orient[1] * orient[3]);
-                    break;
+            if let Some(pos) = &entry.metadata.image_position {
+                if pos.len() >= 3 {
+                    let proj = normal[0] * pos[0] + normal[1] * pos[1] + normal[2] * pos[2];
+                    proj_vals.push(proj);
+                    if proj_vals.len() == 2 {
+                        break;
+                    }
                 }
             }
         }
-        
-        // Step 2: Sort by projection of position onto the normal vector
-        entries.sort_by(|a, b| {
-            // Create owned default vectors to avoid temporary value issues
-            let default_pos = vec![0.0, 0.0, 0.0];
-            let pos_a = a.metadata.image_position.as_ref().unwrap_or(&default_pos);
-            let pos_b = b.metadata.image_position.as_ref().unwrap_or(&default_pos);
-            
-            let proj_a = if pos_a.len() >= 3 {
-                (normal[0] * pos_a[0]) + (normal[1] * pos_a[1]) + (normal[2] * pos_a[2])
-            } else { 0.0 };
-            
-            let proj_b = if pos_b.len() >= 3 {
-                (normal[0] * pos_b[0]) + (normal[1] * pos_b[1]) + (normal[2] * pos_b[2])
-            } else { 0.0 };
-            
-            proj_a.partial_cmp(&proj_b).unwrap_or(Ordering::Equal)
-        });
-        return;
+
+        // If we found at least two slices, determine sort order.
+        if proj_vals.len() >= 2 {
+            // If the first slice's projection is greater than the second, we need descending order.
+            let reverse = proj_vals[0] > proj_vals[1];
+
+            entries.sort_by(|a, b| {
+                let default_pos = vec![0.0, 0.0, 0.0];
+                let pos_a = a.metadata.image_position.as_ref().unwrap_or(&default_pos);
+                let pos_b = b.metadata.image_position.as_ref().unwrap_or(&default_pos);
+                let proj_a = if pos_a.len() >= 3 {
+                    normal[0] * pos_a[0] + normal[1] * pos_a[1] + normal[2] * pos_a[2]
+                } else {
+                    0.0
+                };
+                let proj_b = if pos_b.len() >= 3 {
+                    normal[0] * pos_b[0] + normal[1] * pos_b[1] + normal[2] * pos_b[2]
+                } else {
+                    0.0
+                };
+
+                if reverse {
+                    // Sort in descending order.
+                    proj_b.partial_cmp(&proj_a).unwrap_or(Ordering::Equal)
+                } else {
+                    // Sort in ascending order.
+                    proj_a.partial_cmp(&proj_b).unwrap_or(Ordering::Equal)
+                }
+            });
+            return;
+        }
     }
-    
-    // If no positions, try slice location
+
+    // Fallback if no valid image position/orientation is available:
     let has_slice_loc = entries.iter().any(|e| e.metadata.slice_location.is_some());
     if has_slice_loc {
         entries.sort_by(|a, b| {
@@ -2486,8 +2533,8 @@ fn sort_dicom_entries_by_position(entries: &mut Vec<DicomDirectoryEntry>) {
         });
         return;
     }
-    
-    // As a last resort, sort by instance number
+
+    // Last resort: sort by instance number.
     sort_dicom_entries(entries);
 }
 
@@ -2564,58 +2611,50 @@ pub fn load_volume_from_directory(dir_path: String) -> Result<DicomVolume, Strin
         return Err("No valid DICOM files found in directory".to_string());
     }
     
-    // Sort the entries based on spatial information.
-    // (This function uses image position data, slice location, or instance number,
-    // similar to how vtkDICOMImageReader sorts files.)
+    // Sort entries using spatial information (e.g. image position, slice location)
     sort_dicom_entries_by_position(&mut entries);
 
-    // Open the first file to retrieve common image parameters.
+    // Use the first entry to determine common image parameters.
     let first_entry = &entries[0];
     let first_image = extract_pixel_data(first_entry.path.clone())?;
     let width = first_image.width;
     let height = first_image.height;
     let bits_allocated = first_image.bits_allocated;
     let samples_per_pixel = first_image.samples_per_pixel;
-    let row_length = compute_row_length(width, bits_allocated, samples_per_pixel);
-    
-    // Allocate a buffer for the full volume.
-    let depth = entries.len() as u32;
-    let slice_size = row_length * (height as usize);
-    let mut volume_buffer = Vec::with_capacity(slice_size * (depth as usize));
 
-    // For each sorted file, decode pixel data, flip vertically, and copy into volume.
+    // Instead of concatenating pixel data directly, generate PNG-encoded images for each slice.
+    let mut slice_images = Vec::new();
     for entry in entries.iter() {
-        let image = extract_pixel_data(entry.path.clone())?;
-        // Flip the image vertically (VTK does this because DICOM's first row is upper left)
-        let flipped_slice = flip_vertically(&image.pixel_data, image.height, row_length);
-        volume_buffer.extend(flipped_slice);
+        let encoded = get_encoded_image(entry.path.clone())?;
+        slice_images.push(encoded);
     }
     
+    let depth = slice_images.len() as u32;
+
     // Compute spacing:
     // Use pixel spacing from the first slice (usually [spacing_x, spacing_y])
-    // and compute slice spacing from consecutive slices.
     let spacing_xy = match &first_entry.metadata.pixel_spacing {
         Some(ps) if ps.len() >= 2 => (ps[0], ps[1]),
         _ => (1.0, 1.0)
     };
-    // Use compute_slice_spacing to compute spacing_z
+    // Compute slice spacing (z) using your helper function
     let spacing_z = compute_slice_spacing(&entries).unwrap_or(1.0);
+
     
-    // Set data type and number of components based on the first image
+    // Determine data type string based on bits allocated
     let data_type = if bits_allocated <= 8 {
         "unsigned char".to_string()
     } else {
         "unsigned short".to_string()
     };
-    
+
     Ok(DicomVolume {
         width,
         height,
         depth,
-        pixel_data: volume_buffer,
         spacing: (spacing_xy.0, spacing_xy.1, spacing_z),
         data_type,
         num_components: samples_per_pixel as u32,
+        slices: slice_images, // The vector of PNG-encoded slice images
     })
 }
-

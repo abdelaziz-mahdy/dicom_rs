@@ -4,11 +4,15 @@ PODS:
   - file_picker (0.0.1):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
 
 DEPENDENCIES:
   - dicom_rs (from `Flutter/ephemeral/.symlinks/plugins/dicom_rs/macos`)
   - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
 
 EXTERNAL SOURCES:
   dicom_rs:
@@ -17,11 +21,14 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/file_picker/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  path_provider_foundation:
+    :path: Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin
 
 SPEC CHECKSUMS:
   dicom_rs: cb322fd75b72df8e7673f7c908f4d906baeb16b3
   file_picker: 7584aae6fa07a041af2b36a2655122d42f578c1a
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
 
 PODFILE CHECKSUM: 7eb978b976557c8c1cd717d8185ec483fd090a82
 

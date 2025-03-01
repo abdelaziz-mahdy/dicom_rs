@@ -1145,19 +1145,21 @@ class DicomVolume {
   final int width;
   final int height;
   final int depth;
-  final Uint8List pixelData;
   final (double, double, double) spacing;
   final String dataType;
   final int numComponents;
+
+  /// New field: PNG‑encoded image for each slice
+  final List<Uint8List> slices;
 
   const DicomVolume({
     required this.width,
     required this.height,
     required this.depth,
-    required this.pixelData,
     required this.spacing,
     required this.dataType,
     required this.numComponents,
+    required this.slices,
   });
 
   @override
@@ -1165,10 +1167,10 @@ class DicomVolume {
       width.hashCode ^
       height.hashCode ^
       depth.hashCode ^
-      pixelData.hashCode ^
       spacing.hashCode ^
       dataType.hashCode ^
-      numComponents.hashCode;
+      numComponents.hashCode ^
+      slices.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1178,8 +1180,8 @@ class DicomVolume {
           width == other.width &&
           height == other.height &&
           depth == other.depth &&
-          pixelData == other.pixelData &&
           spacing == other.spacing &&
           dataType == other.dataType &&
-          numComponents == other.numComponents;
+          numComponents == other.numComponents &&
+          slices == other.slices;
 }
