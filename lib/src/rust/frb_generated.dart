@@ -3,7 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api/dicom_dart_interface.dart';
+import 'api/dicom_rs_interface.dart';
 import 'api/simple.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -67,7 +67,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
                   String get codegenVersion => '2.8.0';
 
                   @override
-                  int get rustContentHash => -1914205444;
+                  int get rustContentHash => -1478403991;
 
                   static const kDefaultExternalLibraryLoaderConfig = ExternalLibraryLoaderConfig(
                     stem: 'dicom_rs',
@@ -78,49 +78,49 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
                 
 
                 abstract class RustLibApi extends BaseApi {
-                  Future<DicomHandler> crateApiDicomDartInterfaceDicomHandlerDefault();
+                  Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerDefault();
 
-Future<List<DicomTag>> crateApiDicomDartInterfaceDicomHandlerGetAllTags({required DicomHandler that , required String path });
+Future<List<DicomTag>> crateApiDicomRsInterfaceDicomHandlerGetAllTags({required DicomHandler that , required String path });
 
-Future<Uint8List> crateApiDicomDartInterfaceDicomHandlerGetImageBytes({required DicomHandler that , required String path });
+Future<Uint8List> crateApiDicomRsInterfaceDicomHandlerGetImageBytes({required DicomHandler that , required String path });
 
-Future<DicomMetadata> crateApiDicomDartInterfaceDicomHandlerGetMetadata({required DicomHandler that , required String path });
+Future<DicomMetadata> crateApiDicomRsInterfaceDicomHandlerGetMetadata({required DicomHandler that , required String path });
 
-Future<DicomImage> crateApiDicomDartInterfaceDicomHandlerGetPixelData({required DicomHandler that , required String path });
+Future<DicomImage> crateApiDicomRsInterfaceDicomHandlerGetPixelData({required DicomHandler that , required String path });
 
-Future<DicomValueType> crateApiDicomDartInterfaceDicomHandlerGetTagValue({required DicomHandler that , required String path , required String tagName });
+Future<DicomValueType> crateApiDicomRsInterfaceDicomHandlerGetTagValue({required DicomHandler that , required String path , required String tagName });
 
-Future<bool> crateApiDicomDartInterfaceDicomHandlerIsValidDicom({required DicomHandler that , required String path });
+Future<bool> crateApiDicomRsInterfaceDicomHandlerIsValidDicom({required DicomHandler that , required String path });
 
-Future<List<String>> crateApiDicomDartInterfaceDicomHandlerListTags({required DicomHandler that , required String path });
+Future<List<String>> crateApiDicomRsInterfaceDicomHandlerListTags({required DicomHandler that , required String path });
 
-Future<List<DicomDirectoryEntry>> crateApiDicomDartInterfaceDicomHandlerLoadDirectory({required DicomHandler that , required String path });
+Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceDicomHandlerLoadDirectory({required DicomHandler that , required String path });
 
-Future<List<DicomDirectoryEntry>> crateApiDicomDartInterfaceDicomHandlerLoadDirectoryRecursive({required DicomHandler that , required String path });
+Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceDicomHandlerLoadDirectoryRecursive({required DicomHandler that , required String path });
 
-Future<DicomFile> crateApiDicomDartInterfaceDicomHandlerLoadFile({required DicomHandler that , required String path });
+Future<DicomFile> crateApiDicomRsInterfaceDicomHandlerLoadFile({required DicomHandler that , required String path });
 
-Future<DicomHandler> crateApiDicomDartInterfaceDicomHandlerNew();
+Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerNew();
 
-Future<DicomImage> crateApiDicomDartInterfaceExtractPixelData({required String path });
+Future<DicomImage> crateApiDicomRsInterfaceExtractPixelData({required String path });
 
-Future<Uint8List> crateApiDicomDartInterfaceGetEncodedImage({required String path });
+Future<Uint8List> crateApiDicomRsInterfaceGetEncodedImage({required String path });
 
-Future<DicomValueType> crateApiDicomDartInterfaceGetTagValue({required String path , required String tagName });
+Future<DicomValueType> crateApiDicomRsInterfaceGetTagValue({required String path , required String tagName });
 
 String crateApiSimpleGreet({required String name });
 
 Future<void> crateApiSimpleInitApp();
 
-Future<bool> crateApiDicomDartInterfaceIsDicomFile({required String path });
+Future<bool> crateApiDicomRsInterfaceIsDicomFile({required String path });
 
-Future<List<String>> crateApiDicomDartInterfaceListAllTags({required String path });
+Future<List<String>> crateApiDicomRsInterfaceListAllTags({required String path });
 
-Future<List<DicomDirectoryEntry>> crateApiDicomDartInterfaceLoadDicomDirectory({required String dirPath });
+Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceLoadDicomDirectory({required String dirPath });
 
-Future<List<DicomDirectoryEntry>> crateApiDicomDartInterfaceLoadDicomDirectoryRecursive({required String dirPath });
+Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceLoadDicomDirectoryRecursive({required String dirPath });
 
-Future<DicomFile> crateApiDicomDartInterfaceLoadDicomFile({required String path });
+Future<DicomFile> crateApiDicomRsInterfaceLoadDicomFile({required String path });
 
 
                 }
@@ -134,7 +134,7 @@ Future<DicomFile> crateApiDicomDartInterfaceLoadDicomFile({required String path 
                     required super.portManager,
                   });
 
-                  @override Future<DicomHandler> crateApiDicomDartInterfaceDicomHandlerDefault()  { return handler.executeNormal(NormalTask(
+                  @override Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerDefault()  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -147,19 +147,19 @@ Future<DicomFile> crateApiDicomDartInterfaceLoadDicomFile({required String path 
           decodeErrorData: null,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerDefaultConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerDefaultConstMeta,
             argValues: [],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerDefaultConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerDefaultConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_default",
             argNames: [],
         );
         
 
-@override Future<List<DicomTag>> crateApiDicomDartInterfaceDicomHandlerGetAllTags({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<List<DicomTag>> crateApiDicomRsInterfaceDicomHandlerGetAllTags({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -173,19 +173,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerGetAllTagsConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerGetAllTagsConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerGetAllTagsConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerGetAllTagsConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_get_all_tags",
             argNames: ["that", "path"],
         );
         
 
-@override Future<Uint8List> crateApiDicomDartInterfaceDicomHandlerGetImageBytes({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<Uint8List> crateApiDicomRsInterfaceDicomHandlerGetImageBytes({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -199,19 +199,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerGetImageBytesConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerGetImageBytesConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerGetImageBytesConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerGetImageBytesConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_get_image_bytes",
             argNames: ["that", "path"],
         );
         
 
-@override Future<DicomMetadata> crateApiDicomDartInterfaceDicomHandlerGetMetadata({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<DicomMetadata> crateApiDicomRsInterfaceDicomHandlerGetMetadata({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -225,19 +225,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerGetMetadataConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerGetMetadataConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerGetMetadataConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerGetMetadataConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_get_metadata",
             argNames: ["that", "path"],
         );
         
 
-@override Future<DicomImage> crateApiDicomDartInterfaceDicomHandlerGetPixelData({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<DicomImage> crateApiDicomRsInterfaceDicomHandlerGetPixelData({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -251,19 +251,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerGetPixelDataConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerGetPixelDataConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerGetPixelDataConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerGetPixelDataConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_get_pixel_data",
             argNames: ["that", "path"],
         );
         
 
-@override Future<DicomValueType> crateApiDicomDartInterfaceDicomHandlerGetTagValue({required DicomHandler that , required String path , required String tagName })  { return handler.executeNormal(NormalTask(
+@override Future<DicomValueType> crateApiDicomRsInterfaceDicomHandlerGetTagValue({required DicomHandler that , required String path , required String tagName })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -278,19 +278,19 @@ sse_encode_String(tagName, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerGetTagValueConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerGetTagValueConstMeta,
             argValues: [that, path, tagName],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerGetTagValueConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerGetTagValueConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_get_tag_value",
             argNames: ["that", "path", "tagName"],
         );
         
 
-@override Future<bool> crateApiDicomDartInterfaceDicomHandlerIsValidDicom({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<bool> crateApiDicomRsInterfaceDicomHandlerIsValidDicom({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -304,19 +304,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: null,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerIsValidDicomConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerIsValidDicomConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerIsValidDicomConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerIsValidDicomConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_is_valid_dicom",
             argNames: ["that", "path"],
         );
         
 
-@override Future<List<String>> crateApiDicomDartInterfaceDicomHandlerListTags({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<List<String>> crateApiDicomRsInterfaceDicomHandlerListTags({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -330,19 +330,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerListTagsConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerListTagsConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerListTagsConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerListTagsConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_list_tags",
             argNames: ["that", "path"],
         );
         
 
-@override Future<List<DicomDirectoryEntry>> crateApiDicomDartInterfaceDicomHandlerLoadDirectory({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceDicomHandlerLoadDirectory({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -356,19 +356,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerLoadDirectoryConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerLoadDirectoryConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerLoadDirectoryConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerLoadDirectoryConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_load_directory",
             argNames: ["that", "path"],
         );
         
 
-@override Future<List<DicomDirectoryEntry>> crateApiDicomDartInterfaceDicomHandlerLoadDirectoryRecursive({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceDicomHandlerLoadDirectoryRecursive({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -382,19 +382,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerLoadDirectoryRecursiveConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerLoadDirectoryRecursiveConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerLoadDirectoryRecursiveConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerLoadDirectoryRecursiveConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_load_directory_recursive",
             argNames: ["that", "path"],
         );
         
 
-@override Future<DicomFile> crateApiDicomDartInterfaceDicomHandlerLoadFile({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
+@override Future<DicomFile> crateApiDicomRsInterfaceDicomHandlerLoadFile({required DicomHandler that , required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_dicom_handler(that, serializer);
@@ -408,19 +408,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerLoadFileConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerLoadFileConstMeta,
             argValues: [that, path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerLoadFileConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerLoadFileConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_load_file",
             argNames: ["that", "path"],
         );
         
 
-@override Future<DicomHandler> crateApiDicomDartInterfaceDicomHandlerNew()  { return handler.executeNormal(NormalTask(
+@override Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerNew()  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -433,19 +433,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: null,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceDicomHandlerNewConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceDicomHandlerNewConstMeta,
             argValues: [],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceDicomHandlerNewConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerNewConstMeta => const TaskConstMeta(
             debugName: "dicom_handler_new",
             argNames: [],
         );
         
 
-@override Future<DicomImage> crateApiDicomDartInterfaceExtractPixelData({required String path })  { return handler.executeNormal(NormalTask(
+@override Future<DicomImage> crateApiDicomRsInterfaceExtractPixelData({required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(path, serializer);
@@ -458,19 +458,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceExtractPixelDataConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceExtractPixelDataConstMeta,
             argValues: [path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceExtractPixelDataConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceExtractPixelDataConstMeta => const TaskConstMeta(
             debugName: "extract_pixel_data",
             argNames: ["path"],
         );
         
 
-@override Future<Uint8List> crateApiDicomDartInterfaceGetEncodedImage({required String path })  { return handler.executeNormal(NormalTask(
+@override Future<Uint8List> crateApiDicomRsInterfaceGetEncodedImage({required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(path, serializer);
@@ -483,19 +483,19 @@ sse_encode_String(path, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceGetEncodedImageConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceGetEncodedImageConstMeta,
             argValues: [path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceGetEncodedImageConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceGetEncodedImageConstMeta => const TaskConstMeta(
             debugName: "get_encoded_image",
             argNames: ["path"],
         );
         
 
-@override Future<DicomValueType> crateApiDicomDartInterfaceGetTagValue({required String path , required String tagName })  { return handler.executeNormal(NormalTask(
+@override Future<DicomValueType> crateApiDicomRsInterfaceGetTagValue({required String path , required String tagName })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(path, serializer);
@@ -509,13 +509,13 @@ sse_encode_String(tagName, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceGetTagValueConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceGetTagValueConstMeta,
             argValues: [path, tagName],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceGetTagValueConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceGetTagValueConstMeta => const TaskConstMeta(
             debugName: "get_tag_value",
             argNames: ["path", "tagName"],
         );
@@ -571,7 +571,7 @@ sse_encode_String(tagName, serializer);
         );
         
 
-@override Future<bool> crateApiDicomDartInterfaceIsDicomFile({required String path })  { return handler.executeNormal(NormalTask(
+@override Future<bool> crateApiDicomRsInterfaceIsDicomFile({required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(path, serializer);
@@ -584,19 +584,19 @@ sse_encode_String(tagName, serializer);
           decodeErrorData: null,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceIsDicomFileConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceIsDicomFileConstMeta,
             argValues: [path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceIsDicomFileConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceIsDicomFileConstMeta => const TaskConstMeta(
             debugName: "is_dicom_file",
             argNames: ["path"],
         );
         
 
-@override Future<List<String>> crateApiDicomDartInterfaceListAllTags({required String path })  { return handler.executeNormal(NormalTask(
+@override Future<List<String>> crateApiDicomRsInterfaceListAllTags({required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(path, serializer);
@@ -609,19 +609,19 @@ sse_encode_String(tagName, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceListAllTagsConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceListAllTagsConstMeta,
             argValues: [path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceListAllTagsConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceListAllTagsConstMeta => const TaskConstMeta(
             debugName: "list_all_tags",
             argNames: ["path"],
         );
         
 
-@override Future<List<DicomDirectoryEntry>> crateApiDicomDartInterfaceLoadDicomDirectory({required String dirPath })  { return handler.executeNormal(NormalTask(
+@override Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceLoadDicomDirectory({required String dirPath })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(dirPath, serializer);
@@ -634,19 +634,19 @@ sse_encode_String(tagName, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceLoadDicomDirectoryConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceLoadDicomDirectoryConstMeta,
             argValues: [dirPath],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceLoadDicomDirectoryConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceLoadDicomDirectoryConstMeta => const TaskConstMeta(
             debugName: "load_dicom_directory",
             argNames: ["dirPath"],
         );
         
 
-@override Future<List<DicomDirectoryEntry>> crateApiDicomDartInterfaceLoadDicomDirectoryRecursive({required String dirPath })  { return handler.executeNormal(NormalTask(
+@override Future<List<DicomDirectoryEntry>> crateApiDicomRsInterfaceLoadDicomDirectoryRecursive({required String dirPath })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(dirPath, serializer);
@@ -659,19 +659,19 @@ sse_encode_String(tagName, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceLoadDicomDirectoryRecursiveConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceLoadDicomDirectoryRecursiveConstMeta,
             argValues: [dirPath],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceLoadDicomDirectoryRecursiveConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceLoadDicomDirectoryRecursiveConstMeta => const TaskConstMeta(
             debugName: "load_dicom_directory_recursive",
             argNames: ["dirPath"],
         );
         
 
-@override Future<DicomFile> crateApiDicomDartInterfaceLoadDicomFile({required String path })  { return handler.executeNormal(NormalTask(
+@override Future<DicomFile> crateApiDicomRsInterfaceLoadDicomFile({required String path })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(path, serializer);
@@ -684,13 +684,13 @@ sse_encode_String(tagName, serializer);
           decodeErrorData: sse_decode_String,
         )
         ,
-            constMeta: kCrateApiDicomDartInterfaceLoadDicomFileConstMeta,
+            constMeta: kCrateApiDicomRsInterfaceLoadDicomFileConstMeta,
             argValues: [path],
             apiImpl: this,
         )); }
 
 
-        TaskConstMeta get kCrateApiDicomDartInterfaceLoadDicomFileConstMeta => const TaskConstMeta(
+        TaskConstMeta get kCrateApiDicomRsInterfaceLoadDicomFileConstMeta => const TaskConstMeta(
             debugName: "load_dicom_file",
             argNames: ["path"],
         );

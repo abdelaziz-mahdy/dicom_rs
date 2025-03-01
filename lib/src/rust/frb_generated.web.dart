@@ -7,7 +7,7 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
-import 'api/dicom_dart_interface.dart';
+import 'api/dicom_rs_interface.dart';
 import 'api/simple.dart';
 import 'dart:async';
 import 'dart:convert';

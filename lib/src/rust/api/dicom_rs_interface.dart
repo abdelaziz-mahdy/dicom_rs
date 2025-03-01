@@ -6,35 +6,35 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
-part 'dicom_dart_interface.freezed.dart';
+part 'dicom_rs_interface.freezed.dart';
 
             // These functions are ignored because they are not marked as `pub`: `convert_value_to_dicom_type`, `element_to_int`, `element_to_string`, `element_to_u16`, `element_to_u32`, `extract_all_tags`, `extract_metadata`, `process_directory_recursive`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 
             /// Loads a DICOM file from the given path
-Future<DicomFile>  loadDicomFile({required String path }) => RustLib.instance.api.crateApiDicomDartInterfaceLoadDicomFile(path: path);
+Future<DicomFile>  loadDicomFile({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomFile(path: path);
 
 /// Extracts pixel data from a DICOM file
-Future<DicomImage>  extractPixelData({required String path }) => RustLib.instance.api.crateApiDicomDartInterfaceExtractPixelData(path: path);
+Future<DicomImage>  extractPixelData({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceExtractPixelData(path: path);
 
 /// Gets a specific tag value from a DICOM file
-Future<DicomValueType>  getTagValue({required String path , required String tagName }) => RustLib.instance.api.crateApiDicomDartInterfaceGetTagValue(path: path, tagName: tagName);
+Future<DicomValueType>  getTagValue({required String path , required String tagName }) => RustLib.instance.api.crateApiDicomRsInterfaceGetTagValue(path: path, tagName: tagName);
 
 /// Check if a file is a valid DICOM file
-Future<bool>  isDicomFile({required String path }) => RustLib.instance.api.crateApiDicomDartInterfaceIsDicomFile(path: path);
+Future<bool>  isDicomFile({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceIsDicomFile(path: path);
 
 /// Get a list of all DICOM tags in a file
-Future<List<String>>  listAllTags({required String path }) => RustLib.instance.api.crateApiDicomDartInterfaceListAllTags(path: path);
+Future<List<String>>  listAllTags({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceListAllTags(path: path);
 
 /// Get encoded image bytes (PNG format) from a DICOM file
-Future<Uint8List>  getEncodedImage({required String path }) => RustLib.instance.api.crateApiDicomDartInterfaceGetEncodedImage(path: path);
+Future<Uint8List>  getEncodedImage({required String path }) => RustLib.instance.api.crateApiDicomRsInterfaceGetEncodedImage(path: path);
 
 /// Load all DICOM files from a directory
-Future<List<DicomDirectoryEntry>>  loadDicomDirectory({required String dirPath }) => RustLib.instance.api.crateApiDicomDartInterfaceLoadDicomDirectory(dirPath: dirPath);
+Future<List<DicomDirectoryEntry>>  loadDicomDirectory({required String dirPath }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectory(dirPath: dirPath);
 
 /// Load all DICOM files recursively from a directory
-Future<List<DicomDirectoryEntry>>  loadDicomDirectoryRecursive({required String dirPath }) => RustLib.instance.api.crateApiDicomDartInterfaceLoadDicomDirectoryRecursive(dirPath: dirPath);
+Future<List<DicomDirectoryEntry>>  loadDicomDirectoryRecursive({required String dirPath }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectoryRecursive(dirPath: dirPath);
 
             @freezed
 class DicomDirectoryEntry with _$DicomDirectoryEntry  {
@@ -58,52 +58,52 @@ class DicomFile with _$DicomFile  {
 class DicomHandler with _$DicomHandler  {
                 const DicomHandler._();
                 const factory DicomHandler({}) = _DicomHandler;
-                static Future<DicomHandler>  default_()=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerDefault();
+                static Future<DicomHandler>  default_()=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerDefault();
 
 
 /// Gets a list of all tags in a DICOM file
- Future<List<DicomTag>>  getAllTags({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerGetAllTags(that: this, path: path);
+ Future<List<DicomTag>>  getAllTags({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetAllTags(that: this, path: path);
 
 
 /// Gets image bytes encoded as PNG from a DICOM file
- Future<Uint8List>  getImageBytes({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerGetImageBytes(that: this, path: path);
+ Future<Uint8List>  getImageBytes({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetImageBytes(that: this, path: path);
 
 
 /// Gets all metadata from a DICOM file
- Future<DicomMetadata>  getMetadata({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerGetMetadata(that: this, path: path);
+ Future<DicomMetadata>  getMetadata({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetMetadata(that: this, path: path);
 
 
 /// Extracts raw pixel data from a DICOM file
- Future<DicomImage>  getPixelData({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerGetPixelData(that: this, path: path);
+ Future<DicomImage>  getPixelData({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetPixelData(that: this, path: path);
 
 
 /// Gets the value of a specific tag
- Future<DicomValueType>  getTagValue({required String path , required String tagName })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerGetTagValue(that: this, path: path, tagName: tagName);
+ Future<DicomValueType>  getTagValue({required String path , required String tagName })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetTagValue(that: this, path: path, tagName: tagName);
 
 
 /// Checks if a file is a valid DICOM file
- Future<bool>  isValidDicom({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerIsValidDicom(that: this, path: path);
+ Future<bool>  isValidDicom({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerIsValidDicom(that: this, path: path);
 
 
 /// Gets a list of all tag names in a DICOM file
- Future<List<String>>  listTags({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerListTags(that: this, path: path);
+ Future<List<String>>  listTags({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerListTags(that: this, path: path);
 
 
 /// Loads all DICOM files from a directory (non-recursive)
- Future<List<DicomDirectoryEntry>>  loadDirectory({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerLoadDirectory(that: this, path: path);
+ Future<List<DicomDirectoryEntry>>  loadDirectory({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadDirectory(that: this, path: path);
 
 
 /// Loads all DICOM files from a directory recursively
- Future<List<DicomDirectoryEntry>>  loadDirectoryRecursive({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerLoadDirectoryRecursive(that: this, path: path);
+ Future<List<DicomDirectoryEntry>>  loadDirectoryRecursive({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadDirectoryRecursive(that: this, path: path);
 
 
 /// Loads a DICOM file and returns detailed information
- Future<DicomFile>  loadFile({required String path })=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerLoadFile(that: this, path: path);
+ Future<DicomFile>  loadFile({required String path })=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadFile(that: this, path: path);
 
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
 /// Creates a new DicomHandler instance
-static Future<DicomHandler>  newInstance()=>RustLib.instance.api.crateApiDicomDartInterfaceDicomHandlerNew();
+static Future<DicomHandler>  newInstance()=>RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerNew();
 
 
                 
