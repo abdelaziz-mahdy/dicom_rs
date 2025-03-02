@@ -1923,8 +1923,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DicomMetadata dco_decode_dicom_metadata(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 18)
-      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    if (arr.length != 19)
+      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
     return DicomMetadata(
       patientName: dco_decode_opt_String(arr[0]),
       patientId: dco_decode_opt_String(arr[1]),
@@ -1935,15 +1935,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       seriesDescription: dco_decode_opt_String(arr[6]),
       instanceNumber: dco_decode_opt_box_autoadd_i_32(arr[7]),
       seriesNumber: dco_decode_opt_box_autoadd_i_32(arr[8]),
-      studyInstanceUid: dco_decode_opt_String(arr[9]),
-      seriesInstanceUid: dco_decode_opt_String(arr[10]),
-      sopInstanceUid: dco_decode_opt_String(arr[11]),
-      imagePosition: dco_decode_opt_list_prim_f_64_strict(arr[12]),
-      imageOrientation: dco_decode_opt_list_prim_f_64_strict(arr[13]),
-      sliceLocation: dco_decode_opt_box_autoadd_f_64(arr[14]),
-      sliceThickness: dco_decode_opt_box_autoadd_f_64(arr[15]),
-      spacingBetweenSlices: dco_decode_opt_box_autoadd_f_64(arr[16]),
-      pixelSpacing: dco_decode_opt_list_prim_f_64_strict(arr[17]),
+      studyId: dco_decode_opt_String(arr[9]),
+      studyInstanceUid: dco_decode_opt_String(arr[10]),
+      seriesInstanceUid: dco_decode_opt_String(arr[11]),
+      sopInstanceUid: dco_decode_opt_String(arr[12]),
+      imagePosition: dco_decode_opt_list_prim_f_64_strict(arr[13]),
+      imageOrientation: dco_decode_opt_list_prim_f_64_strict(arr[14]),
+      sliceLocation: dco_decode_opt_box_autoadd_f_64(arr[15]),
+      sliceThickness: dco_decode_opt_box_autoadd_f_64(arr[16]),
+      spacingBetweenSlices: dco_decode_opt_box_autoadd_f_64(arr[17]),
+      pixelSpacing: dco_decode_opt_list_prim_f_64_strict(arr[18]),
     );
   }
 
@@ -2057,8 +2058,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DicomVolume dco_decode_dicom_volume(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return DicomVolume(
       width: dco_decode_u_32(arr[0]),
       height: dco_decode_u_32(arr[1]),
@@ -2067,6 +2068,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       dataType: dco_decode_String(arr[4]),
       numComponents: dco_decode_u_32(arr[5]),
       slices: dco_decode_list_dicom_slice(arr[6]),
+      metadata: dco_decode_dicom_metadata(arr[7]),
     );
   }
 
@@ -2560,6 +2562,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_seriesDescription = sse_decode_opt_String(deserializer);
     var var_instanceNumber = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_seriesNumber = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_studyId = sse_decode_opt_String(deserializer);
     var var_studyInstanceUid = sse_decode_opt_String(deserializer);
     var var_seriesInstanceUid = sse_decode_opt_String(deserializer);
     var var_sopInstanceUid = sse_decode_opt_String(deserializer);
@@ -2583,6 +2586,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       seriesDescription: var_seriesDescription,
       instanceNumber: var_instanceNumber,
       seriesNumber: var_seriesNumber,
+      studyId: var_studyId,
       studyInstanceUid: var_studyInstanceUid,
       seriesInstanceUid: var_seriesInstanceUid,
       sopInstanceUid: var_sopInstanceUid,
@@ -2711,6 +2715,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_dataType = sse_decode_String(deserializer);
     var var_numComponents = sse_decode_u_32(deserializer);
     var var_slices = sse_decode_list_dicom_slice(deserializer);
+    var var_metadata = sse_decode_dicom_metadata(deserializer);
     return DicomVolume(
       width: var_width,
       height: var_height,
@@ -2719,6 +2724,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       dataType: var_dataType,
       numComponents: var_numComponents,
       slices: var_slices,
+      metadata: var_metadata,
     );
   }
 
@@ -3307,6 +3313,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.seriesDescription, serializer);
     sse_encode_opt_box_autoadd_i_32(self.instanceNumber, serializer);
     sse_encode_opt_box_autoadd_i_32(self.seriesNumber, serializer);
+    sse_encode_opt_String(self.studyId, serializer);
     sse_encode_opt_String(self.studyInstanceUid, serializer);
     sse_encode_opt_String(self.seriesInstanceUid, serializer);
     sse_encode_opt_String(self.sopInstanceUid, serializer);
@@ -3412,6 +3419,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.dataType, serializer);
     sse_encode_u_32(self.numComponents, serializer);
     sse_encode_list_dicom_slice(self.slices, serializer);
+    sse_encode_dicom_metadata(self.metadata, serializer);
   }
 
   @protected

@@ -120,6 +120,7 @@ pub struct DicomMetadata {
     pub series_description: Option<String>,
     pub instance_number: Option<i32>,
     pub series_number: Option<i32>,
+    pub study_id: Option<String>,
     pub study_instance_uid: Option<String>,
     pub series_instance_uid: Option<String>,
     pub sop_instance_uid: Option<String>,
@@ -234,6 +235,7 @@ pub struct DicomVolume {
     pub data_type: String,
     pub num_components: u32,
     pub slices: Vec<DicomSlice>,
+    pub metadata: DicomMetadata,
 }
 
 // -----------------------------------------------------------------------------
@@ -397,6 +399,7 @@ fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMeta
     let series_description = get_value_from_elements(&elements, tags::SERIES_DESCRIPTION);
     let instance_number = get_value_from_elements(&elements, tags::INSTANCE_NUMBER).and_then(|s| s.parse::<i32>().ok());
     let series_number = get_value_from_elements(&elements, tags::SERIES_NUMBER).and_then(|s| s.parse::<i32>().ok());
+    let study_id = get_value_from_elements(&elements, tags::STUDY_ID);
     let study_instance_uid = get_value_from_elements(&elements, tags::STUDY_INSTANCE_UID);
     let series_instance_uid = get_value_from_elements(&elements, tags::SERIES_INSTANCE_UID);
     let sop_instance_uid = get_value_from_elements(&elements, tags::SOP_INSTANCE_UID);
@@ -432,6 +435,7 @@ fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMeta
         series_description,
         instance_number,
         series_number,
+        study_id,
         study_instance_uid,
         series_instance_uid,
         sop_instance_uid,
@@ -1032,6 +1036,7 @@ fn create_metadata_from_dicomdir_entry(entry: &DicomDirEntry) -> DicomMetadata {
         series_description: None,
         instance_number: None,
         series_number: None,
+        study_id: None,
         study_instance_uid: None,
         series_instance_uid: None,
         sop_instance_uid: None,
@@ -1233,6 +1238,10 @@ pub async fn load_volume_from_directory(
     let height = first_image.height;
     let bits_allocated = first_image.bits_allocated;
     let samples_per_pixel = first_image.samples_per_pixel;
+    // load the metadata for the first image
+    let obj = open_file(Path::new(&first_entry.path)).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
+    let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
+
     let mut slices = Vec::new();
     
     for (i, entry) in entries.iter().enumerate() {
@@ -1262,6 +1271,7 @@ pub async fn load_volume_from_directory(
         data_type,
         num_components: samples_per_pixel as u32,
         slices,
+        metadata,
     })
 }
 

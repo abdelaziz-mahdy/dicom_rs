@@ -8,6 +8,7 @@ import '../models/load_method.dart';
 import '../services/dicom_service.dart';
 import '../widgets/metadata_viewer.dart';
 import '../widgets/image_viewer.dart';
+import '../widgets/metadata_panel.dart';
 
 class DicomViewerScreen extends StatefulWidget {
   const DicomViewerScreen({super.key});
@@ -47,6 +48,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   // Volume data (if loaded as volume)
   DicomVolume? _loadedVolume;
 
+  // Metadata panel state
+  bool _isMetadataPanelCollapsed = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,7 +75,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               ),
             ),
           // Metadata button
-          if (_currentImageBytes != null)
+          if (_currentImageBytes != null || _loadedVolume != null)
             IconButton(
               icon: const Icon(Icons.info_outline),
               tooltip: 'Show Full Metadata',
@@ -84,38 +88,80 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               ? _buildProgressIndicator()
               : _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : Column(
-                children: [
-                  // Load method selector
-                  if (_directoryPath == null) _buildLoadMethodSelector(),
-
-                  // Patient/study/series selectors
-                  if (_patients.isNotEmpty) _buildSelectors(),
-
-                  Expanded(
-                    flex: 3,
-                    child:
-                        _loadedVolume != null
-                            ? VolumeViewer(volume: _loadedVolume!)
-                            : DicomImageViewer(
-                              imageBytes: _currentImageBytes,
-                              currentIndex: _currentSliceIndex,
-                              totalImages: _dicomFiles.length,
-                              onNext: _nextImage,
-                              onPrevious: _previousImage,
-                            ),
-                  ),
-
-                  // Metadata display
-                  if (_currentMetadata != null) _buildMetadataDisplay(),
-                ],
-              ),
+              : _directoryPath == null
+              ? _buildLoadMethodSelector()
+              : _buildMainLayout(),
       floatingActionButton: FloatingActionButton(
         onPressed: _pickDirectory,
         tooltip: 'Load DICOM Directory',
         child: const Icon(Icons.folder_open),
       ),
     );
+  }
+
+  // New method to build the main layout with side panel
+  Widget _buildMainLayout() {
+    return Column(
+      children: [
+        // Patient/study/series selectors at the top
+        if (_patients.isNotEmpty) _buildSelectors(),
+
+        // Main content area with metadata panel and viewer
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left side: Metadata Panel
+              if (_currentMetadata != null || _loadedVolume != null)
+                MetadataPanel(
+                  metadata: _currentMetadata,
+                  dicomFile:
+                      null, // We'll pass this if we have the full file object
+                  volume: _loadedVolume,
+                  currentSliceIndex: _currentSliceIndex,
+                  totalSlices:
+                      _dicomFiles.isEmpty
+                          ? (_loadedVolume?.depth ?? 0)
+                          : _dicomFiles.length,
+                  patient: _selectedPatient,
+                  study: _selectedStudy,
+                  series: _selectedSeries,
+                  isCollapsed: _isMetadataPanelCollapsed,
+                  onTogglePanel: _toggleMetadataPanel,
+                ),
+
+              // Right side: Content area
+              Expanded(
+                child: Column(
+                  children: [
+                    // Main viewer area
+                    Expanded(
+                      child:
+                          _loadedVolume != null
+                              ? VolumeViewer(volume: _loadedVolume!)
+                              : DicomImageViewer(
+                                imageBytes: _currentImageBytes,
+                                currentIndex: _currentSliceIndex,
+                                totalImages: _dicomFiles.length,
+                                onNext: _nextImage,
+                                onPrevious: _previousImage,
+                              ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Toggle metadata panel expanded/collapsed state
+  void _toggleMetadataPanel() {
+    setState(() {
+      _isMetadataPanelCollapsed = !_isMetadataPanelCollapsed;
+    });
   }
 
   Widget _buildProgressIndicator() {
@@ -145,51 +191,53 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   }
 
   Widget _buildLoadMethodSelector() {
-    return Card(
-      margin: const EdgeInsets.all(16.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Select DICOM Loading Method:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8.0,
-              runSpacing: 8.0,
-              children:
-                  DicomLoadMethod.values.map((method) {
-                    return ChoiceChip(
-                      label: Text(method.description),
-                      selected: _selectedLoadMethod == method,
-                      onSelected: (bool selected) {
-                        if (selected) {
-                          setState(() {
-                            _selectedLoadMethod = method;
-                          });
-                        }
-                      },
-                      avatar: Icon(
-                        IconData(
-                          int.parse(
-                            '0xe${method.icon.hashCode.toString().substring(0, 3)}',
+    return Center(
+      child: Card(
+        margin: const EdgeInsets.all(16.0),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select DICOM Loading Method:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8.0,
+                runSpacing: 8.0,
+                children:
+                    DicomLoadMethod.values.map((method) {
+                      return ChoiceChip(
+                        label: Text(method.description),
+                        selected: _selectedLoadMethod == method,
+                        onSelected: (bool selected) {
+                          if (selected) {
+                            setState(() {
+                              _selectedLoadMethod = method;
+                            });
+                          }
+                        },
+                        avatar: Icon(
+                          IconData(
+                            int.parse(
+                              '0xe${method.icon.hashCode.toString().substring(0, 3)}',
+                            ),
+                            fontFamily: 'MaterialIcons',
                           ),
-                          fontFamily: 'MaterialIcons',
                         ),
-                      ),
-                    );
-                  }).toList(),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Click the folder button to select a DICOM directory.',
-              style: TextStyle(fontStyle: FontStyle.italic),
-            ),
-          ],
+                      );
+                    }).toList(),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Click the folder button to select a DICOM directory.',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -301,58 +349,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     );
   }
 
-  Widget _buildMetadataDisplay() {
-    return Container(
-      color: Colors.grey[200],
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Patient: ${_selectedPatient?.patientName ?? 'Unknown'} (${_selectedPatient?.patientId ?? 'No ID'})',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text(
-                'Date: ${_selectedStudy?.studyDate ?? 'Unknown'}',
-                style: const TextStyle(fontStyle: FontStyle.italic),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Study: ${_selectedStudy?.studyDescription ?? 'Unknown'}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text('Acc#: ${_selectedStudy?.accessionNumber ?? 'N/A'}'),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Series: ${_selectedSeries?.seriesDescription ?? 'Unknown'}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text(
-                'Modality: ${_selectedSeries?.modality ?? 'Unknown'}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _pickDirectory() async {
     setState(() {
       _isLoading = true;
@@ -441,6 +437,8 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       _currentMetadata = null;
       _currentAllMetadata = null;
       _loadedVolume = null;
+      _isMetadataPanelCollapsed =
+          false; // Always expand panel when loading new content
     });
 
     // Handle different result types
@@ -450,7 +448,28 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       await _processDirectoryResult(result.entries);
     } else if (result is VolumeLoadResult) {
       _processVolumeResult(result.volume);
+    } else if (result is DicomFileLoadResult) {
+      _processDicomFileResult(result.file);
     }
+  }
+
+  // New method to handle single DICOM file loading
+  void _processDicomFileResult(DicomFile file) {
+    setState(() {
+      _currentMetadata = file.metadata;
+      // Create a wrapped file entry
+      _dicomFiles = [
+        DicomDirectoryEntry(
+          path: file.path,
+          metadata: file.metadata,
+          isValid: true,
+        ),
+      ];
+      _currentSliceIndex = 0;
+    });
+
+    // Load the image for display
+    _loadDicomImage(file.path);
   }
 
   Future<void> _processStudyResult(DicomStudy study) async {
@@ -507,6 +526,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   void _processVolumeResult(DicomVolume volume) {
     setState(() {
       _loadedVolume = volume;
+      // Try to extract metadata from the first slice if available
+      if (volume.slices.isNotEmpty) {
+        _loadDicomImageMetadataOnly(volume.slices.first.path);
+      }
     });
 
     // For now just display a message that we loaded a volume
@@ -517,9 +540,22 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
         ),
       ),
     );
+  }
 
-    // Here you would normally integrate with a 3D viewer library
-    // For now we'll just show a message and the first slice
+  // New method to only load metadata without the image
+  Future<void> _loadDicomImageMetadataOnly(String path) async {
+    try {
+      final metadata = await _dicomService.getMetadata(path: path);
+      final allMetadata = await _dicomService.getAllMetadata(path: path);
+
+      setState(() {
+        _currentMetadata = metadata;
+        _currentAllMetadata = allMetadata;
+      });
+    } catch (e) {
+      // Silently handle error for metadata-only loading
+      print('Error loading metadata: $e');
+    }
   }
 
   void _updateDicomFiles() {
@@ -619,7 +655,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       builder:
           (context) => AlertDialog(
             title: Text(
-              'DICOM Metadata - Slice ${_currentSliceIndex + 1}/${_dicomFiles.length}',
+              'DICOM Metadata - Slice ${_currentSliceIndex + 1}/${_dicomFiles.isEmpty ? (_loadedVolume?.depth ?? 0) : _dicomFiles.length}',
             ),
             content: SizedBox(
               width: double.maxFinite,
@@ -650,6 +686,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       _currentMetadata = null;
       _currentAllMetadata = null;
       _loadedVolume = null;
+      _isMetadataPanelCollapsed = false;
     });
   }
 }

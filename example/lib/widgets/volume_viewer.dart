@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:dicom_rs/dicom_rs.dart'; // Assuming DicomVolume is defined here
 
 /// A widget to display a 3D DICOM volume.
@@ -26,18 +27,29 @@ class _VolumeViewerState extends State<VolumeViewer> {
 
     return Column(
       children: [
+        // Volume info header
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Text(
-            '3D Volume Viewer: ${widget.volume.width} x ${widget.volume.height} x ${widget.volume.depth}',
+            '3D Volume: ${widget.volume.width} × ${widget.volume.height} × ${widget.volume.depth}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
+
+        // Main image display with scroll wheel handling
         Expanded(
-          child: currentSliceBytes != null
-              ? Image.memory(currentSliceBytes, gaplessPlayback: true)
-              : const Center(child: Text('No image data available')),
+          child: Listener(
+            onPointerSignal: _handleScroll,
+            child: Center(
+              child:
+                  currentSliceBytes != null
+                      ? Image.memory(currentSliceBytes, gaplessPlayback: true)
+                      : const Center(child: Text('No image data available')),
+            ),
+          ),
         ),
+
+        // Slider and navigation controls
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Row(
@@ -69,9 +81,13 @@ class _VolumeViewerState extends State<VolumeViewer> {
             ],
           ),
         ),
+
+        // Slice position indicator
         Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
-          child: Text('Slice: ${_currentSliceIndex + 1} / ${widget.volume.depth}'),
+          child: Text(
+            'Slice: ${_currentSliceIndex + 1} / ${widget.volume.depth}',
+          ),
         ),
       ],
     );
@@ -85,7 +101,18 @@ class _VolumeViewerState extends State<VolumeViewer> {
 
   void _previousSlice() {
     setState(() {
-      _currentSliceIndex = (_currentSliceIndex - 1 + widget.volume.depth) % widget.volume.depth;
+      _currentSliceIndex =
+          (_currentSliceIndex - 1 + widget.volume.depth) % widget.volume.depth;
     });
+  }
+
+  void _handleScroll(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      if (event.scrollDelta.dy > 0) {
+        _nextSlice();
+      } else if (event.scrollDelta.dy < 0) {
+        _previousSlice();
+      }
+    }
   }
 }

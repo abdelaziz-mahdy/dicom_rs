@@ -449,6 +449,7 @@ class DicomMetadata {
   final String? seriesDescription;
   final int? instanceNumber;
   final int? seriesNumber;
+  final String? studyId;
   final String? studyInstanceUid;
   final String? seriesInstanceUid;
   final String? sopInstanceUid;
@@ -469,6 +470,7 @@ class DicomMetadata {
     this.seriesDescription,
     this.instanceNumber,
     this.seriesNumber,
+    this.studyId,
     this.studyInstanceUid,
     this.seriesInstanceUid,
     this.sopInstanceUid,
@@ -491,6 +493,7 @@ class DicomMetadata {
       seriesDescription.hashCode ^
       instanceNumber.hashCode ^
       seriesNumber.hashCode ^
+      studyId.hashCode ^
       studyInstanceUid.hashCode ^
       seriesInstanceUid.hashCode ^
       sopInstanceUid.hashCode ^
@@ -515,6 +518,7 @@ class DicomMetadata {
           seriesDescription == other.seriesDescription &&
           instanceNumber == other.instanceNumber &&
           seriesNumber == other.seriesNumber &&
+          studyId == other.studyId &&
           studyInstanceUid == other.studyInstanceUid &&
           seriesInstanceUid == other.seriesInstanceUid &&
           sopInstanceUid == other.sopInstanceUid &&
@@ -712,6 +716,7 @@ class DicomVolume {
   final String dataType;
   final int numComponents;
   final List<DicomSlice> slices;
+  final DicomMetadata metadata;
 
   const DicomVolume({
     required this.width,
@@ -721,6 +726,7 @@ class DicomVolume {
     required this.dataType,
     required this.numComponents,
     required this.slices,
+    required this.metadata,
   });
 
   @override
@@ -731,7 +737,8 @@ class DicomVolume {
       spacing.hashCode ^
       dataType.hashCode ^
       numComponents.hashCode ^
-      slices.hashCode;
+      slices.hashCode ^
+      metadata.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -744,5 +751,6 @@ class DicomVolume {
           spacing == other.spacing &&
           dataType == other.dataType &&
           numComponents == other.numComponents &&
-          slices == other.slices;
+          slices == other.slices &&
+          metadata == other.metadata;
 }

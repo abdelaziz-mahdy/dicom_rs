@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Represents different methods to load DICOM data
 enum DicomLoadMethod {
   loadDicomFile(
@@ -42,4 +44,12 @@ enum DicomLoadMethod {
     required this.icon,
     required this.isRecursive,
   });
+
+  /// Gets the Material IconData for this load method
+  IconData get iconData {
+    return IconData(
+      int.parse('0xe${icon.hashCode.toString().substring(0, 3)}'),
+      fontFamily: 'MaterialIcons',
+    );
+  }
 }

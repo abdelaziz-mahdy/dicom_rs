@@ -1856,6 +1856,7 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomMetadata {
         let mut var_seriesDescription = <Option<String>>::sse_decode(deserializer);
         let mut var_instanceNumber = <Option<i32>>::sse_decode(deserializer);
         let mut var_seriesNumber = <Option<i32>>::sse_decode(deserializer);
+        let mut var_studyId = <Option<String>>::sse_decode(deserializer);
         let mut var_studyInstanceUid = <Option<String>>::sse_decode(deserializer);
         let mut var_seriesInstanceUid = <Option<String>>::sse_decode(deserializer);
         let mut var_sopInstanceUid = <Option<String>>::sse_decode(deserializer);
@@ -1875,6 +1876,7 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomMetadata {
             series_description: var_seriesDescription,
             instance_number: var_instanceNumber,
             series_number: var_seriesNumber,
+            study_id: var_studyId,
             study_instance_uid: var_studyInstanceUid,
             series_instance_uid: var_seriesInstanceUid,
             sop_instance_uid: var_sopInstanceUid,
@@ -2038,6 +2040,8 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomVolume {
         let mut var_numComponents = <u32>::sse_decode(deserializer);
         let mut var_slices =
             <Vec<crate::api::dicom_rs_interface::DicomSlice>>::sse_decode(deserializer);
+        let mut var_metadata =
+            <crate::api::dicom_rs_interface::DicomMetadata>::sse_decode(deserializer);
         return crate::api::dicom_rs_interface::DicomVolume {
             width: var_width,
             height: var_height,
@@ -2046,6 +2050,7 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomVolume {
             data_type: var_dataType,
             num_components: var_numComponents,
             slices: var_slices,
+            metadata: var_metadata,
         };
     }
 }
@@ -2695,6 +2700,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomMeta
             self.series_description.into_into_dart().into_dart(),
             self.instance_number.into_into_dart().into_dart(),
             self.series_number.into_into_dart().into_dart(),
+            self.study_id.into_into_dart().into_dart(),
             self.study_instance_uid.into_into_dart().into_dart(),
             self.series_instance_uid.into_into_dart().into_dart(),
             self.sop_instance_uid.into_into_dart().into_dart(),
@@ -2905,6 +2911,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomVolu
             self.data_type.into_into_dart().into_dart(),
             self.num_components.into_into_dart().into_dart(),
             self.slices.into_into_dart().into_dart(),
+            self.metadata.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3081,6 +3088,7 @@ impl SseEncode for crate::api::dicom_rs_interface::DicomMetadata {
         <Option<String>>::sse_encode(self.series_description, serializer);
         <Option<i32>>::sse_encode(self.instance_number, serializer);
         <Option<i32>>::sse_encode(self.series_number, serializer);
+        <Option<String>>::sse_encode(self.study_id, serializer);
         <Option<String>>::sse_encode(self.study_instance_uid, serializer);
         <Option<String>>::sse_encode(self.series_instance_uid, serializer);
         <Option<String>>::sse_encode(self.sop_instance_uid, serializer);
@@ -3206,6 +3214,7 @@ impl SseEncode for crate::api::dicom_rs_interface::DicomVolume {
         <String>::sse_encode(self.data_type, serializer);
         <u32>::sse_encode(self.num_components, serializer);
         <Vec<crate::api::dicom_rs_interface::DicomSlice>>::sse_encode(self.slices, serializer);
+        <crate::api::dicom_rs_interface::DicomMetadata>::sse_encode(self.metadata, serializer);
     }
 }
 
