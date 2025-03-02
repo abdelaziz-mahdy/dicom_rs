@@ -111,6 +111,26 @@ Future<DicomVolume> loadVolumeFromDirectory({
   progressCallback: progressCallback,
 );
 
+/// Extracts a single slice (or frame) from a DICOM file
+Future<DicomSlice> extractDicomSlice({required String path, int? frameIndex}) =>
+    RustLib.instance.api.crateApiDicomRsInterfaceExtractDicomSlice(
+      path: path,
+      frameIndex: frameIndex,
+    );
+
+/// Extracts all slices from a DICOM file (handles both multiframe and regular DICOMs)
+Future<List<DicomSlice>> extractDicomSlices({required String path}) =>
+    RustLib.instance.api.crateApiDicomRsInterfaceExtractDicomSlices(path: path);
+
+/// Extracts slices from multiple DICOM files in a directory with parallel processing
+Future<List<DicomSlice>> extractSlicesFromDirectory({
+  required String dirPath,
+  required FutureOr<void> Function(int, int) progressCallback,
+}) => RustLib.instance.api.crateApiDicomRsInterfaceExtractSlicesFromDirectory(
+  dirPath: dirPath,
+  progressCallback: progressCallback,
+);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<El>>
 abstract class El implements RustOpaqueInterface {
   String get tag;
