@@ -287,7 +287,7 @@ impl DicomHandler {
         parse_dicomdir_file(path)
     }
     
-    pub async fn load_volume(&self, path: String, progress_callback: Option<impl Fn(u32, u32) -> DartFnFuture<()>>) -> Result<DicomVolume, String> {
+    pub async fn load_volume(&self, path: String, progress_callback: impl Fn(u32, u32) -> DartFnFuture<()>) -> Result<DicomVolume, String> {
         load_volume_from_directory(path, progress_callback).await
     }
 }
@@ -1160,7 +1160,7 @@ fn compute_row_length(width: u32, bits_allocated: u16, samples_per_pixel: u16) -
 /// Loads a multi-slice volume from a directory of DICOM files.
 pub async fn load_volume_from_directory(
     dir_path: String, 
-    progress_callback: Option<impl Fn(u32, u32) -> DartFnFuture<()>>
+    progress_callback: impl Fn(u32, u32) -> DartFnFuture<()>
 ) -> Result<DicomVolume, String> {
     let mut entries = load_dicom_directory(dir_path.clone())?;
     if entries.is_empty() {
@@ -1170,9 +1170,8 @@ pub async fn load_volume_from_directory(
     
     let total_files = entries.len() as u32;
     // Report initial progress (0 of total files)
-    if let Some(callback) = &progress_callback {
-        let _ = callback(0, total_files).await;
-    }
+    progress_callback(0, total_files).await;
+
     
     let first_entry = &entries[0];
     let first_image = extract_pixel_data(first_entry.path.clone())?;
@@ -1187,9 +1186,8 @@ pub async fn load_volume_from_directory(
         slices.push(DicomSlice { path: entry.path.clone(), data: encoded });
         
         // Report progress after each file is processed
-        if let Some(callback) = &progress_callback {
-            let _ = callback((i + 1) as u32, total_files).await;
-        }
+        progress_callback((i + 1) as u32, total_files).await;
+       
     }
     
     let depth = slices.len() as u32;

@@ -75,12 +75,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
-  FutureOr<void> Function(int, int)
-  dco_decode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
-    dynamic raw,
-  );
-
-  @protected
   DicomHandler dco_decode_box_autoadd_dicom_handler(dynamic raw);
 
   @protected
@@ -207,12 +201,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
-  FutureOr<void> Function(int, int)?
-  dco_decode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
-    dynamic raw,
-  );
-
-  @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
@@ -305,12 +293,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
-
-  @protected
-  FutureOr<void> Function(int, int)
-  sse_decode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
-    SseDeserializer deserializer,
-  );
 
   @protected
   DicomHandler sse_decode_box_autoadd_dicom_handler(
@@ -455,12 +437,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
-  FutureOr<void> Function(int, int)?
-  sse_decode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
@@ -575,13 +551,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
-
-  @protected
-  void
-  sse_encode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
-    FutureOr<void> Function(int, int) self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_box_autoadd_dicom_handler(
@@ -759,13 +728,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
-
-  @protected
-  void
-  sse_encode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
-    FutureOr<void> Function(int, int)? self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);

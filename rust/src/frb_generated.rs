@@ -981,8 +981,9 @@ fn wire__crate__api__dicom_rs_interface__dicom_handler_load_volume_impl(
             let api_that =
                 <crate::api::dicom_rs_interface::DicomHandler>::sse_decode(&mut deserializer);
             let api_path = <String>::sse_decode(&mut deserializer);
-            let api_progress_callback =
-                <Option<DART_FN_RUST_API_TYPE_NOT_USED>>::sse_decode(&mut deserializer);
+            let api_progress_callback = decode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+                <flutter_rust_bridge::DartOpaque>::sse_decode(&mut deserializer),
+            );
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
@@ -1548,8 +1549,9 @@ fn wire__crate__api__dicom_rs_interface__load_volume_from_directory_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_dir_path = <String>::sse_decode(&mut deserializer);
-            let api_progress_callback =
-                <Option<DART_FN_RUST_API_TYPE_NOT_USED>>::sse_decode(&mut deserializer);
+            let api_progress_callback = decode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+                <flutter_rust_bridge::DartOpaque>::sse_decode(&mut deserializer),
+            );
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
@@ -2296,17 +2298,6 @@ impl SseDecode for Option<String> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<String>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<DART_FN_RUST_API_TYPE_NOT_USED> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<DART_FN_RUST_API_TYPE_NOT_USED>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -3412,16 +3403,6 @@ impl SseEncode for Option<String> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <String>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<DART_FN_RUST_API_TYPE_NOT_USED> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <DART_FN_RUST_API_TYPE_NOT_USED>::sse_encode(value, serializer);
         }
     }
 }

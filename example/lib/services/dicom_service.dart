@@ -34,7 +34,7 @@ class DicomService {
                   ? (current, total) async {
                     onProgress(current, total);
                   }
-                  : null,
+                  : (current, total) {},
         );
 
         volume.spacing;

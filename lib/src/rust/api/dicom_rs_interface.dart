@@ -105,7 +105,7 @@ Future<Uint8List> flipVertically({
 /// Loads a multi-slice volume from a directory of DICOM files.
 Future<DicomVolume> loadVolumeFromDirectory({
   required String dirPath,
-  FutureOr<void> Function(int, int)? progressCallback,
+  required FutureOr<void> Function(int, int) progressCallback,
 }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadVolumeFromDirectory(
   dirPath: dirPath,
   progressCallback: progressCallback,
@@ -301,7 +301,7 @@ class DicomHandler {
 
   Future<DicomVolume> loadVolume({
     required String path,
-    FutureOr<void> Function(int, int)? progressCallback,
+    required FutureOr<void> Function(int, int) progressCallback,
   }) => RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadVolume(
     that: this,
     path: path,
