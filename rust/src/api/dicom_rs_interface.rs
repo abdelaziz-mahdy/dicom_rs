@@ -360,25 +360,8 @@ pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
     let num_frames = get_number_of_frames(&obj).unwrap_or(1);
     
     // Extract slices/frames
-    let mut slices = Vec::new();
+    let slices = extract_dicom_slices(& path)?;
     
-    if is_multiframe {
-        // Handle multi-frame DICOM
-        for frame_index in 0..num_frames {
-            let frame_data = extract_frame_data(&obj, frame_index)?;
-            slices.push(DicomSlice {
-                path: path.clone(),
-                data: frame_data,
-            });
-        }
-    } else {
-        // Handle single-frame DICOM
-        let image_data = get_encoded_image(path.clone())?;
-        slices.push(DicomSlice {
-            path: path.clone(),
-            data: image_data,
-        });
-    }
 
     Ok(DicomFile { 
         path, 
