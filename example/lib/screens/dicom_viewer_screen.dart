@@ -22,7 +22,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   // Loading state
   bool _isLoading = false;
   String? _directoryPath;
-  DicomLoadMethod _selectedLoadMethod = DicomLoadMethod.completeStudyRecursive;
+  DicomLoadMethod _selectedLoadMethod = DicomLoadMethod.LoadDicomFile;
 
   // Patient/Study/Series data
   List<DicomPatient> _patients = [];

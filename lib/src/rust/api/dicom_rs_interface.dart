@@ -8,27 +8,18 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dicom_rs_interface.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `collect_common_series_metadata`, `collect_common_study_metadata`, `compute_row_length`, `convert_value_to_dicom_type`, `create_metadata_from_dicomdir_entry`, `element_to_float64_vector`, `element_to_float64`, `element_to_int`, `element_to_string`, `element_to_u16`, `element_to_u32`, `extract_all_tags`, `extract_dicomdir_record_metadata`, `extract_metadata`, `load_from_dicomdir`, `organize_dicom_entries`, `parse_dicomdir_records`, `process_dicomdir_entries`, `process_directory_recursive`, `propagate_study_metadata`, `sort_dicom_entries_by_position`, `sort_dicom_entries`, `sort_dicom_hierarchy`, `sort_instances_by_position`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `compute_row_length`, `create_metadata_from_dicomdir_entry`, `extract_all_tags`, `extract_dicomdir_record_metadata`, `extract_metadata`, `get_value_from_elements`, `load_from_dicomdir`, `organize_dicom_entries`, `parse_dicomdir_records`, `process_dicomdir_entries`, `process_directory_recursive`, `sort_dicom_entries_by_position`, `sort_dicom_entries`, `sort_dicom_hierarchy`, `sort_instances_by_position`, `to_el`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
-/// Loads a DICOM file from the given path and extracts all its data.
-///
-/// # Arguments
-///
-/// * `path` - The path to the DICOM file to load
-///
-/// # Returns
-///
-/// A DicomFile containing the file path, metadata, and all tags, or an error if the file
-/// cannot be loaded or is not a valid DICOM file.
+/// Loads a DICOM file from the given path.
 Future<DicomFile> loadDicomFile({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomFile(path: path);
 
-/// Extracts pixel data from a DICOM file
+/// Extracts pixel data from a DICOM file.
 Future<DicomImage> extractPixelData({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceExtractPixelData(path: path);
 
-/// Gets a specific tag value from a DICOM file
+/// Gets a specific tag value from a DICOM file.
 Future<DicomValueType> getTagValue({
   required String path,
   required String tagName,
@@ -37,33 +28,33 @@ Future<DicomValueType> getTagValue({
   tagName: tagName,
 );
 
-/// Check if a file is a valid DICOM file
+/// Check if a file is a valid DICOM file.
 Future<bool> isDicomFile({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceIsDicomFile(path: path);
 
-/// Get a list of all DICOM tags in a file
+/// Get a list of all DICOM tags in a file.
 Future<List<String>> listAllTags({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceListAllTags(path: path);
 
-/// Get encoded image bytes (PNG format) from a DICOM file
+/// Get encoded image bytes (PNG) from a DICOM file.
 Future<Uint8List> getEncodedImage({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceGetEncodedImage(path: path);
 
-/// Load all DICOM files from a directory
+/// Loads all DICOM files from a directory.
 Future<List<DicomDirectoryEntry>> loadDicomDirectory({
   required String dirPath,
 }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectory(
   dirPath: dirPath,
 );
 
-/// Load all DICOM files recursively from a directory
+/// Loads all DICOM files recursively from a directory.
 Future<List<DicomDirectoryEntry>> loadDicomDirectoryRecursive({
   required String dirPath,
 }) => RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomDirectoryRecursive(
   dirPath: dirPath,
 );
 
-/// Load all DICOM files from a directory and organize them hierarchically
+/// Loads all DICOM files from a directory and organizes them hierarchically.
 Future<List<DicomPatient>> loadDicomDirectoryOrganized({
   required String dirPath,
   required bool recursive,
@@ -72,28 +63,19 @@ Future<List<DicomPatient>> loadDicomDirectoryOrganized({
   recursive: recursive,
 );
 
-/// Loads a complete study with propagated metadata
-Future<DicomStudy> loadCompleteStudy({
-  required String dirPath,
-  required bool recursive,
-}) => RustLib.instance.api.crateApiDicomRsInterfaceLoadCompleteStudy(
-  dirPath: dirPath,
-  recursive: recursive,
-);
-
-/// Extract all metadata from a DICOM file as a complete map
+/// Extracts all metadata from a DICOM file as a complete map.
 Future<DicomMetadataMap> extractAllMetadata({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceExtractAllMetadata(path: path);
 
-/// Check if a file is a DICOMDIR file
+/// Checks if a file is a DICOMDIR file.
 Future<bool> isDicomdirFile({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceIsDicomdirFile(path: path);
 
-/// Parse a DICOMDIR file and return its structure
+/// Parses a DICOMDIR file.
 Future<DicomDirEntry> parseDicomdirFile({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceParseDicomdirFile(path: path);
 
-/// Unified function to load DICOM files from a directory, handling both regular DICOM files and DICOMDIR
+/// Unified function to load DICOM files from a directory.
 Future<List<DicomDirectoryEntry>> loadDicomDirectoryUnified({
   required String dirPath,
   required bool recursive,
@@ -102,17 +84,14 @@ Future<List<DicomDirectoryEntry>> loadDicomDirectoryUnified({
   recursive: recursive,
 );
 
-/// Compute correct slice spacing based on consecutive slices
+/// Computes slice spacing based on consecutive slices.
 Future<double?> computeSliceSpacing({
   required List<DicomDirectoryEntry> entries,
 }) => RustLib.instance.api.crateApiDicomRsInterfaceComputeSliceSpacing(
   entries: entries,
 );
 
-/// Flip the image data vertically. This function assumes that pixel_data is
-/// organized as a contiguous array with each row of length `row_length` bytes.
-/// It creates a new Vec<u8> with the rows in reverse order.
-/// This mimics the VTK logic where the image's first row (top-left) is moved to the bottom.
+/// Flips the image data vertically.
 Future<Uint8List> flipVertically({
   required List<int> pixelData,
   required int height,
@@ -123,20 +102,28 @@ Future<Uint8List> flipVertically({
   rowLength: rowLength,
 );
 
-/// Loads a multi-slice volume from a directory of DICOM files using VTK-like logic.
-/// 1. It lists all DICOM files (using your existing load_dicom_directory function).
-/// 2. It sorts the files using spatial information (image position and/or slice location).
-/// 3. It reads and vertically flips each slice's pixel data.
-/// 4. It assembles all slices into one contiguous buffer.
+/// Loads a multi-slice volume from a directory of DICOM files.
 Future<DicomVolume> loadVolumeFromDirectory({required String dirPath}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceLoadVolumeFromDirectory(
       dirPath: dirPath,
     );
 
-/// Represents an entry in a DICOMDIR file, which can be a PATIENT, STUDY, SERIES, or IMAGE record.
-///
-/// DICOMDIR files are special DICOM files that serve as directories or catalogs of other
-/// DICOM files, typically found on removable media like CDs/DVDs or in PACS archives.
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<El>>
+abstract class El implements RustOpaqueInterface {
+  String get tag;
+
+  String get value;
+
+  String get vr;
+
+  set tag(String tag);
+
+  set value(String value);
+
+  set vr(String vr);
+}
+
+/// Represents an entry in a DICOMDIR file.
 class DicomDirEntry {
   final String path;
   final String typeName;
@@ -165,11 +152,7 @@ class DicomDirEntry {
           children == other.children;
 }
 
-/// Legacy structure for backward compatibility, representing a single DICOM file
-/// found in a directory scan.
-///
-/// This structure provides a simpler, flat representation of DICOM data
-/// for scenarios where the hierarchical organization isn't needed.
+/// Legacy structure for backward compatibility.
 class DicomDirectoryEntry {
   final String path;
   final DicomMetadata metadata;
@@ -194,10 +177,7 @@ class DicomDirectoryEntry {
           isValid == other.isValid;
 }
 
-/// Complete representation of a DICOM file including its path, metadata, and all tags.
-///
-/// This structure provides access to both the commonly used metadata and the
-/// complete set of DICOM tags found in a file.
+/// Complete representation of a DICOM file.
 class DicomFile {
   final String path;
   final DicomMetadata metadata;
@@ -223,163 +203,39 @@ class DicomFile {
 }
 
 /// Main interface for interacting with DICOM files and directories.
-///
-/// This handler provides a comprehensive set of methods for working with DICOM data,
-/// including loading files, extracting metadata, organizing files into proper patient/study/series
-/// hierarchies, and handling specialized formats like DICOMDIR.
 class DicomHandler {
   const DicomHandler();
 
   static Future<DicomHandler> default_() =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerDefault();
 
-  /// Extracts all metadata from a DICOM file as a complete metadata map.
-  ///
-  /// This provides both a flat and hierarchical representation of all metadata in the file,
-  /// allowing for more advanced navigation and lookup of DICOM attributes.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOM file
-  ///
-  /// # Returns
-  ///
-  /// A DicomMetadataMap containing both flat and hierarchical representations of all
-  /// metadata in the file, or an error if the file cannot be loaded or parsed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let metadata_map = handler.get_all_metadata("/path/to/file.dcm")?;
-  /// // Access by direct tag
-  /// let patient_name = metadata_map.tags.get("00100010");
-  /// // Access by group and element
-  /// let patient_id = metadata_map.group_elements.get("0010").and_then(|g| g.get("0020"));
-  /// ```
   Future<DicomMetadataMap> getAllMetadata({required String path}) =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetAllMetadata(
         that: this,
         path: path,
       );
 
-  /// Gets a complete list of all tags present in a DICOM file.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOM file
-  ///
-  /// # Returns
-  ///
-  /// A vector of DicomTag structures containing all tags found in the file,
-  /// or an error if the file cannot be loaded or parsed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let tags = handler.get_all_tags("/path/to/file.dcm")?;
-  /// for tag in tags {
-  ///     println!("{}: {:?}", tag.name, tag.value);
-  /// }
-  /// ```
   Future<List<DicomTag>> getAllTags({required String path}) => RustLib
       .instance
       .api
       .crateApiDicomRsInterfaceDicomHandlerGetAllTags(that: this, path: path);
 
-  /// Gets image bytes encoded as PNG from a DICOM file for easy display.
-  ///
-  /// This function handles windowing (contrast/brightness) automatically and
-  /// converts the DICOM pixel data to a standard PNG format suitable for display
-  /// in image viewers or web browsers.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOM file
-  ///
-  /// # Returns
-  ///
-  /// A vector of bytes containing the PNG-encoded image, or an error if the file
-  /// cannot be loaded or encoded.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let png_bytes = handler.get_image_bytes("/path/to/file.dcm")?;
-  /// std::fs::write("output.png", &png_bytes)?;
-  /// ```
   Future<Uint8List> getImageBytes({required String path}) =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetImageBytes(
         that: this,
         path: path,
       );
 
-  /// Gets common metadata from a DICOM file.
-  ///
-  /// Extracts frequently used metadata like patient information, study details,
-  /// and spatial data, without loading all tags.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOM file
-  ///
-  /// # Returns
-  ///
-  /// A DicomMetadata structure containing the extracted metadata, or an error if
-  /// the file cannot be loaded or parsed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let metadata = handler.get_metadata("/path/to/file.dcm")?;
-  /// println!("Patient: {:?}, Study: {:?}", metadata.patient_name, metadata.study_description);
-  /// ```
   Future<DicomMetadata> getMetadata({required String path}) => RustLib
       .instance
       .api
       .crateApiDicomRsInterfaceDicomHandlerGetMetadata(that: this, path: path);
 
-  /// Extracts raw pixel data and image parameters from a DICOM file.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOM file
-  ///
-  /// # Returns
-  ///
-  /// A DicomImage structure containing the pixel data and associated parameters,
-  /// or an error if the file cannot be loaded or the pixel data cannot be decoded.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let image = handler.get_pixel_data("/path/to/file.dcm")?;
-  /// println!("Image dimensions: {}x{}, {} bits", image.width, image.height, image.bits_allocated);
-  /// ```
   Future<DicomImage> getPixelData({required String path}) => RustLib
       .instance
       .api
       .crateApiDicomRsInterfaceDicomHandlerGetPixelData(that: this, path: path);
 
-  /// Gets the value of a specific tag identified by its name.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOM file
-  /// * `tag_name` - The name of the tag to retrieve (e.g., "PatientName")
-  ///
-  /// # Returns
-  ///
-  /// The value of the requested tag as a DicomValueType, or an error if the file
-  /// cannot be loaded or the tag is not found.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let value = handler.get_tag_value("/path/to/file.dcm", "PatientName")?;
-  /// if let DicomValueType::Str(name) = value {
-  ///     println!("Patient name: {}", name);
-  /// }
-  /// ```
   Future<DicomValueType> getTagValue({
     required String path,
     required String tagName,
@@ -389,177 +245,21 @@ class DicomHandler {
     tagName: tagName,
   );
 
-  /// Check if a file is a DICOMDIR file.
-  ///
-  /// DICOMDIR files are special DICOM files that serve as a directory or catalog of other DICOM files,
-  /// typically found on removable media like CDs/DVDs or in PACS archives.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the file to check
-  ///
-  /// # Returns
-  ///
-  /// `true` if the file is a DICOMDIR file, `false` otherwise
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// if handler.is_dicomdir("/path/to/DICOMDIR") {
-  ///     println!("This is a DICOMDIR catalog file");
-  /// }
-  /// ```
   Future<bool> isDicomdir({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerIsDicomdir(that: this, path: path);
 
-  /// Checks if a file is a valid DICOM file.
-  ///
-  /// This is a lightweight check that only verifies the DICOM file header and doesn't
-  /// load the entire file or parse its contents.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the file to check
-  ///
-  /// # Returns
-  ///
-  /// `true` if the file is a valid DICOM file, `false` otherwise.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// if handler.is_valid_dicom("/path/to/file.dcm") {
-  ///     println!("This is a valid DICOM file");
-  /// }
-  /// ```
   Future<bool> isValidDicom({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerIsValidDicom(that: this, path: path);
 
-  /// Gets a list of all tag names present in a DICOM file.
-  ///
-  /// This is a simpler alternative to get_all_tags() that returns only the names
-  /// of the tags without their values, useful for UI dropdowns or tag selection.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOM file
-  ///
-  /// # Returns
-  ///
-  /// A vector of strings containing the names of all tags found in the file,
-  /// or an error if the file cannot be loaded or parsed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let tag_names = handler.list_tags("/path/to/file.dcm")?;
-  /// for name in tag_names {
-  ///     println!("Available tag: {}", name);
-  /// }
-  /// ```
   Future<List<String>> listTags({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerListTags(that: this, path: path);
 
-  /// Loads a directory and returns a complete study with metadata propagated to all slices.
-  ///
-  /// This method is optimized for loading a single study from a directory, ensuring that
-  /// missing metadata is properly filled in across all slices for consistent display.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the directory containing the study
-  ///
-  /// # Returns
-  ///
-  /// A DicomStudy structure containing the complete study information with consistent
-  /// metadata across all series and instances, or an error if the directory cannot
-  /// be accessed or does not contain a valid study.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let study = handler.load_complete_study("/path/to/study/folder")?;
-  /// println!("Study: {:?}, Series: {}", study.study_description, study.series.len());
-  /// ```
-  Future<DicomStudy> loadCompleteStudy({required String path}) => RustLib
-      .instance
-      .api
-      .crateApiDicomRsInterfaceDicomHandlerLoadCompleteStudy(
-        that: this,
-        path: path,
-      );
-
-  /// Loads a directory recursively and returns a complete study with metadata propagated to all slices.
-  ///
-  /// Similar to load_complete_study(), but searches through subdirectories as well,
-  /// useful when studies are organized in a deeper folder structure.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the root directory to scan
-  ///
-  /// # Returns
-  ///
-  /// A DicomStudy structure containing the complete study information with consistent
-  /// metadata across all series and instances, or an error if directories cannot be
-  /// accessed or do not contain a valid study.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let study = handler.load_complete_study_recursive("/path/to/root/folder")?;
-  /// println!("Found study: {:?} with {} series", study.study_description, study.series.len());
-  /// ```
-  Future<DicomStudy> loadCompleteStudyRecursive({required String path}) =>
-      RustLib.instance.api
-          .crateApiDicomRsInterfaceDicomHandlerLoadCompleteStudyRecursive(
-            that: this,
-            path: path,
-          );
-
-  /// Loads all DICOM files from a directory (non-recursive).
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the directory to scan
-  ///
-  /// # Returns
-  ///
-  /// A vector of DicomDirectoryEntry structures, each representing one DICOM file
-  /// found in the directory, or an error if the directory cannot be accessed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let entries = handler.load_directory("/path/to/dicom/folder")?;
-  /// println!("Found {} DICOM files", entries.len());
-  /// ```
   Future<List<DicomDirectoryEntry>> loadDirectory({required String path}) =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadDirectory(
         that: this,
         path: path,
       );
 
-  /// Loads all DICOM files from a directory (non-recursive) and organizes them into a
-  /// patient-study-series hierarchy.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the directory to scan
-  ///
-  /// # Returns
-  ///
-  /// A vector of DicomPatient structures, each containing the hierarchical organization
-  /// of studies, series, and instances, or an error if the directory cannot be accessed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let patients = handler.load_directory_organized("/path/to/dicom/folder")?;
-  /// for patient in patients {
-  ///     println!("Patient: {:?}, Studies: {}", patient.patient_name, patient.studies.len());
-  /// }
-  /// ```
   Future<List<DicomPatient>> loadDirectoryOrganized({required String path}) =>
       RustLib.instance.api
           .crateApiDicomRsInterfaceDicomHandlerLoadDirectoryOrganized(
@@ -567,23 +267,6 @@ class DicomHandler {
             path: path,
           );
 
-  /// Loads all DICOM files from a directory and its subdirectories recursively.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the root directory to scan
-  ///
-  /// # Returns
-  ///
-  /// A vector of DicomDirectoryEntry structures representing all DICOM files
-  /// found in the directory tree, or an error if directories cannot be accessed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let entries = handler.load_directory_recursive("/path/to/root/folder")?;
-  /// println!("Found {} DICOM files in all subdirectories", entries.len());
-  /// ```
   Future<List<DicomDirectoryEntry>> loadDirectoryRecursive({
     required String path,
   }) => RustLib.instance.api
@@ -592,25 +275,6 @@ class DicomHandler {
         path: path,
       );
 
-  /// Loads all DICOM files from a directory and its subdirectories recursively,
-  /// and organizes them into a patient-study-series hierarchy.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the root directory to scan
-  ///
-  /// # Returns
-  ///
-  /// A vector of DicomPatient structures containing the hierarchical organization
-  /// of all DICOM files found in the directory tree, or an error if directories
-  /// cannot be accessed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let patients = handler.load_directory_recursive_organized("/path/to/root/folder")?;
-  /// println!("Found {} patients across all subdirectories", patients.len());
-  /// ```
   Future<List<DicomPatient>> loadDirectoryRecursiveOrganized({
     required String path,
   }) => RustLib.instance.api
@@ -619,28 +283,6 @@ class DicomHandler {
         path: path,
       );
 
-  /// Unified function to load DICOM files from a directory, handling both regular DICOM files and DICOMDIR.
-  ///
-  /// This method automatically detects if a DICOMDIR file is present in the directory and uses it
-  /// for more efficient loading if available, otherwise falls back to scanning for individual DICOM files.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the directory to scan
-  /// * `recursive` - Whether to scan subdirectories recursively
-  ///
-  /// # Returns
-  ///
-  /// A vector of DicomDirectoryEntry structures representing all DICOM files found,
-  /// or an error if directories cannot be accessed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// // Will automatically use DICOMDIR if present
-  /// let entries = handler.load_directory_unified("/path/to/dicom/folder", false)?;
-  /// println!("Loaded {} DICOM files", entries.len());
-  /// ```
   Future<List<DicomDirectoryEntry>> loadDirectoryUnified({
     required String path,
     required bool recursive,
@@ -651,83 +293,16 @@ class DicomHandler {
         recursive: recursive,
       );
 
-  /// Loads a DICOM file and returns detailed information including all metadata and tags.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOM file to load
-  ///
-  /// # Returns
-  ///
-  /// A DicomFile containing the file path, metadata, and all tags, or an error if the file
-  /// cannot be loaded or is not a valid DICOM file.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let dicom_file = handler.load_file("/path/to/file.dcm")?;
-  /// println!("Patient name: {:?}", dicom_file.metadata.patient_name);
-  /// ```
   Future<DicomFile> loadFile({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerLoadFile(that: this, path: path);
 
-  /// Loads a multi-slice volume from a directory of DICOM files.
-  ///
-  /// This function loads all DICOM files in a directory, sorts them by spatial position,
-  /// and assembles them into a single 3D volume suitable for 3D visualization or processing.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the directory containing the DICOM slices
-  ///
-  /// # Returns
-  ///
-  /// A DicomVolume structure containing the assembled 3D volume data and associated
-  /// spatial information, or an error if the directory cannot be accessed or does not
-  /// contain a valid set of DICOM slices.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let volume = handler.load_volume("/path/to/slice/folder")?;
-  /// println!("Volume dimensions: {}x{}x{}", volume.width, volume.height, volume.depth);
-  /// println!("Voxel spacing: {:?}", volume.spacing);
-  /// ```
   Future<DicomVolume> loadVolume({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerLoadVolume(that: this, path: path);
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  /// Creates a new DicomHandler instance.
-  ///
-  /// # Returns
-  ///
-  /// A new DicomHandler object ready to use for DICOM operations.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let handler = DicomHandler::new();
-  /// ```
   static Future<DicomHandler> newInstance() =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerNew();
 
-  /// Parse a DICOMDIR file and return its hierarchical structure.
-  ///
-  /// # Arguments
-  ///
-  /// * `path` - The path to the DICOMDIR file
-  ///
-  /// # Returns
-  ///
-  /// A DicomDirEntry structure representing the root of the DICOMDIR hierarchy,
-  /// or an error if the file cannot be loaded or is not a valid DICOMDIR file.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// let dicomdir = handler.parse_dicomdir("/path/to/DICOMDIR")?;
-  /// println!("DICOMDIR contains {} top-level entries", dicomdir.children.len());
-  /// ```
   Future<DicomDirEntry> parseDicomdir({required String path}) =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerParseDicomdir(
         that: this,
@@ -743,11 +318,7 @@ class DicomHandler {
       other is DicomHandler && runtimeType == other.runtimeType;
 }
 
-/// Represents a DICOM image's pixel data and associated parameters.
-///
-/// Contains the raw pixel data along with all the necessary information to
-/// properly interpret and display the image, including dimensions, bit depth,
-/// photometric interpretation, etc.
+/// Represents a DICOM image’s pixel data and associated parameters.
 class DicomImage {
   final int width;
   final int height;
@@ -803,10 +374,7 @@ class DicomImage {
           pixelData == other.pixelData;
 }
 
-/// Represents a single DICOM instance (file) with spatial information for proper ordering.
-///
-/// Contains the minimal information needed to identify and spatially locate a DICOM
-/// instance within a series, which is essential for proper 3D reconstruction.
+/// Represents a single DICOM instance (file) with spatial information.
 class DicomInstance {
   final String path;
   final String? sopInstanceUid;
@@ -846,11 +414,7 @@ class DicomInstance {
           isValid == other.isValid;
 }
 
-/// Core metadata extracted from a DICOM file with focus on patient, study, and spatial information.
-///
-/// This structure contains the most commonly used DICOM metadata for organizing and
-/// displaying medical images, including patient demographics, study information,
-/// and spatial positioning data needed for proper 3D reconstruction.
+/// Core metadata extracted from a DICOM file.
 class DicomMetadata {
   final String? patientName;
   final String? patientId;
@@ -938,17 +502,9 @@ class DicomMetadata {
           pixelSpacing == other.pixelSpacing;
 }
 
-/// Complete mapping of all DICOM metadata in a file, organized both as a flat map
-/// and hierarchically by group.
-///
-/// This provides two different ways to access the same data:
-/// 1. By direct tag lookup using the full tag identifier
-/// 2. By group and element lookup for hierarchical navigation
+/// Complete mapping of all DICOM metadata in a file.
 class DicomMetadataMap {
-  /// Flat map of all tags indexed by their full tag identifier
   final Map<String, DicomTag> tags;
-
-  /// Hierarchical map organized by group (first 4 digits of tag) and then by element
   final Map<String, Map<String, DicomTag>> groupElements;
 
   const DicomMetadataMap({required this.tags, required this.groupElements});
@@ -966,9 +522,6 @@ class DicomMetadataMap {
 }
 
 /// Represents a patient with associated DICOM studies.
-///
-/// The top level of the DICOM information hierarchy, containing all studies
-/// associated with a particular patient.
 class DicomPatient {
   final String? patientId;
   final String? patientName;
@@ -991,9 +544,6 @@ class DicomPatient {
 }
 
 /// Represents a DICOM series containing multiple image instances.
-///
-/// A series typically represents a single acquisition of images with the same
-/// imaging parameters, such as a CT scan or MRI sequence.
 class DicomSeries {
   final String? seriesInstanceUid;
   final int? seriesNumber;
@@ -1029,12 +579,9 @@ class DicomSeries {
           instances == other.instances;
 }
 
-/// Represents a single slice from a DICOM volume with its file path and PNG-encoded image
+/// Represents a single slice from a DICOM volume.
 class DicomSlice {
-  /// Original file path of the DICOM slice
   final String path;
-
-  /// PNG-encoded image data
   final Uint8List data;
 
   const DicomSlice({required this.path, required this.data});
@@ -1052,9 +599,6 @@ class DicomSlice {
 }
 
 /// Represents a DICOM study containing multiple series.
-///
-/// A study represents a collection of image series acquired during a single
-/// patient visit, often including different types of image acquisitions.
 class DicomStudy {
   final String? studyInstanceUid;
   final String? studyDate;
@@ -1091,20 +635,10 @@ class DicomStudy {
 }
 
 /// Represents a single DICOM tag with its value and metadata.
-///
-/// A DICOM tag consists of a unique identifier (tag), a value representation (VR),
-/// a descriptive name, and the actual data value.
 class DicomTag {
-  /// The tag identifier in format 'GGGGEEEE' where G=group and E=element
   final String tag;
-
-  /// Value Representation - the DICOM data type (e.g., "CS", "DS", "UI")
   final String vr;
-
-  /// Human-readable name of the tag (e.g., "Patient Name", "Study Date")
   final String name;
-
-  /// The actual value of the tag
   final DicomValueType value;
 
   const DicomTag({
@@ -1133,36 +667,19 @@ class DicomTag {
 sealed class DicomValueType with _$DicomValueType {
   const DicomValueType._();
 
-  /// String value (e.g., patient name, study description)
   const factory DicomValueType.str(String field0) = DicomValueType_Str;
-
-  /// Integer value (e.g., series number, instance number)
   const factory DicomValueType.int(int field0) = DicomValueType_Int;
-
-  /// Floating point value (e.g., slice thickness)
   const factory DicomValueType.float(double field0) = DicomValueType_Float;
-
-  /// List of integers (e.g., image dimensions)
   const factory DicomValueType.intList(Int32List field0) =
       DicomValueType_IntList;
-
-  /// List of floating point values (e.g., image position, orientation)
   const factory DicomValueType.floatList(Float32List field0) =
       DicomValueType_FloatList;
-
-  /// List of strings (e.g., referenced study sequence)
   const factory DicomValueType.strList(List<String> field0) =
       DicomValueType_StrList;
-
-  /// Represents an unknown or unsupported value type
   const factory DicomValueType.unknown() = DicomValueType_Unknown;
 }
 
-/// Represents a 3D volume constructed from a series of 2D DICOM slices.
-///
-/// This structure contains the assembled volumetric data from multiple DICOM slices,
-/// along with spatial information needed for proper 3D visualization and processing.
-/// Each slice includes both its PNG-encoded image data and the original file path.
+/// Represents a 3D volume constructed from 2D DICOM slices.
 class DicomVolume {
   final int width;
   final int height;
@@ -1170,8 +687,6 @@ class DicomVolume {
   final (double, double, double) spacing;
   final String dataType;
   final int numComponents;
-
-  /// Slices with their file paths and PNG-encoded images
   final List<DicomSlice> slices;
 
   const DicomVolume({

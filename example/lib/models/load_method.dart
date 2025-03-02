@@ -15,19 +15,19 @@ enum DicomLoadMethod {
     isRecursive: true,
   ),
 
-  /// Load as a complete study
-  completeStudy(
-    description: 'Complete Study',
-    icon: 'medical_services',
-    isRecursive: false,
-  ),
+  // /// Load as a complete study
+  // completeStudy(
+  //   description: 'Complete Study',
+  //   icon: 'medical_services',
+  //   isRecursive: false,
+  // ),
 
-  /// Load as a complete study recursively
-  completeStudyRecursive(
-    description: 'Complete Study (Recursive)',
-    icon: 'medical_information',
-    isRecursive: true,
-  ),
+  // /// Load as a complete study recursively
+  // completeStudyRecursive(
+  //   description: 'Complete Study (Recursive)',
+  //   icon: 'medical_information',
+  //   isRecursive: true,
+  // ),
 
   /// Load as a 3D volume
   volume(description: '3D Volume', icon: 'view_in_ar', isRecursive: false);

@@ -20,13 +20,13 @@ class DicomService {
         final entries = await _handler.loadDirectoryRecursive(path: path);
         return DirectoryLoadResult(entries: entries);
 
-      case DicomLoadMethod.completeStudy:
-        final study = await _handler.loadCompleteStudy(path: path);
-        return StudyLoadResult(study: study);
+      // case DicomLoadMethod.completeStudy:
+      //   final study = await _handler.loadCompleteStudy(path: path);
+      //   return StudyLoadResult(study: study);
 
-      case DicomLoadMethod.completeStudyRecursive:
-        final study = await _handler.loadCompleteStudyRecursive(path: path);
-        return StudyLoadResult(study: study);
+      // case DicomLoadMethod.completeStudyRecursive:
+      //   final study = await _handler.loadCompleteStudyRecursive(path: path);
+      //   return StudyLoadResult(study: study);
       case DicomLoadMethod.LoadDicomFile:
         final metadata = await _handler.loadFile(path: path);
         metadata;
