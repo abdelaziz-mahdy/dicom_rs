@@ -335,17 +335,38 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     setState(() => _isLoading = true);
 
     try {
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-
-      if (selectedDirectory != null) {
-        _directoryPath = selectedDirectory;
-
-        final result = await _dicomService.loadDicomData(
-          path: selectedDirectory,
-          method: _selectedLoadMethod,
+      /// if the method is load file then pick file
+      if (_selectedLoadMethod == DicomLoadMethod.LoadDicomFile) {
+        final result = await FilePicker.platform.pickFiles(
+          allowMultiple: false,
+          type: FileType.custom,
+          allowedExtensions: ['dcm'],
         );
+        if (result != null && result.files.isNotEmpty) {
+          final file = result.files.first;
+          final path = file.path;
+          if (path != null) {
+            final result = await _dicomService.loadDicomData(
+              path: path,
+              method: _selectedLoadMethod,
+            );
+            await _processLoadResult(result);
+          }
+        }
+      } else {
+        String? selectedDirectory =
+            await FilePicker.platform.getDirectoryPath();
 
-        await _processLoadResult(result);
+        if (selectedDirectory != null) {
+          _directoryPath = selectedDirectory;
+
+          final result = await _dicomService.loadDicomData(
+            path: selectedDirectory,
+            method: _selectedLoadMethod,
+          );
+
+          await _processLoadResult(result);
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(

@@ -80,6 +80,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DicomSeries dco_decode_dicom_series(dynamic raw);
 
   @protected
+  DicomSlice dco_decode_dicom_slice(dynamic raw);
+
+  @protected
   DicomStudy dco_decode_dicom_study(dynamic raw);
 
   @protected
@@ -119,13 +122,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DicomSeries> dco_decode_list_dicom_series(dynamic raw);
 
   @protected
+  List<DicomSlice> dco_decode_list_dicom_slice(dynamic raw);
+
+  @protected
   List<DicomStudy> dco_decode_list_dicom_study(dynamic raw);
 
   @protected
   List<DicomTag> dco_decode_list_dicom_tag(dynamic raw);
-
-  @protected
-  List<Uint8List> dco_decode_list_list_prim_u_8_strict(dynamic raw);
 
   @protected
   Float32List dco_decode_list_prim_f_32_strict(dynamic raw);
@@ -268,6 +271,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DicomSeries sse_decode_dicom_series(SseDeserializer deserializer);
 
   @protected
+  DicomSlice sse_decode_dicom_slice(SseDeserializer deserializer);
+
+  @protected
   DicomStudy sse_decode_dicom_study(SseDeserializer deserializer);
 
   @protected
@@ -315,15 +321,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DicomSeries> sse_decode_list_dicom_series(SseDeserializer deserializer);
 
   @protected
+  List<DicomSlice> sse_decode_list_dicom_slice(SseDeserializer deserializer);
+
+  @protected
   List<DicomStudy> sse_decode_list_dicom_study(SseDeserializer deserializer);
 
   @protected
   List<DicomTag> sse_decode_list_dicom_tag(SseDeserializer deserializer);
-
-  @protected
-  List<Uint8List> sse_decode_list_list_prim_u_8_strict(
-    SseDeserializer deserializer,
-  );
 
   @protected
   Float32List sse_decode_list_prim_f_32_strict(SseDeserializer deserializer);
@@ -484,6 +488,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_dicom_series(DicomSeries self, SseSerializer serializer);
 
   @protected
+  void sse_encode_dicom_slice(DicomSlice self, SseSerializer serializer);
+
+  @protected
   void sse_encode_dicom_study(DicomStudy self, SseSerializer serializer);
 
   @protected
@@ -541,6 +548,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_dicom_slice(
+    List<DicomSlice> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_dicom_study(
     List<DicomStudy> self,
     SseSerializer serializer,
@@ -548,12 +561,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_dicom_tag(List<DicomTag> self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_list_list_prim_u_8_strict(
-    List<Uint8List> self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_list_prim_f_32_strict(

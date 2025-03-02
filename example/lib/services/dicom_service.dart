@@ -27,9 +27,29 @@ class DicomService {
       case DicomLoadMethod.completeStudyRecursive:
         final study = await _handler.loadCompleteStudyRecursive(path: path);
         return StudyLoadResult(study: study);
-
+      case DicomLoadMethod.LoadDicomFile:
+        final metadata = await _handler.loadFile(path: path);
+        metadata;
+        return StudyLoadResult(study: DicomStudy(series: []));
       case DicomLoadMethod.volume:
         final volume = await _handler.loadVolume(path: path);
+        volume.spacing;
+        for (final instance in volume.slices) {
+          if (instance.path.isNotEmpty) {
+            try {
+              final metadata = await getAllMetadata(path: instance.path);
+              metadata;
+            } catch (_) {}
+          }
+        }
+        // for (final instance in volume.instances) {
+        //   if (instance.isValid) {
+        //     try {
+        //       final metadata = await getAllMetadata(path: instance.path);
+        //       instance.metadata = metadata;
+        //     } catch (_) {}
+        //   }
+        // }
         return VolumeLoadResult(volume: volume);
     }
   }

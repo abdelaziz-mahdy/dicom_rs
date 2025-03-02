@@ -233,13 +233,21 @@ pub struct DicomDirEntry {
 /// hierarchies, and handling specialized formats like DICOMDIR.
 #[derive(Clone, Debug, Default)]
 pub struct DicomHandler {}
+/// Represents a single slice from a DICOM volume with its file path and PNG-encoded image
+#[derive(Clone, Debug)]
+pub struct DicomSlice {
+    /// Original file path of the DICOM slice
+    pub path: String,
+    /// PNG-encoded image data
+    pub data: Vec<u8>,
+}
 
 // New struct to represent a 3D image volume.
 /// Represents a 3D volume constructed from a series of 2D DICOM slices.
 /// 
 /// This structure contains the assembled volumetric data from multiple DICOM slices,
 /// along with spatial information needed for proper 3D visualization and processing.
-/// The pixel_data is organized as a contiguous 3D array with dimensions width × height × depth.
+/// Each slice includes both its PNG-encoded image data and the original file path.
 #[derive(Clone, Debug)]
 pub struct DicomVolume {
     pub width: u32,
@@ -248,8 +256,8 @@ pub struct DicomVolume {
     pub spacing: (f64, f64, f64),    // (spacing_x, spacing_y, spacing_z)
     pub data_type: String,         // e.g., "unsigned char" or "unsigned short"
     pub num_components: u32,
-    /// New field: PNG‑encoded image for each slice
-    pub slices: Vec<Vec<u8>>,
+    /// Slices with their file paths and PNG-encoded images
+    pub slices: Vec<DicomSlice>,
 }
 
 // Helper functions for working with SmallVec values
@@ -1009,7 +1017,9 @@ pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
         Ok(obj) => obj,
         Err(e) => return Err(format!("Failed to open DICOM file: {}", e)),
     };
-
+    // log all metadata
+    let all_metadata = extract_all_metadata(&path).map_err(|e| e.to_string())?;
+    println!("All metadata: {:?}", all_metadata);
     // Extract metadata
     let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
 
@@ -1025,6 +1035,7 @@ pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
 
 /// Extracts common metadata from a DICOM object
 fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMetadata> {
+    
     let patient_name = obj.element(tags::PATIENT_NAME)
         .ok()
         .and_then(|e| element_to_string(e));
@@ -1386,60 +1397,12 @@ pub fn load_dicom_directory(dir_path: String) -> Result<Vec<DicomDirectoryEntry>
                                 });
                             }
                             Err(_) => {
-                                // Include file with empty metadata if metadata extraction fails
-                                result.push(DicomDirectoryEntry {
-                                    path: path_str,
-                                    metadata: DicomMetadata {
-                                        patient_name: None,
-                                        patient_id: None,
-                                        study_date: None,
-                                        accession_number: None,
-                                        modality: None,
-                                        study_description: None,
-                                        series_description: None,
-                                        instance_number: None,
-                                        series_number: None,
-                                        study_instance_uid: None,
-                                        series_instance_uid: None,
-                                        sop_instance_uid: None,
-                                        image_position: None,
-                                        image_orientation: None,
-                                        slice_location: None,
-                                        slice_thickness: None,
-                                        spacing_between_slices: None,
-                                        pixel_spacing: None,
-                                    },
-                                    is_valid: true,
-                                });
+                                return Err(format!("Failed to extract metadata from DICOM file: {}", path_str));
                             }
                         }
                     }
                     Err(_) => {
-                        // Include file but mark as invalid if we can't open it
-                        result.push(DicomDirectoryEntry {
-                            path: path_str,
-                            metadata: DicomMetadata {
-                                patient_name: None,
-                                patient_id: None,
-                                study_date: None,
-                                accession_number: None,
-                                modality: None,
-                                study_description: None,
-                                series_description: None,
-                                instance_number: None,
-                                series_number: None,
-                                study_instance_uid: None,
-                                series_instance_uid: None,
-                                sop_instance_uid: None,
-                                image_position: None,
-                                image_orientation: None,
-                                slice_location: None,
-                                slice_thickness: None,
-                                spacing_between_slices: None,
-                                pixel_spacing: None,
-                            },
-                            is_valid: false,
-                        });
+                        return Err(format!("Failed to open DICOM file: {}", path_str));
                     }
                 }
             }
@@ -1748,61 +1711,14 @@ fn process_directory_recursive(
                                         is_valid: true,
                                     });
                                 }
-                                Err(_) => {
-                                    // Include file with empty metadata
-                                    result.push(DicomDirectoryEntry {
-                                        path: path_str,
-                                        metadata: DicomMetadata {
-                                            patient_name: None,
-                                            patient_id: None,
-                                            study_date: None,
-                                            accession_number: None,
-                                            modality: None,
-                                            study_description: None,
-                                            series_description: None,
-                                            instance_number: None,
-                                            series_number: None,
-                                            study_instance_uid: None,
-                                            series_instance_uid: None,
-                                            sop_instance_uid: None,
-                                            image_position: None,
-                                            image_orientation: None,
-                                            slice_location: None,
-                                            slice_thickness: None,
-                                            spacing_between_slices: None,
-                                            pixel_spacing: None,
-                                        },
-                                        is_valid: true,
-                                    });
+                                Err(e) => {
+                                    // Propagate the error instead of creating empty metadata
+                                    return Err(format!("Failed to extract metadata from '{}': {}", path_str, e));
                                 }
                             }
                         }
-                        Err(_) => {
-                            // Include file but mark as invalid
-                            result.push(DicomDirectoryEntry {
-                                path: path_str,
-                                metadata: DicomMetadata {
-                                    patient_name: None,
-                                    patient_id: None,
-                                    study_date: None,
-                                    accession_number: None,
-                                    modality: None,
-                                    study_description: None,
-                                    series_description: None,
-                                    instance_number: None,
-                                    series_number: None,
-                                    study_instance_uid: None,
-                                    series_instance_uid: None,
-                                    sop_instance_uid: None,
-                                    image_position: None,
-                                    image_orientation: None,
-                                    slice_location: None,
-                                    slice_thickness: None,
-                                    spacing_between_slices: None,
-                                    pixel_spacing: None,
-                                },
-                                is_valid: false,
-                            });
+                        Err(e) => {
+                            return Err(format!("Failed to open DICOM file '{}': {}", path_str, e));
                         }
                     }
                 }
@@ -2460,15 +2376,19 @@ fn create_metadata_from_dicomdir_entry(entry: &DicomDirEntry) -> DicomMetadata {
     
     metadata
 }
-
-fn sort_dicom_entries_by_position(entries: &mut Vec<DicomDirectoryEntry>) {
+/// Sort DICOM entries based on spatial information (Image Position and Orientation)
+fn sort_dicom_entries_by_position(entries: &mut Vec<DicomDirectoryEntry>) -> Result<(), String> {
     // Check if any entry has valid Image Position and Orientation Patient data.
     if let Some(first_with_orientation) = entries.iter().find(|e| {
         e.metadata.image_orientation.as_ref().map(|v| v.len() >= 6).unwrap_or(false) &&
         e.metadata.image_position.as_ref().map(|v| v.len() >= 3).unwrap_or(false)
     }) {
         // Use the orientation from the first entry with valid orientation.
-        let orient = first_with_orientation.metadata.image_orientation.as_ref().unwrap();
+        let orient = first_with_orientation.metadata.image_orientation.as_ref().ok_or("Missing image orientation")?;
+        if orient.len() < 6 {
+            return Err("Image orientation must have at least 6 values".to_string());
+        }
+
         let mut normal = [0.0, 0.0, 1.0];
         normal[0] = (orient[1] * orient[5]) - (orient[2] * orient[4]);
         normal[1] = (orient[2] * orient[3]) - (orient[0] * orient[5]);
@@ -2516,7 +2436,7 @@ fn sort_dicom_entries_by_position(entries: &mut Vec<DicomDirectoryEntry>) {
                     proj_a.partial_cmp(&proj_b).unwrap_or(Ordering::Equal)
                 }
             });
-            return;
+            return Ok(());
         }
     }
 
@@ -2531,11 +2451,12 @@ fn sort_dicom_entries_by_position(entries: &mut Vec<DicomDirectoryEntry>) {
                 (None, None) => Ordering::Equal,
             }
         });
-        return;
+        return Ok(());
     }
 
     // Last resort: sort by instance number.
     sort_dicom_entries(entries);
+    Ok(())
 }
 
 /// Compute correct slice spacing based on consecutive slices
@@ -2599,6 +2520,8 @@ fn compute_row_length(width: u32, bits_allocated: u16, samples_per_pixel: u16) -
     (width as usize) * bytes_per_sample * (samples_per_pixel as usize)
 }
 
+
+
 /// Loads a multi-slice volume from a directory of DICOM files using VTK-like logic.
 /// 1. It lists all DICOM files (using your existing load_dicom_directory function).
 /// 2. It sorts the files using spatial information (image position and/or slice location).
@@ -2612,7 +2535,7 @@ pub fn load_volume_from_directory(dir_path: String) -> Result<DicomVolume, Strin
     }
     
     // Sort entries using spatial information (e.g. image position, slice location)
-    sort_dicom_entries_by_position(&mut entries);
+    sort_dicom_entries_by_position(&mut entries)?;
 
     // Use the first entry to determine common image parameters.
     let first_entry = &entries[0];
@@ -2622,24 +2545,29 @@ pub fn load_volume_from_directory(dir_path: String) -> Result<DicomVolume, Strin
     let bits_allocated = first_image.bits_allocated;
     let samples_per_pixel = first_image.samples_per_pixel;
 
-    // Instead of concatenating pixel data directly, generate PNG-encoded images for each slice.
-    let mut slice_images = Vec::new();
+    // Create DicomSlice objects for each slice, storing both path and PNG-encoded data
+    let mut slices = Vec::new();
     for entry in entries.iter() {
         let encoded = get_encoded_image(entry.path.clone())?;
-        slice_images.push(encoded);
+        slices.push(DicomSlice {
+            path: entry.path.clone(),
+            data: encoded,
+        });
     }
     
-    let depth = slice_images.len() as u32;
+    let depth = slices.len() as u32;
 
     // Compute spacing:
     // Use pixel spacing from the first slice (usually [spacing_x, spacing_y])
     let spacing_xy = match &first_entry.metadata.pixel_spacing {
         Some(ps) if ps.len() >= 2 => (ps[0], ps[1]),
-        _ => (1.0, 1.0)
+        _ => return Err("Pixel spacing not found".to_string()),
     };
     // Compute slice spacing (z) using your helper function
-    let spacing_z = compute_slice_spacing(&entries).unwrap_or(1.0);
-
+    let spacing_z = match compute_slice_spacing(&entries){
+        Some(spacing) => spacing,
+        None => return Err("Slice spacing not found".to_string()),
+    };
     
     // Determine data type string based on bits allocated
     let data_type = if bits_allocated <= 8 {
@@ -2655,6 +2583,6 @@ pub fn load_volume_from_directory(dir_path: String) -> Result<DicomVolume, Strin
         spacing: (spacing_xy.0, spacing_xy.1, spacing_z),
         data_type,
         num_components: samples_per_pixel as u32,
-        slices: slice_images, // The vector of PNG-encoded slice images
+        slices, // Vector of DicomSlice objects containing both path and image data
     })
 }

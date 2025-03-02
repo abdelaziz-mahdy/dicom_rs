@@ -1,5 +1,10 @@
 /// Represents different methods to load DICOM data
 enum DicomLoadMethod {
+  LoadDicomFile(
+    description: 'Load DICOM File',
+    icon: 'insert_drive_file',
+    isRecursive: false,
+  ),
   /// Load from a directory without recursion
   directory(description: 'Directory', icon: 'folder', isRecursive: false),
 

@@ -21,7 +21,7 @@ class _VolumeViewerState extends State<VolumeViewer> {
     // This example assumes that the volume provides a list of slices.
     Uint8List? currentSliceBytes;
     if (widget.volume.slices.isNotEmpty) {
-      currentSliceBytes = widget.volume.slices[_currentSliceIndex];
+      currentSliceBytes = widget.volume.slices[_currentSliceIndex].data;
     }
 
     return Column(

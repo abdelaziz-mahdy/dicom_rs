@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dicom_rs_interface.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `collect_common_series_metadata`, `collect_common_study_metadata`, `compute_row_length`, `convert_value_to_dicom_type`, `create_metadata_from_dicomdir_entry`, `element_to_float64_vector`, `element_to_float64`, `element_to_int`, `element_to_string`, `element_to_u16`, `element_to_u32`, `extract_all_tags`, `extract_dicomdir_record_metadata`, `extract_metadata`, `load_from_dicomdir`, `organize_dicom_entries`, `parse_dicomdir_records`, `process_dicomdir_entries`, `process_directory_recursive`, `propagate_study_metadata`, `sort_dicom_entries_by_position`, `sort_dicom_entries`, `sort_dicom_hierarchy`, `sort_instances_by_position`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Loads a DICOM file from the given path and extracts all its data.
 ///
@@ -1029,6 +1029,28 @@ class DicomSeries {
           instances == other.instances;
 }
 
+/// Represents a single slice from a DICOM volume with its file path and PNG-encoded image
+class DicomSlice {
+  /// Original file path of the DICOM slice
+  final String path;
+
+  /// PNG-encoded image data
+  final Uint8List data;
+
+  const DicomSlice({required this.path, required this.data});
+
+  @override
+  int get hashCode => path.hashCode ^ data.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DicomSlice &&
+          runtimeType == other.runtimeType &&
+          path == other.path &&
+          data == other.data;
+}
+
 /// Represents a DICOM study containing multiple series.
 ///
 /// A study represents a collection of image series acquired during a single
@@ -1140,7 +1162,7 @@ sealed class DicomValueType with _$DicomValueType {
 ///
 /// This structure contains the assembled volumetric data from multiple DICOM slices,
 /// along with spatial information needed for proper 3D visualization and processing.
-/// The pixel_data is organized as a contiguous 3D array with dimensions width × height × depth.
+/// Each slice includes both its PNG-encoded image data and the original file path.
 class DicomVolume {
   final int width;
   final int height;
@@ -1149,8 +1171,8 @@ class DicomVolume {
   final String dataType;
   final int numComponents;
 
-  /// New field: PNG‑encoded image for each slice
-  final List<Uint8List> slices;
+  /// Slices with their file paths and PNG-encoded images
+  final List<DicomSlice> slices;
 
   const DicomVolume({
     required this.width,

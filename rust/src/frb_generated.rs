@@ -1640,6 +1640,18 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomSeries {
     }
 }
 
+impl SseDecode for crate::api::dicom_rs_interface::DicomSlice {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_data = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::dicom_rs_interface::DicomSlice {
+            path: var_path,
+            data: var_data,
+        };
+    }
+}
+
 impl SseDecode for crate::api::dicom_rs_interface::DicomStudy {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1724,7 +1736,8 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomVolume {
         let mut var_spacing = <(f64, f64, f64)>::sse_decode(deserializer);
         let mut var_dataType = <String>::sse_decode(deserializer);
         let mut var_numComponents = <u32>::sse_decode(deserializer);
-        let mut var_slices = <Vec<Vec<u8>>>::sse_decode(deserializer);
+        let mut var_slices =
+            <Vec<crate::api::dicom_rs_interface::DicomSlice>>::sse_decode(deserializer);
         return crate::api::dicom_rs_interface::DicomVolume {
             width: var_width,
             height: var_height,
@@ -1840,6 +1853,20 @@ impl SseDecode for Vec<crate::api::dicom_rs_interface::DicomSeries> {
     }
 }
 
+impl SseDecode for Vec<crate::api::dicom_rs_interface::DicomSlice> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::dicom_rs_interface::DicomSlice>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::dicom_rs_interface::DicomStudy> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1863,18 +1890,6 @@ impl SseDecode for Vec<crate::api::dicom_rs_interface::DicomTag> {
             ans_.push(<crate::api::dicom_rs_interface::DicomTag>::sse_decode(
                 deserializer,
             ));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<Vec<u8>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = vec![];
-        for idx_ in 0..len_ {
-            ans_.push(<Vec<u8>>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -2420,6 +2435,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::dicom_rs_interface::DicomSeri
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomSlice {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.path.into_into_dart().into_dart(),
+            self.data.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::dicom_rs_interface::DicomSlice
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dicom_rs_interface::DicomSlice>
+    for crate::api::dicom_rs_interface::DicomSlice
+{
+    fn into_into_dart(self) -> crate::api::dicom_rs_interface::DicomSlice {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomStudy {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2705,6 +2741,14 @@ impl SseEncode for crate::api::dicom_rs_interface::DicomSeries {
     }
 }
 
+impl SseEncode for crate::api::dicom_rs_interface::DicomSlice {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.path, serializer);
+        <Vec<u8>>::sse_encode(self.data, serializer);
+    }
+}
+
 impl SseEncode for crate::api::dicom_rs_interface::DicomStudy {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2773,7 +2817,7 @@ impl SseEncode for crate::api::dicom_rs_interface::DicomVolume {
         <(f64, f64, f64)>::sse_encode(self.spacing, serializer);
         <String>::sse_encode(self.data_type, serializer);
         <u32>::sse_encode(self.num_components, serializer);
-        <Vec<Vec<u8>>>::sse_encode(self.slices, serializer);
+        <Vec<crate::api::dicom_rs_interface::DicomSlice>>::sse_encode(self.slices, serializer);
     }
 }
 
@@ -2858,6 +2902,16 @@ impl SseEncode for Vec<crate::api::dicom_rs_interface::DicomSeries> {
     }
 }
 
+impl SseEncode for Vec<crate::api::dicom_rs_interface::DicomSlice> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::dicom_rs_interface::DicomSlice>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::dicom_rs_interface::DicomStudy> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2874,16 +2928,6 @@ impl SseEncode for Vec<crate::api::dicom_rs_interface::DicomTag> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::dicom_rs_interface::DicomTag>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<Vec<u8>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <Vec<u8>>::sse_encode(item, serializer);
         }
     }
 }
