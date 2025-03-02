@@ -103,10 +103,13 @@ Future<Uint8List> flipVertically({
 );
 
 /// Loads a multi-slice volume from a directory of DICOM files.
-Future<DicomVolume> loadVolumeFromDirectory({required String dirPath}) =>
-    RustLib.instance.api.crateApiDicomRsInterfaceLoadVolumeFromDirectory(
-      dirPath: dirPath,
-    );
+Future<DicomVolume> loadVolumeFromDirectory({
+  required String dirPath,
+  FutureOr<void> Function(int, int)? progressCallback,
+}) => RustLib.instance.api.crateApiDicomRsInterfaceLoadVolumeFromDirectory(
+  dirPath: dirPath,
+  progressCallback: progressCallback,
+);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<El>>
 abstract class El implements RustOpaqueInterface {
@@ -296,8 +299,14 @@ class DicomHandler {
   Future<DicomFile> loadFile({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerLoadFile(that: this, path: path);
 
-  Future<DicomVolume> loadVolume({required String path}) => RustLib.instance.api
-      .crateApiDicomRsInterfaceDicomHandlerLoadVolume(that: this, path: path);
+  Future<DicomVolume> loadVolume({
+    required String path,
+    FutureOr<void> Function(int, int)? progressCallback,
+  }) => RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerLoadVolume(
+    that: this,
+    path: path,
+    progressCallback: progressCallback,
+  );
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<DicomHandler> newInstance() =>

@@ -10,6 +10,7 @@ class DicomService {
   Future<DicomLoadResult> loadDicomData({
     required String path,
     required DicomLoadMethod method,
+    Function(int current, int total)? onProgress,
   }) async {
     switch (method) {
       case DicomLoadMethod.directory:
@@ -20,19 +21,22 @@ class DicomService {
         final entries = await _handler.loadDirectoryRecursive(path: path);
         return DirectoryLoadResult(entries: entries);
 
-      // case DicomLoadMethod.completeStudy:
-      //   final study = await _handler.loadCompleteStudy(path: path);
-      //   return StudyLoadResult(study: study);
-
-      // case DicomLoadMethod.completeStudyRecursive:
-      //   final study = await _handler.loadCompleteStudyRecursive(path: path);
-      //   return StudyLoadResult(study: study);
       case DicomLoadMethod.LoadDicomFile:
         final metadata = await _handler.loadFile(path: path);
         metadata;
         return StudyLoadResult(study: DicomStudy(series: []));
+
       case DicomLoadMethod.volume:
-        final volume = await _handler.loadVolume(path: path);
+        final volume = await _handler.loadVolume(
+          path: path,
+          progressCallback:
+              onProgress != null
+                  ? (current, total) async {
+                    onProgress(current, total);
+                  }
+                  : null,
+        );
+
         volume.spacing;
         for (final instance in volume.slices) {
           if (instance.path.isNotEmpty) {
@@ -42,14 +46,6 @@ class DicomService {
             } catch (_) {}
           }
         }
-        // for (final instance in volume.instances) {
-        //   if (instance.isValid) {
-        //     try {
-        //       final metadata = await getAllMetadata(path: instance.path);
-        //       instance.metadata = metadata;
-        //     } catch (_) {}
-        //   }
-        // }
         return VolumeLoadResult(volume: volume);
     }
   }

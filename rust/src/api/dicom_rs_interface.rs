@@ -8,6 +8,7 @@ use dicom_pixeldata::{image, PixelDecoder, ConvertOptions, VoiLutOption, BitDept
 use std::{fs, io::Cursor, path::Path, collections::HashMap};
 use std::cmp::Ordering;
 use dicom_pixeldata::Error;
+use flutter_rust_bridge::DartFnFuture;
 // -----------------------------------------------------------------------------
 // Unified element conversion using to_el
 // -----------------------------------------------------------------------------
@@ -286,8 +287,8 @@ impl DicomHandler {
         parse_dicomdir_file(path)
     }
     
-    pub fn load_volume(&self, path: String) -> Result<DicomVolume, String> {
-        load_volume_from_directory(path)
+    pub async fn load_volume(&self, path: String, progress_callback: Option<impl Fn(u32, u32) -> DartFnFuture<()>>) -> Result<DicomVolume, String> {
+        load_volume_from_directory(path, progress_callback).await
     }
 }
 
@@ -822,10 +823,10 @@ pub fn is_dicomdir_file(path: &str) -> bool {
 /// Parses a DICOMDIR file.
 pub fn parse_dicomdir_file(path: String) -> Result<DicomDirEntry, String> {
     let file_path = Path::new(&path);
-    if !file_path.exists() {
+    if (!file_path.exists()) {
         return Err(format!("File not found: {}", path));
     }
-    if !is_dicomdir_file(&path) {
+    if (!is_dicomdir_file(&path)) {
         return Err(format!("Not a valid DICOMDIR file: {}", path));
     }
     let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOMDIR file: {}", e))?;
@@ -1157,12 +1158,22 @@ fn compute_row_length(width: u32, bits_allocated: u16, samples_per_pixel: u16) -
 }
 
 /// Loads a multi-slice volume from a directory of DICOM files.
-pub fn load_volume_from_directory(dir_path: String) -> Result<DicomVolume, String> {
+pub async fn load_volume_from_directory(
+    dir_path: String, 
+    progress_callback: Option<impl Fn(u32, u32) -> DartFnFuture<()>>
+) -> Result<DicomVolume, String> {
     let mut entries = load_dicom_directory(dir_path.clone())?;
     if entries.is_empty() {
         return Err("No valid DICOM files found in directory".to_string());
     }
     sort_dicom_entries_by_position(&mut entries)?;
+    
+    let total_files = entries.len() as u32;
+    // Report initial progress (0 of total files)
+    if let Some(callback) = &progress_callback {
+        let _ = callback(0, total_files).await;
+    }
+    
     let first_entry = &entries[0];
     let first_image = extract_pixel_data(first_entry.path.clone())?;
     let width = first_image.width;
@@ -1170,10 +1181,17 @@ pub fn load_volume_from_directory(dir_path: String) -> Result<DicomVolume, Strin
     let bits_allocated = first_image.bits_allocated;
     let samples_per_pixel = first_image.samples_per_pixel;
     let mut slices = Vec::new();
-    for entry in entries.iter() {
+    
+    for (i, entry) in entries.iter().enumerate() {
         let encoded = get_encoded_image(entry.path.clone())?;
         slices.push(DicomSlice { path: entry.path.clone(), data: encoded });
+        
+        // Report progress after each file is processed
+        if let Some(callback) = &progress_callback {
+            let _ = callback((i + 1) as u32, total_files).await;
+        }
     }
+    
     let depth = slices.len() as u32;
     let spacing_xy = match &first_entry.metadata.pixel_spacing {
         Some(ps) if ps.len() >= 2 => (ps[0], ps[1]),

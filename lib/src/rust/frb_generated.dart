@@ -185,6 +185,7 @@ abstract class RustLibApi extends BaseApi {
   Future<DicomVolume> crateApiDicomRsInterfaceDicomHandlerLoadVolume({
     required DicomHandler that,
     required String path,
+    FutureOr<void> Function(int, int)? progressCallback,
   });
 
   Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerNew();
@@ -252,6 +253,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<DicomVolume> crateApiDicomRsInterfaceLoadVolumeFromDirectory({
     required String dirPath,
+    FutureOr<void> Function(int, int)? progressCallback,
   });
 
   Future<DicomDirEntry> crateApiDicomRsInterfaceParseDicomdirFile({
@@ -1070,6 +1072,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<DicomVolume> crateApiDicomRsInterfaceDicomHandlerLoadVolume({
     required DicomHandler that,
     required String path,
+    FutureOr<void> Function(int, int)? progressCallback,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1077,6 +1080,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_dicom_handler(that, serializer);
           sse_encode_String(path, serializer);
+          sse_encode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+            progressCallback,
+            serializer,
+          );
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1089,7 +1096,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiDicomRsInterfaceDicomHandlerLoadVolumeConstMeta,
-        argValues: [that, path],
+        argValues: [that, path, progressCallback],
         apiImpl: this,
       ),
     );
@@ -1098,7 +1105,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDicomRsInterfaceDicomHandlerLoadVolumeConstMeta =>
       const TaskConstMeta(
         debugName: "dicom_handler_load_volume",
-        argNames: ["that", "path"],
+        argNames: ["that", "path", "progressCallback"],
       );
 
   @override
@@ -1592,12 +1599,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<DicomVolume> crateApiDicomRsInterfaceLoadVolumeFromDirectory({
     required String dirPath,
+    FutureOr<void> Function(int, int)? progressCallback,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(dirPath, serializer);
+          sse_encode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+            progressCallback,
+            serializer,
+          );
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1610,7 +1622,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiDicomRsInterfaceLoadVolumeFromDirectoryConstMeta,
-        argValues: [dirPath],
+        argValues: [dirPath, progressCallback],
         apiImpl: this,
       ),
     );
@@ -1619,7 +1631,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDicomRsInterfaceLoadVolumeFromDirectoryConstMeta =>
       const TaskConstMeta(
         debugName: "load_volume_from_directory",
-        argNames: ["dirPath"],
+        argNames: ["dirPath", "progressCallback"],
       );
 
   @override
@@ -1652,11 +1664,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDicomRsInterfaceParseDicomdirFileConstMeta =>
       const TaskConstMeta(debugName: "parse_dicomdir_file", argNames: ["path"]);
 
+  Future<void> Function(int, dynamic, dynamic)
+  encode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    FutureOr<void> Function(int, int) raw,
+  ) {
+    return (callId, rawArg0, rawArg1) async {
+      final arg0 = dco_decode_u_32(rawArg0);
+      final arg1 = dco_decode_u_32(rawArg1);
+
+      Box<void>? rawOutput;
+      Box<AnyhowException>? rawError;
+      try {
+        rawOutput = Box(await raw(arg0, arg1));
+      } catch (e, s) {
+        rawError = Box(AnyhowException("$e\n\n$s"));
+      }
+
+      final serializer = SseSerializer(generalizedFrbRustBinding);
+      assert((rawOutput != null) ^ (rawError != null));
+      if (rawOutput != null) {
+        serializer.buffer.putUint8(0);
+        sse_encode_unit(rawOutput.value, serializer);
+      } else {
+        serializer.buffer.putUint8(1);
+        sse_encode_AnyhowException(rawError!.value, serializer);
+      }
+      final output = serializer.intoRaw();
+
+      generalizedFrbRustBinding.dartFnDeliverOutput(
+        callId: callId,
+        ptr: output.ptr,
+        rustVecLen: output.rustVecLen,
+        dataLen: output.dataLen,
+      );
+    };
+  }
+
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_El =>
       wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl;
 
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_El =>
       wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl;
+
+  @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnyhowException(raw as String);
+  }
 
   @protected
   El
@@ -1683,6 +1737,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ElImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  FutureOr<void> Function(int, int)
+  dco_decode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError('');
+  }
+
+  @protected
+  Object dco_decode_DartOpaque(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return decodeDartOpaque(raw, generalizedFrbRustBinding);
   }
 
   @protected
@@ -1738,6 +1805,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  FutureOr<void> Function(int, int)
+  dco_decode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as FutureOr<void> Function(int, int);
   }
 
   @protected
@@ -2019,6 +2095,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 dco_decode_isize(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
+  }
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
@@ -2140,6 +2222,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FutureOr<void> Function(int, int)?
+  dco_decode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+          raw,
+        );
+  }
+
+  @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
@@ -2242,6 +2337,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return AnyhowException(inner);
+  }
+
+  @protected
   El
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl(
     SseDeserializer deserializer,
@@ -2275,6 +2377,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
+  }
+
+  @protected
+  Object sse_decode_DartOpaque(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_isize(deserializer);
+    return decodeDartOpaque(inner, generalizedFrbRustBinding);
   }
 
   @protected
@@ -2329,6 +2438,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  FutureOr<void> Function(int, int)
+  sse_decode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+      deserializer,
+    ));
   }
 
   @protected
@@ -2645,6 +2765,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 sse_decode_isize(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2850,6 +2976,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FutureOr<void> Function(int, int)?
+  sse_decode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+        deserializer,
+      ));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2966,6 +3108,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.message, serializer);
+  }
+
+  @protected
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl(
     El self,
@@ -3000,6 +3151,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as ElImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    FutureOr<void> Function(int, int) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_DartOpaque(
+      encode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(self),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_DartOpaque(Object self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_isize(
+      PlatformPointerUtil.ptrToPlatformInt64(
+        encodeDartOpaque(
+          self,
+          portManager.dartHandlerPort,
+          generalizedFrbRustBinding,
+        ),
+      ),
       serializer,
     );
   }
@@ -3063,6 +3241,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void
+  sse_encode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    FutureOr<void> Function(int, int) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+      self,
+      serializer,
+    );
   }
 
   @protected
@@ -3292,6 +3483,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_isize(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
@@ -3491,6 +3688,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void
+  sse_encode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    FutureOr<void> Function(int, int)? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+        self,
+        serializer,
+      );
     }
   }
 

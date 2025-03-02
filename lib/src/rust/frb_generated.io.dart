@@ -22,6 +22,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerElPtr;
 
   @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
   El
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl(
     dynamic raw,
@@ -38,6 +41,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl(
     dynamic raw,
   );
+
+  @protected
+  FutureOr<void> Function(int, int)
+  dco_decode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(dynamic raw);
+
+  @protected
+  Object dco_decode_DartOpaque(dynamic raw);
 
   @protected
   Map<String, Map<String, DicomTag>> dco_decode_Map_String_Map_String_dicom_tag(
@@ -63,6 +73,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  FutureOr<void> Function(int, int)
+  dco_decode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    dynamic raw,
+  );
 
   @protected
   DicomHandler dco_decode_box_autoadd_dicom_handler(dynamic raw);
@@ -131,6 +147,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_i_32(dynamic raw);
 
   @protected
+  PlatformInt64 dco_decode_isize(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -188,6 +207,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  FutureOr<void> Function(int, int)?
+  dco_decode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    dynamic raw,
+  );
+
+  @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
@@ -231,6 +256,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
   El
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl(
     SseDeserializer deserializer,
@@ -247,6 +275,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Object sse_decode_DartOpaque(SseDeserializer deserializer);
 
   @protected
   Map<String, Map<String, DicomTag>> sse_decode_Map_String_Map_String_dicom_tag(
@@ -274,6 +305,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  FutureOr<void> Function(int, int)
+  sse_decode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DicomHandler sse_decode_box_autoadd_dicom_handler(
@@ -346,6 +383,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
+  PlatformInt64 sse_decode_isize(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -415,6 +455,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  FutureOr<void> Function(int, int)?
+  sse_decode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
@@ -464,6 +510,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEl(
     El self,
@@ -483,6 +535,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     El self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    FutureOr<void> Function(int, int) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_DartOpaque(Object self, SseSerializer serializer);
 
   @protected
   void sse_encode_Map_String_Map_String_dicom_tag(
@@ -514,6 +575,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void
+  sse_encode_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    FutureOr<void> Function(int, int) self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_dicom_handler(
@@ -592,6 +660,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_isize(PlatformInt64 self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -688,6 +759,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void
+  sse_encode_opt_box_autoadd_DartFn_Inputs_u_32_u_32_Output_unit_AnyhowException(
+    FutureOr<void> Function(int, int)? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);

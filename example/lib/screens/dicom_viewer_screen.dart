@@ -23,6 +23,11 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   bool _isLoading = false;
   String? _directoryPath;
   DicomLoadMethod _selectedLoadMethod = DicomLoadMethod.LoadDicomFile;
+  
+  // Progress tracking for volume loading
+  int _loadingProgress = 0;
+  int _totalFiles = 0;
+  bool _showProgress = false;
 
   // Patient/Study/Series data
   List<DicomPatient> _patients = [];
@@ -74,8 +79,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
             ),
         ],
       ),
-      body:
-          _isLoading
+      body: _showProgress
+          ? _buildProgressIndicator()
+          : _isLoading
               ? const Center(child: CircularProgressIndicator())
               : Column(
                 children: [
@@ -85,17 +91,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
                   // Patient/study/series selectors
                   if (_patients.isNotEmpty) _buildSelectors(),
 
-                  // Image viewer
-                  Expanded(
-                    flex: 3,
-                    child: DicomImageViewer(
-                      imageBytes: _currentImageBytes,
-                      currentIndex: _currentSliceIndex,
-                      totalImages: _dicomFiles.length,
-                      onNext: _nextImage,
-                      onPrevious: _previousImage,
-                    ),
-                  ),
                   Expanded(
                     flex: 3,
                     child:
@@ -118,6 +113,33 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
         onPressed: _pickDirectory,
         tooltip: 'Load DICOM Directory',
         child: const Icon(Icons.folder_open),
+      ),
+    );
+  }
+  
+  Widget _buildProgressIndicator() {
+    final double percentComplete = _totalFiles > 0 
+        ? (_loadingProgress / _totalFiles * 100)
+        : 0.0;
+        
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: _totalFiles > 0 ? _loadingProgress / _totalFiles : null,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Loading 3D Volume...',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '$_loadingProgress of $_totalFiles slices (${percentComplete.toStringAsFixed(1)}%)',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
       ),
     );
   }
@@ -306,8 +328,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               Expanded(
                 child: Text(
                   'Study: ${_selectedStudy?.studyDescription ?? 'Unknown'}',
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  overflow: TextOverflow.ellipsis),
               ),
               Text('Acc#: ${_selectedStudy?.accessionNumber ?? 'N/A'}'),
             ],
@@ -317,8 +338,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               Expanded(
                 child: Text(
                   'Series: ${_selectedSeries?.seriesDescription ?? 'Unknown'}',
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  overflow: TextOverflow.ellipsis),
               ),
               Text(
                 'Modality: ${_selectedSeries?.modality ?? 'Unknown'}',
@@ -332,7 +352,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   }
 
   Future<void> _pickDirectory() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _showProgress = false;
+    });
 
     try {
       /// if the method is load file then pick file
@@ -360,9 +383,22 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
         if (selectedDirectory != null) {
           _directoryPath = selectedDirectory;
 
+          // For volume loading, enable progress tracking
+          if (_selectedLoadMethod == DicomLoadMethod.volume) {
+            setState(() {
+              _showProgress = true;
+              _loadingProgress = 0;
+              _totalFiles = 0;
+              _isLoading = false;
+            });
+          }
+
           final result = await _dicomService.loadDicomData(
             path: selectedDirectory,
             method: _selectedLoadMethod,
+            onProgress: _selectedLoadMethod == DicomLoadMethod.volume 
+                ? _updateProgress 
+                : null,
           );
 
           await _processLoadResult(result);
@@ -375,8 +411,18 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       print(e);
       _directoryPath = null;
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _showProgress = false;
+      });
     }
+  }
+  
+  void _updateProgress(int current, int total) {
+    setState(() {
+      _loadingProgress = current;
+      _totalFiles = total;
+    });
   }
 
   Future<void> _processLoadResult(DicomLoadResult result) async {
