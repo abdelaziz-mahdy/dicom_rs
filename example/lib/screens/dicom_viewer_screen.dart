@@ -9,6 +9,7 @@ import '../services/dicom_service.dart';
 import '../widgets/metadata_viewer.dart';
 import '../widgets/image_viewer.dart';
 import '../widgets/metadata_panel.dart';
+import '../widgets/dicom_viewer_base.dart';
 
 class DicomViewerScreen extends StatefulWidget {
   const DicomViewerScreen({super.key});
@@ -38,15 +39,19 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
 
   // Instance data for viewing
   List<DicomDirectoryEntry> _dicomFiles = [];
+  List<Uint8List?> _imageBytesList = [];
   int _currentSliceIndex = 0;
 
-  // Current image and metadata
-  Uint8List? _currentImageBytes;
+  // Current metadata
   DicomMetadata? _currentMetadata;
   DicomMetadataMap? _currentAllMetadata;
 
   // Volume data (if loaded as volume)
   DicomVolume? _loadedVolume;
+
+  // Current viewer
+  DicomViewerBase? _currentViewer;
+  GlobalKey<DicomViewerBaseState> _viewerKey = GlobalKey();
 
   // Metadata panel state
   bool _isMetadataPanelCollapsed = false;
@@ -75,7 +80,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               ),
             ),
           // Metadata button
-          if (_currentImageBytes != null || _loadedVolume != null)
+          if (_currentViewer != null)
             IconButton(
               icon: const Icon(Icons.info_outline),
               tooltip: 'Show Full Metadata',
@@ -115,14 +120,14 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               if (_currentMetadata != null || _loadedVolume != null)
                 MetadataPanel(
                   metadata: _currentMetadata,
-                  dicomFile:
-                      null, // We'll pass this if we have the full file object
+                  dicomFile: null,
                   volume: _loadedVolume,
-                  currentSliceIndex: _currentSliceIndex,
+                  currentSliceIndex:
+                      _viewerKey.currentState?.getCurrentSliceIndex() ??
+                      _currentSliceIndex,
                   totalSlices:
-                      _dicomFiles.isEmpty
-                          ? (_loadedVolume?.depth ?? 0)
-                          : _dicomFiles.length,
+                      _viewerKey.currentState?.getTotalSlices() ??
+                      (_loadedVolume?.depth ?? _imageBytesList.length),
                   patient: _selectedPatient,
                   study: _selectedStudy,
                   series: _selectedSeries,
@@ -130,22 +135,15 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
                   onTogglePanel: _toggleMetadataPanel,
                 ),
 
-              // Right side: Content area
+              // Right side: Content area with unified viewer
               Expanded(
                 child: Column(
                   children: [
-                    // Main viewer area
+                    // Main viewer area with unified interface
                     Expanded(
                       child:
-                          _loadedVolume != null
-                              ? VolumeViewer(volume: _loadedVolume!)
-                              : DicomImageViewer(
-                                imageBytes: _currentImageBytes,
-                                currentIndex: _currentSliceIndex,
-                                totalImages: _dicomFiles.length,
-                                onNext: _nextImage,
-                                onPrevious: _previousImage,
-                              ),
+                          _currentViewer ??
+                          const Center(child: Text('No DICOM data loaded')),
                     ),
                   ],
                 ),
@@ -432,13 +430,14 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       _selectedStudy = null;
       _selectedSeries = null;
       _dicomFiles = [];
+      _imageBytesList = [];
       _currentSliceIndex = 0;
-      _currentImageBytes = null;
       _currentMetadata = null;
       _currentAllMetadata = null;
       _loadedVolume = null;
-      _isMetadataPanelCollapsed =
-          false; // Always expand panel when loading new content
+      _currentViewer = null;
+      _viewerKey = GlobalKey();
+      _isMetadataPanelCollapsed = false;
     });
 
     // Handle different result types
@@ -453,11 +452,12 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     }
   }
 
-  // New method to handle single DICOM file loading
-  void _processDicomFileResult(DicomFile file) {
+  // Process DICOM file result with unified viewer
+  void _processDicomFileResult(DicomFile file) async {
+    final imageBytes = await _dicomService.getImageBytes(path: file.path);
+
     setState(() {
       _currentMetadata = file.metadata;
-      // Create a wrapped file entry
       _dicomFiles = [
         DicomDirectoryEntry(
           path: file.path,
@@ -465,13 +465,90 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
           isValid: true,
         ),
       ];
+      _imageBytesList = [imageBytes];
+      _currentSliceIndex = 0;
+
+      // Create the viewer with the file data
+      _currentViewer = DicomImageViewer(
+        key: _viewerKey,
+        imageBytesList: _imageBytesList,
+      );
+    });
+  }
+
+  void _processVolumeResult(DicomVolume volume) {
+    setState(() {
+      _loadedVolume = volume;
+      // // Try to extract metadata from the first slice if available
+      // if (volume.slices.isNotEmpty) {
+      //   _loadDicomImageMetadataOnly(volume.slices.first.path);
+      // }
+
+      // Create the volume viewer
+      _currentViewer = VolumeViewer(key: _viewerKey, volume: volume);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Loaded 3D volume: ${volume.width}x${volume.height}x${volume.depth} pixels',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _processDirectoryResult(
+    List<DicomDirectoryEntry> entries,
+  ) async {
+    if (entries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No DICOM files found in the selected directory'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _dicomFiles = entries;
       _currentSliceIndex = 0;
     });
 
-    // Load the image for display
-    _loadDicomImage(file.path);
+    // Load all images for the image viewer
+    _imageBytesList = List.filled(entries.length, null);
+
+    // Load the first image immediately
+    _imageBytesList[0] = await _dicomService.getImageBytes(
+      path: entries[0].path,
+    );
+    final metadata = await _dicomService.getMetadata(path: entries[0].path);
+    final allMetadata = await _dicomService.getAllMetadata(
+      path: entries[0].path,
+    );
+
+    setState(() {
+      _currentMetadata = metadata;
+      _currentAllMetadata = allMetadata;
+
+      // Create the image viewer
+      _currentViewer = DicomImageViewer(
+        key: _viewerKey,
+        imageBytesList: _imageBytesList,
+      );
+    });
+
+    // Load remaining images in background
+    for (int i = 1; i < entries.length; i++) {
+      final index = i;
+      _dicomService.getImageBytes(path: entries[index].path).then((bytes) {
+        setState(() {
+          _imageBytesList[index] = bytes;
+        });
+      });
+    }
   }
 
+  // Update the study result processing to use the unified viewer
   Future<void> _processStudyResult(DicomStudy study) async {
     // Create patient wrapper for the UI
     final patient = DicomPatient(
@@ -489,83 +566,18 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       if (study.series.isNotEmpty) {
         _selectedSeries = study.series.first;
         _updateDicomFiles();
-
-        // Load the first image if available
-        if (_dicomFiles.isNotEmpty) {
-          _currentSliceIndex = 0;
-          _loadDicomImage(_dicomFiles[0].path);
-        }
       }
     });
   }
 
-  Future<void> _processDirectoryResult(
-    List<DicomDirectoryEntry> entries,
-  ) async {
-    if (entries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No DICOM files found in the selected directory'),
-        ),
-      );
-      return;
-    }
-
-    // Just load the first image to display something
-    setState(() {
-      _dicomFiles = entries;
-      _currentSliceIndex = 0;
-    });
-
-    await _loadDicomImage(entries[0].path);
-
-    // Maybe implement a way to organize flat entries into patient/study/series
-    // For now just show a simple view for directory loading method
-  }
-
-  void _processVolumeResult(DicomVolume volume) {
-    setState(() {
-      _loadedVolume = volume;
-      // Try to extract metadata from the first slice if available
-      if (volume.slices.isNotEmpty) {
-        _loadDicomImageMetadataOnly(volume.slices.first.path);
-      }
-    });
-
-    // For now just display a message that we loaded a volume
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Loaded 3D volume: ${volume.width}x${volume.height}x${volume.depth} pixels',
-        ),
-      ),
-    );
-  }
-
-  // New method to only load metadata without the image
-  Future<void> _loadDicomImageMetadataOnly(String path) async {
-    try {
-      final metadata = await _dicomService.getMetadata(path: path);
-      final allMetadata = await _dicomService.getAllMetadata(path: path);
-
-      setState(() {
-        _currentMetadata = metadata;
-        _currentAllMetadata = allMetadata;
-      });
-    } catch (e) {
-      // Silently handle error for metadata-only loading
-      print('Error loading metadata: $e');
-    }
-  }
-
-  void _updateDicomFiles() {
+  // Update for the unified viewer approach
+  void _updateDicomFiles() async {
     if (_selectedSeries == null) return;
 
     final List<DicomDirectoryEntry> dicomEntries = [];
 
     for (final instance in _selectedSeries!.instances) {
       if (instance.isValid) {
-        // Create a DicomDirectoryEntry for each instance with propagated metadata
         dicomEntries.add(
           DicomDirectoryEntry(
             path: instance.path,
@@ -600,53 +612,69 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
 
     setState(() {
       _dicomFiles = dicomEntries;
+      _imageBytesList = List.filled(dicomEntries.length, null);
       _currentSliceIndex = 0;
     });
 
     if (_dicomFiles.isNotEmpty) {
-      _loadDicomImage(_dicomFiles[0].path);
-    }
-  }
-
-  Future<void> _loadDicomImage(String path) async {
-    try {
-      final imageBytes = await _dicomService.getImageBytes(path: path);
-      final metadata = await _dicomService.getMetadata(path: path);
-      final allMetadata = await _dicomService.getAllMetadata(path: path);
+      // Load first image and create viewer
+      final firstBytes = await _dicomService.getImageBytes(
+        path: _dicomFiles[0].path,
+      );
+      final metadata = await _dicomService.getMetadata(
+        path: _dicomFiles[0].path,
+      );
+      final allMetadata = await _dicomService.getAllMetadata(
+        path: _dicomFiles[0].path,
+      );
 
       setState(() {
-        _currentImageBytes = imageBytes;
+        _imageBytesList[0] = firstBytes;
         _currentMetadata = metadata;
         _currentAllMetadata = allMetadata;
+
+        // Create image viewer with all images (will load progressively)
+        _currentViewer = DicomImageViewer(
+          key: _viewerKey,
+          imageBytesList: _imageBytesList,
+        );
       });
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading image: $e')));
+
+      // Load remaining images in background
+      for (int i = 1; i < _dicomFiles.length; i++) {
+        final index = i;
+        _dicomService.getImageBytes(path: _dicomFiles[index].path).then((
+          bytes,
+        ) {
+          setState(() {
+            _imageBytesList[index] = bytes;
+          });
+        });
+      }
     }
   }
 
-  void _nextImage() {
-    if (_dicomFiles.isEmpty) return;
-
+  // Reset the viewer state
+  void _resetViewer() {
     setState(() {
-      _currentSliceIndex = (_currentSliceIndex + 1) % _dicomFiles.length;
+      _directoryPath = null;
+      _patients = [];
+      _selectedPatient = null;
+      _selectedStudy = null;
+      _selectedSeries = null;
+      _dicomFiles = [];
+      _imageBytesList = [];
+      _currentSliceIndex = 0;
+      _currentMetadata = null;
+      _currentAllMetadata = null;
+      _loadedVolume = null;
+      _currentViewer = null;
+      _viewerKey = GlobalKey();
+      _isMetadataPanelCollapsed = false;
     });
-
-    _loadDicomImage(_dicomFiles[_currentSliceIndex].path);
   }
 
-  void _previousImage() {
-    if (_dicomFiles.isEmpty) return;
-
-    setState(() {
-      _currentSliceIndex =
-          (_currentSliceIndex - 1 + _dicomFiles.length) % _dicomFiles.length;
-    });
-
-    _loadDicomImage(_dicomFiles[_currentSliceIndex].path);
-  }
-
+  // Show full metadata dialog
   void _showFullMetadata() {
     if (_currentAllMetadata == null) return;
 
@@ -655,7 +683,8 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       builder:
           (context) => AlertDialog(
             title: Text(
-              'DICOM Metadata - Slice ${_currentSliceIndex + 1}/${_dicomFiles.isEmpty ? (_loadedVolume?.depth ?? 0) : _dicomFiles.length}',
+              'DICOM Metadata - Slice ${(_viewerKey.currentState?.getCurrentSliceIndex() ?? 0) + 1}/' +
+                  '${_viewerKey.currentState?.getTotalSlices() ?? (_loadedVolume?.depth ?? _imageBytesList.length)}',
             ),
             content: SizedBox(
               width: double.maxFinite,
@@ -672,21 +701,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     );
   }
 
-  // Reset the viewer state to show the loading options again
-  void _resetViewer() {
-    setState(() {
-      _directoryPath = null;
-      _patients = [];
-      _selectedPatient = null;
-      _selectedStudy = null;
-      _selectedSeries = null;
-      _dicomFiles = [];
-      _currentSliceIndex = 0;
-      _currentImageBytes = null;
-      _currentMetadata = null;
-      _currentAllMetadata = null;
-      _loadedVolume = null;
-      _isMetadataPanelCollapsed = false;
-    });
-  }
+  // Keep other methods as they are
+  // ... existing code ...
 }

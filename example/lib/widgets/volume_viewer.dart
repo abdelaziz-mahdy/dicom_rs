@@ -1,25 +1,52 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:dicom_rs/dicom_rs.dart'; // Assuming DicomVolume is defined here
+import 'package:dicom_rs/dicom_rs.dart';
+import 'dicom_viewer_base.dart';
 
 /// A widget to display a 3D DICOM volume.
 /// It shows one slice at a time with slider and next/previous controls.
-class VolumeViewer extends StatefulWidget {
+class VolumeViewer extends DicomViewerBase {
   final DicomVolume volume;
-  const VolumeViewer({Key? key, required this.volume}) : super(key: key);
+  final int initialSliceIndex;
+
+  const VolumeViewer({
+    Key? key,
+    required this.volume,
+    this.initialSliceIndex = 0,
+  }) : super(key: key);
 
   @override
-  _VolumeViewerState createState() => _VolumeViewerState();
+  int getCurrentSliceIndex() => 0; // Will be handled by state
+
+  @override
+  int getTotalSlices() => volume.depth;
+
+  @override
+  VolumeViewerState createState() => VolumeViewerState();
 }
 
-class _VolumeViewerState extends State<VolumeViewer> {
-  int _currentSliceIndex = 0;
+class VolumeViewerState extends DicomViewerBaseState<VolumeViewer> {
+  late int _currentSliceIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentSliceIndex = widget.initialSliceIndex;
+    if (_currentSliceIndex >= widget.volume.depth) {
+      _currentSliceIndex = 0;
+    }
+  }
+
+  @override
+  int getCurrentSliceIndex() => _currentSliceIndex;
+
+  @override
+  int getTotalSlices() => widget.volume.depth;
 
   @override
   Widget build(BuildContext context) {
     // Retrieve the current slice image bytes.
-    // This example assumes that the volume provides a list of slices.
     Uint8List? currentSliceBytes;
     if (widget.volume.slices.isNotEmpty) {
       currentSliceBytes = widget.volume.slices[_currentSliceIndex].data;
@@ -57,7 +84,7 @@ class _VolumeViewerState extends State<VolumeViewer> {
               IconButton(
                 icon: const Icon(Icons.navigate_before),
                 tooltip: 'Previous slice',
-                onPressed: _previousSlice,
+                onPressed: previousSlice,
               ),
               Expanded(
                 child: Slider(
@@ -76,7 +103,7 @@ class _VolumeViewerState extends State<VolumeViewer> {
               IconButton(
                 icon: const Icon(Icons.navigate_next),
                 tooltip: 'Next slice',
-                onPressed: _nextSlice,
+                onPressed: nextSlice,
               ),
             ],
           ),
@@ -93,13 +120,15 @@ class _VolumeViewerState extends State<VolumeViewer> {
     );
   }
 
-  void _nextSlice() {
+  @override
+  void nextSlice() {
     setState(() {
       _currentSliceIndex = (_currentSliceIndex + 1) % widget.volume.depth;
     });
   }
 
-  void _previousSlice() {
+  @override
+  void previousSlice() {
     setState(() {
       _currentSliceIndex =
           (_currentSliceIndex - 1 + widget.volume.depth) % widget.volume.depth;
@@ -109,9 +138,9 @@ class _VolumeViewerState extends State<VolumeViewer> {
   void _handleScroll(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       if (event.scrollDelta.dy > 0) {
-        _nextSlice();
+        nextSlice();
       } else if (event.scrollDelta.dy < 0) {
-        _previousSlice();
+        previousSlice();
       }
     }
   }

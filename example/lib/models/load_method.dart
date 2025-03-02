@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 enum DicomLoadMethod {
   loadDicomFile(
     description: 'Load DICOM File',
-    icon: 'insert_drive_file',
+    icon: Icons.insert_drive_file,
     isRecursive: false,
   ),
 
   /// Load from a directory without recursion
-  directory(description: 'Directory', icon: 'folder', isRecursive: false),
+  directory(description: 'Directory', icon: Icons.folder, isRecursive: false),
 
   /// Load from a directory with recursion
   directoryRecursive(
     description: 'Directory (Recursive)',
-    icon: 'folder_copy',
+    icon: Icons.folder_copy,
     isRecursive: true,
   ),
 
@@ -33,10 +33,10 @@ enum DicomLoadMethod {
   // ),
 
   /// Load as a 3D volume
-  volume(description: '3D Volume', icon: 'view_in_ar', isRecursive: false);
+  volume(description: '3D Volume', icon: Icons.view_in_ar, isRecursive: false);
 
   final String description;
-  final String icon;
+  final IconData icon;
   final bool isRecursive;
 
   const DicomLoadMethod({
@@ -44,12 +44,4 @@ enum DicomLoadMethod {
     required this.icon,
     required this.isRecursive,
   });
-
-  /// Gets the Material IconData for this load method
-  IconData get iconData {
-    return IconData(
-      int.parse('0xe${icon.hashCode.toString().substring(0, 3)}'),
-      fontFamily: 'MaterialIcons',
-    );
-  }
 }
