@@ -152,6 +152,9 @@ pub struct DicomFile {
     pub path: String,
     pub metadata: DicomMetadata,
     pub all_tags: Vec<DicomTag>,
+    pub slices: Vec<DicomSlice>,
+    pub is_multiframe: bool,
+    pub num_frames: u32,
 }
 
 /// Represents a single DICOM instance (file) with spatial information.
@@ -345,7 +348,39 @@ pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
     // Extract all tags
     let all_tags = extract_all_tags(&obj).map_err(|e| e.to_string())?;
 
-    Ok(DicomFile { path, metadata, all_tags })
+    // Check if this is a multi-frame DICOM
+    let is_multiframe = is_multiframe_dicom(&obj);
+    let num_frames = get_number_of_frames(&obj).unwrap_or(1);
+    
+    // Extract slices/frames
+    let mut slices = Vec::new();
+    
+    if is_multiframe {
+        // Handle multi-frame DICOM
+        for frame_index in 0..num_frames {
+            let frame_data = extract_frame_data(&obj, frame_index)?;
+            slices.push(DicomSlice {
+                path: path.clone(),
+                data: frame_data,
+            });
+        }
+    } else {
+        // Handle single-frame DICOM
+        let image_data = get_encoded_image(path.clone())?;
+        slices.push(DicomSlice {
+            path: path.clone(),
+            data: image_data,
+        });
+    }
+
+    Ok(DicomFile { 
+        path, 
+        metadata, 
+        all_tags, 
+        slices,
+        is_multiframe,
+        num_frames, 
+    })
 }
 /// Extracts common metadata from a DICOM object.
 fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMetadata> {
@@ -1228,4 +1263,56 @@ pub async fn load_volume_from_directory(
         num_components: samples_per_pixel as u32,
         slices,
     })
+}
+
+/// Checks if a DICOM object is multi-frame.
+fn is_multiframe_dicom(obj: &FileDicomObject<InMemDicomObject>) -> bool {
+    // Check for Number of Frames tag
+    if let Ok(elem) = obj.element(tags::NUMBER_OF_FRAMES) {
+        if let Some(frames_str) = elem.value().to_str().ok() {
+            if let Ok(frames) = frames_str.parse::<u32>() {
+                return frames > 1;
+            }
+        }
+    }
+    false
+}
+
+/// Gets the number of frames in a DICOM object.
+fn get_number_of_frames(obj: &FileDicomObject<InMemDicomObject>) -> Option<u32> {
+    if let Ok(elem) = obj.element(tags::NUMBER_OF_FRAMES) {
+        if let Some(frames_str) = elem.value().to_str().ok() {
+            return frames_str.parse::<u32>().ok();
+        }
+    }
+    None
+}
+
+/// Extracts data for a specific frame from a multi-frame DICOM.
+fn extract_frame_data(obj: &FileDicomObject<InMemDicomObject>, frame_index: u32) -> Result<Vec<u8>, String> {
+    let decoded = obj.decode_pixel_data()
+        .map_err(|e| format!("Failed to decode pixel data: {}", e))?;
+    
+    let options = ConvertOptions::new()
+        .with_voi_lut(VoiLutOption::Default)
+        .with_bit_depth(BitDepthOption::Auto);
+    
+    // Get the specified frame
+    let frame_idx = frame_index as usize;
+    
+    // Check if the frame index is valid
+    if frame_idx >= decoded.number_of_frames().try_into().unwrap() {
+        return Err(format!("Frame index {} out of bounds (max: {})", 
+            frame_idx, decoded.number_of_frames() - 1));
+    }
+    
+    let dynamic_image = decoded.to_dynamic_image_with_options(frame_idx.try_into().unwrap(), &options)
+        .map_err(|e| format!("Failed to convert frame {} to image: {}", frame_idx, e))?;
+    
+    let mut encoded_bytes: Vec<u8> = Vec::new();
+    let mut cursor = Cursor::new(&mut encoded_bytes);
+    dynamic_image.write_to(&mut cursor, image::ImageFormat::Png)
+        .map_err(|e| format!("Failed to encode frame {} as PNG: {}", frame_idx, e))?;
+    
+    Ok(encoded_bytes)
 }

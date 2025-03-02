@@ -1862,12 +1862,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DicomFile dco_decode_dicom_file(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return DicomFile(
       path: dco_decode_String(arr[0]),
       metadata: dco_decode_dicom_metadata(arr[1]),
       allTags: dco_decode_list_dicom_tag(arr[2]),
+      slices: dco_decode_list_dicom_slice(arr[3]),
+      isMultiframe: dco_decode_bool(arr[4]),
+      numFrames: dco_decode_u_32(arr[5]),
     );
   }
 
@@ -2480,10 +2483,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_path = sse_decode_String(deserializer);
     var var_metadata = sse_decode_dicom_metadata(deserializer);
     var var_allTags = sse_decode_list_dicom_tag(deserializer);
+    var var_slices = sse_decode_list_dicom_slice(deserializer);
+    var var_isMultiframe = sse_decode_bool(deserializer);
+    var var_numFrames = sse_decode_u_32(deserializer);
     return DicomFile(
       path: var_path,
       metadata: var_metadata,
       allTags: var_allTags,
+      slices: var_slices,
+      isMultiframe: var_isMultiframe,
+      numFrames: var_numFrames,
     );
   }
 
@@ -3250,6 +3259,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.path, serializer);
     sse_encode_dicom_metadata(self.metadata, serializer);
     sse_encode_list_dicom_tag(self.allTags, serializer);
+    sse_encode_list_dicom_slice(self.slices, serializer);
+    sse_encode_bool(self.isMultiframe, serializer);
+    sse_encode_u_32(self.numFrames, serializer);
   }
 
   @protected

@@ -1774,10 +1774,17 @@ impl SseDecode for crate::api::dicom_rs_interface::DicomFile {
             <crate::api::dicom_rs_interface::DicomMetadata>::sse_decode(deserializer);
         let mut var_allTags =
             <Vec<crate::api::dicom_rs_interface::DicomTag>>::sse_decode(deserializer);
+        let mut var_slices =
+            <Vec<crate::api::dicom_rs_interface::DicomSlice>>::sse_decode(deserializer);
+        let mut var_isMultiframe = <bool>::sse_decode(deserializer);
+        let mut var_numFrames = <u32>::sse_decode(deserializer);
         return crate::api::dicom_rs_interface::DicomFile {
             path: var_path,
             metadata: var_metadata,
             all_tags: var_allTags,
+            slices: var_slices,
+            is_multiframe: var_isMultiframe,
+            num_frames: var_numFrames,
         };
     }
 }
@@ -2586,6 +2593,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::dicom_rs_interface::DicomFile
             self.path.into_into_dart().into_dart(),
             self.metadata.into_into_dart().into_dart(),
             self.all_tags.into_into_dart().into_dart(),
+            self.slices.into_into_dart().into_dart(),
+            self.is_multiframe.into_into_dart().into_dart(),
+            self.num_frames.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3020,6 +3030,9 @@ impl SseEncode for crate::api::dicom_rs_interface::DicomFile {
         <String>::sse_encode(self.path, serializer);
         <crate::api::dicom_rs_interface::DicomMetadata>::sse_encode(self.metadata, serializer);
         <Vec<crate::api::dicom_rs_interface::DicomTag>>::sse_encode(self.all_tags, serializer);
+        <Vec<crate::api::dicom_rs_interface::DicomSlice>>::sse_encode(self.slices, serializer);
+        <bool>::sse_encode(self.is_multiframe, serializer);
+        <u32>::sse_encode(self.num_frames, serializer);
     }
 }
 

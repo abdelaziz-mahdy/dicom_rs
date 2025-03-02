@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dicom_rs_interface.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `compute_row_length`, `create_metadata_from_dicomdir_entry`, `extract_all_tags`, `extract_dicomdir_record_metadata`, `extract_metadata`, `get_value_from_elements`, `load_from_dicomdir`, `organize_dicom_entries`, `parse_dicomdir_records`, `process_dicomdir_entries`, `process_directory_recursive`, `sort_dicom_entries_by_position`, `sort_dicom_entries`, `sort_dicom_hierarchy`, `sort_instances_by_position`, `to_el`
+// These functions are ignored because they are not marked as `pub`: `compute_row_length`, `create_metadata_from_dicomdir_entry`, `extract_all_tags`, `extract_dicomdir_record_metadata`, `extract_frame_data`, `extract_metadata_elements`, `extract_metadata`, `get_number_of_frames`, `get_value_from_elements`, `is_multiframe_dicom`, `load_from_dicomdir`, `organize_dicom_entries`, `parse_dicomdir_records`, `process_dicomdir_entries`, `process_directory_recursive`, `sort_dicom_entries_by_position`, `sort_dicom_entries`, `sort_dicom_hierarchy`, `sort_instances_by_position`, `to_el`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Loads a DICOM file from the given path.
@@ -185,15 +185,27 @@ class DicomFile {
   final String path;
   final DicomMetadata metadata;
   final List<DicomTag> allTags;
+  final List<DicomSlice> slices;
+  final bool isMultiframe;
+  final int numFrames;
 
   const DicomFile({
     required this.path,
     required this.metadata,
     required this.allTags,
+    required this.slices,
+    required this.isMultiframe,
+    required this.numFrames,
   });
 
   @override
-  int get hashCode => path.hashCode ^ metadata.hashCode ^ allTags.hashCode;
+  int get hashCode =>
+      path.hashCode ^
+      metadata.hashCode ^
+      allTags.hashCode ^
+      slices.hashCode ^
+      isMultiframe.hashCode ^
+      numFrames.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -202,7 +214,10 @@ class DicomFile {
           runtimeType == other.runtimeType &&
           path == other.path &&
           metadata == other.metadata &&
-          allTags == other.allTags;
+          allTags == other.allTags &&
+          slices == other.slices &&
+          isMultiframe == other.isMultiframe &&
+          numFrames == other.numFrames;
 }
 
 /// Main interface for interacting with DICOM files and directories.

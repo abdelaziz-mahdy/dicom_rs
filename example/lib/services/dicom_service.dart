@@ -22,10 +22,8 @@ class DicomService {
         return DirectoryLoadResult(entries: entries);
 
       case DicomLoadMethod.loadDicomFile:
-        final metadata = await _handler.loadFile(path: path);
-        metadata;
-        return StudyLoadResult(study: DicomStudy(series: []));
-
+        final dicomFile = await _handler.loadFile(path: path);
+        return DicomFileLoadResult(file: dicomFile);
       case DicomLoadMethod.volume:
         final volume = await _handler.loadVolume(
           path: path,
@@ -115,4 +113,10 @@ class StudyLoadResult extends DicomLoadResult {
 class VolumeLoadResult extends DicomLoadResult {
   final DicomVolume volume;
   VolumeLoadResult({required this.volume});
+}
+
+/// Result for file loading methods
+class DicomFileLoadResult extends DicomLoadResult {
+  final DicomFile file;
+  DicomFileLoadResult({required this.file});
 }
