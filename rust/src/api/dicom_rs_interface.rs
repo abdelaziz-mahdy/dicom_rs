@@ -443,13 +443,12 @@ pub fn extract_pixel_data(path: String) -> Result<DicomImage, String> {
 
     let planar_configuration = obj.element(tags::PLANAR_CONFIGURATION).ok()
         .and_then(|e| e.value().to_str().ok().and_then(|s| s.parse::<u16>().ok()));
+    let options = ConvertOptions::new()
+    .with_voi_lut(VoiLutOption::Default)  // Bypass LUT creation
+    .with_bit_depth(BitDepthOption::Auto);
+let dynamic_image = decoded.to_dynamic_image_with_options(0, &options)
+    .map_err(|e| format!("Failed to convert to image: {}", e))?;
 
-    let pixel_data_bytes = match decoded.to_vec() {
-        Ok(data) => data,
-        Err(e) => {
-            return Err(format!("Failed to convert pixel data to bytes: {}", e));
-        }
-    };
 
     Ok(DicomImage {
         width,
@@ -461,7 +460,7 @@ pub fn extract_pixel_data(path: String) -> Result<DicomImage, String> {
         photometric_interpretation,
         samples_per_pixel,
         planar_configuration,
-        pixel_data: pixel_data_bytes,
+        pixel_data: dynamic_image.as_bytes().to_vec(),
     })
 }
 
