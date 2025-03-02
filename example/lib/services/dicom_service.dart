@@ -21,7 +21,7 @@ class DicomService {
         final entries = await _handler.loadDirectoryRecursive(path: path);
         return DirectoryLoadResult(entries: entries);
 
-      case DicomLoadMethod.LoadDicomFile:
+      case DicomLoadMethod.loadDicomFile:
         final metadata = await _handler.loadFile(path: path);
         metadata;
         return StudyLoadResult(study: DicomStudy(series: []));

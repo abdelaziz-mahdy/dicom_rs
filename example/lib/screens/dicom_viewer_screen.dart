@@ -22,8 +22,8 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
   // Loading state
   bool _isLoading = false;
   String? _directoryPath;
-  DicomLoadMethod _selectedLoadMethod = DicomLoadMethod.LoadDicomFile;
-  
+  DicomLoadMethod _selectedLoadMethod = DicomLoadMethod.loadDicomFile;
+
   // Progress tracking for volume loading
   int _loadingProgress = 0;
   int _totalFiles = 0;
@@ -79,9 +79,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
             ),
         ],
       ),
-      body: _showProgress
-          ? _buildProgressIndicator()
-          : _isLoading
+      body:
+          _showProgress
+              ? _buildProgressIndicator()
+              : _isLoading
               ? const Center(child: CircularProgressIndicator())
               : Column(
                 children: [
@@ -116,12 +117,11 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       ),
     );
   }
-  
+
   Widget _buildProgressIndicator() {
-    final double percentComplete = _totalFiles > 0 
-        ? (_loadingProgress / _totalFiles * 100)
-        : 0.0;
-        
+    final double percentComplete =
+        _totalFiles > 0 ? (_loadingProgress / _totalFiles * 100) : 0.0;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -328,7 +328,8 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               Expanded(
                 child: Text(
                   'Study: ${_selectedStudy?.studyDescription ?? 'Unknown'}',
-                  overflow: TextOverflow.ellipsis),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Text('Acc#: ${_selectedStudy?.accessionNumber ?? 'N/A'}'),
             ],
@@ -338,7 +339,8 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               Expanded(
                 child: Text(
                   'Series: ${_selectedSeries?.seriesDescription ?? 'Unknown'}',
-                  overflow: TextOverflow.ellipsis),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Text(
                 'Modality: ${_selectedSeries?.modality ?? 'Unknown'}',
@@ -359,7 +361,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
 
     try {
       /// if the method is load file then pick file
-      if (_selectedLoadMethod == DicomLoadMethod.LoadDicomFile) {
+      if (_selectedLoadMethod == DicomLoadMethod.loadDicomFile) {
         final result = await FilePicker.platform.pickFiles(
           allowMultiple: false,
           type: FileType.custom,
@@ -396,9 +398,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
           final result = await _dicomService.loadDicomData(
             path: selectedDirectory,
             method: _selectedLoadMethod,
-            onProgress: _selectedLoadMethod == DicomLoadMethod.volume 
-                ? _updateProgress 
-                : null,
+            onProgress:
+                _selectedLoadMethod == DicomLoadMethod.volume
+                    ? _updateProgress
+                    : null,
           );
 
           await _processLoadResult(result);
@@ -417,7 +420,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       });
     }
   }
-  
+
   void _updateProgress(int current, int total) {
     setState(() {
       _loadingProgress = current;
