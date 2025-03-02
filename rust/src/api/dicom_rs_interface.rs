@@ -30,26 +30,50 @@ pub struct El {
 fn to_el(e: &InMemElement) -> Result<El> {
     let tag = e.header().tag;
     let tag_str = format!("{:04X}{:04X}", tag.group(), tag.element());
+
+    let alias = StandardDataDictionary
+        .by_tag(tag)
+        .map(|entry| entry.alias)
+        .unwrap_or("«unknown attribute»");
+    
+    let vr = e.header().vr().to_string().to_owned();
+
+    let value = if tag == tags::PIXEL_DATA {
+        "«pixel data»".to_string()
+    } else {
+        e.value().to_str()?.to_string()
+    };
+
     Ok(El {
         tag: tag_str,
-        alias: StandardDataDictionary
-            .by_tag(tag)
-            .map(|entry| entry.alias)
-            .unwrap_or("«unknown attribute»"),
-        vr: e.header().vr().to_string().to_owned(),
-        value: e.value().to_str()?.to_string(),
+        alias,
+        vr,
+        value,
     })
 }
 
-/// Helper to search the converted elements for a given tag.
-fn get_value_from_elements(elements: &Vec<El>, tag: Tag) -> Option<String> {
-    let tag_str = format!("{:04X}{:04X}", tag.group(), tag.element());
-    for el in elements {
-        if el.tag == tag_str {
-            return Some(el.value.clone());
+
+/// Extracts all primitive elements from a DICOM object and converts them to El structs.
+fn extract_metadata_elements(obj: &FileDicomObject<InMemDicomObject>) -> Result<HashMap<String, El>> {
+    let filtered_iter = obj.iter().filter(|e| !e.header().is_non_primitive());
+
+    // Pre-allocate the HashMap with estimated capacity to reduce rehashing
+    // Adjust this number based on your typical DICOM file size
+    let mut hashmap = HashMap::with_capacity(100);
+    
+    for element in filtered_iter {
+        match to_el(element) {
+            Ok(el) => { hashmap.insert(el.tag.clone(), el); },
+            Err(e) => return Err(e),
         }
     }
-    None
+
+    Ok(hashmap)
+}
+/// Helper to search the converted elements for a given tag.
+fn get_value_from_elements(elements: &HashMap<String, El>, tag: Tag) -> Option<String> {
+    let tag_str = format!("{:04X}{:04X}", tag.group(), tag.element());
+    elements.get(&tag_str).map(|el| el.value.clone())
 }
 
 // -----------------------------------------------------------------------------
@@ -301,36 +325,33 @@ pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
     let file_path = Path::new(&path);
     let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
 
-    // Print all non-sequence elements using our new to_el method.
-    println!(
-        "Elements:{:?}",
-        obj.iter()
-            .filter(|e| !e.header().is_non_primitive())
-            .map(to_el)
-            .collect::<Result<Vec<_>>>()
-    );
+    // // Print all non-sequence elements using our new to_el method.
+    // println!(
+    //     "Elements:{:?}",
+    //     obj.iter()
+    //         .filter(|e| !e.header().is_non_primitive())
+    //         .map(to_el)
+    //         .collect::<Result<Vec<_>>>()
+    // );
     
     // Log complete metadata map (using the updated extraction)
     let all_metadata = extract_all_metadata(&path).map_err(|e| e.to_string())?;
-    println!("All metadata: {:?}", all_metadata);
+    // println!("All metadata: {:?}", all_metadata);
     
     // Extract common metadata for our DicomFile
     let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
-    println!("Metadata: {:?}", metadata);
+    // println!("Metadata: {:?}", metadata);
     
     // Extract all tags
     let all_tags = extract_all_tags(&obj).map_err(|e| e.to_string())?;
 
     Ok(DicomFile { path, metadata, all_tags })
 }
-
 /// Extracts common metadata from a DICOM object.
 fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMetadata> {
-    // Convert all primitive elements using to_el
-    let elements: Vec<El> = obj.iter()
-        .filter(|e| !e.header().is_non_primitive())
-        .map(to_el)
-        .collect::<Result<Vec<_>>>().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    // Extract and convert elements using our new function
+    let elements = extract_metadata_elements(obj)?;
     
     let patient_name = get_value_from_elements(&elements, tags::PATIENT_NAME);
     let patient_id = get_value_from_elements(&elements, tags::PATIENT_ID);
@@ -365,6 +386,7 @@ fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMeta
     let spacing_between_slices = parse_f64(get_value_from_elements(&elements, tags::SPACING_BETWEEN_SLICES));
     let pixel_spacing = parse_f64_vec(get_value_from_elements(&elements, tags::PIXEL_SPACING));
 
+
     Ok(DicomMetadata {
         patient_name,
         patient_id,
@@ -389,16 +411,13 @@ fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMeta
 
 /// Extracts all tags from a DICOM object.
 fn extract_all_tags(obj: &FileDicomObject<InMemDicomObject>) -> Result<Vec<DicomTag>> {
-    let elements: Vec<El> = obj.iter()
-        .filter(|e| !e.header().is_non_primitive())
-        .map(to_el)
-        .collect::<Result<Vec<_>>>().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let tags = elements.into_iter().map(|el| {
+    let elements = extract_metadata_elements(obj)?;
+    let tags = elements.into_iter().map(|(_key, el)| {
         DicomTag {
-            tag: el.tag,
-            vr: el.vr,
+            tag: el.tag.clone(),
+            vr: el.vr.clone(),
             name: el.alias.to_string(),
-            value: DicomValueType::Str(el.value),
+            value: DicomValueType::Str(el.value.clone()),
         }
     }).collect();
     Ok(tags)
@@ -779,16 +798,15 @@ fn process_directory_recursive(dir_path: &Path, result: &mut Vec<DicomDirectoryE
 pub fn extract_all_metadata(path: &str) -> Result<DicomMetadataMap, String> {
     let file_path = Path::new(path);
     let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
-    let elements: Vec<El> = obj.iter()
-        .filter(|e| !e.header().is_non_primitive())
-        .map(to_el)
-        .collect::<Result<Vec<_>>>().map_err(|e| e.to_string())?;
+    
+    let elements = extract_metadata_elements(&obj).map_err(|e| e.to_string())?;
     let mut tags = HashMap::new();
     let mut group_elements = HashMap::new();
-    for el in elements {
+    
+    for (_key, el) in elements {
         let tag_str = el.tag.clone();
         let group = &tag_str[0..4];
-        let element = &tag_str[4..8];
+        let element_str = &tag_str[4..8];
         let dicom_tag = DicomTag {
             tag: tag_str.clone(),
             vr: el.vr.clone(),
@@ -796,18 +814,19 @@ pub fn extract_all_metadata(path: &str) -> Result<DicomMetadataMap, String> {
             value: DicomValueType::Str(el.value.clone()),
         };
         tags.insert(tag_str.clone(), dicom_tag.clone());
-        group_elements.entry(group.to_string()).or_insert_with(HashMap::new).insert(element.to_string(), dicom_tag);
+        group_elements.entry(group.to_string()).or_insert_with(HashMap::new).insert(element_str.to_string(), dicom_tag);
     }
+    
     Ok(DicomMetadataMap { tags, group_elements })
 }
 
 /// Checks if a file is a DICOMDIR file.
 pub fn is_dicomdir_file(path: &str) -> bool {
     let file_path = Path::new(path);
-    if !file_path.exists() || file_path.is_dir() {
+    if (!file_path.exists()) {
         return false;
     }
-    if !is_dicom_file(path.to_string()) {
+    if (!is_dicom_file(path.to_string())) {
         return false;
     }
     if let Ok(obj) = open_file(file_path) {
