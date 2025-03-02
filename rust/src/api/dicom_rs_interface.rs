@@ -9,6 +9,10 @@ use std::{fs, io::Cursor, path::Path, collections::HashMap};
 use std::cmp::Ordering;
 use dicom_pixeldata::Error;
 use flutter_rust_bridge::DartFnFuture;
+use futures::{stream::{self, StreamExt}, future::join_all};
+use std::sync::atomic::{AtomicU32, Ordering as AtomicOrdering};
+use std::sync::{Arc, Mutex};
+use rayon::prelude::*;
 // -----------------------------------------------------------------------------
 // Unified element conversion using to_el
 // -----------------------------------------------------------------------------
@@ -316,7 +320,8 @@ impl DicomHandler {
         parse_dicomdir_file(path)
     }
     
-    pub async fn load_volume(&self, path: String, progress_callback: impl Fn(u32, u32) -> DartFnFuture<()>) -> Result<DicomVolume, String> {
+    pub async fn load_volume(&self, path: String, progress_callback: impl Fn(u32, u32) -> DartFnFuture<()> + Send + Sync + 'static,
+) -> Result<DicomVolume, String> {
         load_volume_from_directory(path, progress_callback).await
     }
 }
@@ -974,17 +979,17 @@ fn extract_dicomdir_record_metadata(record: &InMemDicomObject, entry: &mut Dicom
 /// Unified function to load DICOM files from a directory.
 pub fn load_dicom_directory_unified(dir_path: String, recursive: bool) -> Result<Vec<DicomDirectoryEntry>, String> {
     let path = Path::new(&dir_path);
-    if !path.exists() || !path.is_dir() {
+    if (!path.exists() || !path.is_dir()) {
         return Err(format!("Invalid directory path: {}", dir_path));
     }
     let potential_dicomdir = path.join("DICOMDIR");
     let potential_dicomdir_lower = path.join("dicomdir");
-    if potential_dicomdir.exists() && is_dicomdir_file(potential_dicomdir.to_str().unwrap_or("")) {
+    if (potential_dicomdir.exists() && is_dicomdir_file(potential_dicomdir.to_str().unwrap_or(""))) {
         return load_from_dicomdir(potential_dicomdir.to_str().unwrap_or("").to_string());
-    } else if potential_dicomdir_lower.exists() && is_dicomdir_file(potential_dicomdir_lower.to_str().unwrap_or("")) {
+    } else if (potential_dicomdir_lower.exists() && is_dicomdir_file(potential_dicomdir_lower.to_str().unwrap_or(""))) {
         return load_from_dicomdir(potential_dicomdir_lower.to_str().unwrap_or("").to_string());
     }
-    if recursive {
+    if (recursive) {
         load_dicom_directory_recursive(dir_path)
     } else {
         load_dicom_directory(dir_path)
@@ -996,7 +1001,7 @@ fn load_from_dicomdir(dicomdir_path: String) -> Result<Vec<DicomDirectoryEntry>,
     let dicomdir = parse_dicomdir_file(dicomdir_path.clone())?;
     let mut result = Vec::new();
     process_dicomdir_entries(&dicomdir, &mut result);
-    if result.is_empty() {
+    if (result.is_empty()) {
         return Err(format!("No valid DICOM images found in DICOMDIR: {}", dicomdir_path));
     }
     sort_dicom_entries_by_position(&mut result)?;
@@ -1005,7 +1010,7 @@ fn load_from_dicomdir(dicomdir_path: String) -> Result<Vec<DicomDirectoryEntry>,
 
 /// Processes DICOMDIR entries recursively.
 fn process_dicomdir_entries(entry: &DicomDirEntry, result: &mut Vec<DicomDirectoryEntry>) {
-    if entry.type_name == "IMAGE" && !entry.path.is_empty() && Path::new(&entry.path).exists() {
+    if (entry.type_name == "IMAGE" && !entry.path.is_empty() && Path::new(&entry.path).exists()) {
         let metadata = create_metadata_from_dicomdir_entry(entry);
         let mut dicom_entry = DicomDirectoryEntry {
             path: entry.path.clone(),
@@ -1218,8 +1223,8 @@ fn compute_row_length(width: u32, bits_allocated: u16, samples_per_pixel: u16) -
 
 /// Loads a multi-slice volume from a directory of DICOM files.
 pub async fn load_volume_from_directory(
-    dir_path: String, 
-    progress_callback: impl Fn(u32, u32) -> DartFnFuture<()>
+    dir_path: String,
+    progress_callback: impl Fn(u32, u32) -> DartFnFuture<()> + Send + Sync + 'static,
 ) -> Result<DicomVolume, String> {
     let mut entries = load_dicom_directory(dir_path.clone())?;
     if entries.is_empty() {
@@ -1231,7 +1236,6 @@ pub async fn load_volume_from_directory(
     // Report initial progress (0 of total files)
     progress_callback(0, total_files).await;
 
-    
     let first_entry = &entries[0];
     let first_image = extract_pixel_data(first_entry.path.clone())?;
     let width = first_image.width;
@@ -1242,15 +1246,57 @@ pub async fn load_volume_from_directory(
     let obj = open_file(Path::new(&first_entry.path)).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
     let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
 
-    let mut slices = Vec::new();
-    
-    for (i, entry) in entries.iter().enumerate() {
-        let encoded = get_encoded_image(entry.path.clone())?;
-        slices.push(DicomSlice { path: entry.path.clone(), data: encoded });
+    // Prepare data structures to hold results and track progress
+    let results: Arc<Mutex<Vec<Option<DicomSlice>>>> = Arc::new(Mutex::new(vec![None; entries.len()]));
+    let errors: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let processed_count = Arc::new(AtomicU32::new(0));
+    let progress_callback = Arc::new(progress_callback);
+
+    // Process files in parallel using rayon
+    entries.par_iter().enumerate().for_each(|(i, entry)| {
+        let path = entry.path.clone();
+        let progress_callback = Arc::clone(&progress_callback);
+        // Process this file
+        match get_encoded_image(path.clone()) {
+            Ok(encoded) => {
+                let slice = DicomSlice { path, data: encoded };
+                
+                // Store the result in the correct position
+                if let Ok(mut results_guard) = results.lock() {
+                    results_guard[i] = Some(slice);
+                }
+            },
+            Err(e) => {
+                // Record the error
+                if let Ok(mut errors_guard) = errors.lock() {
+                    errors_guard.push(format!("Error processing file {}: {}", path, e));
+                }
+            }
+        };
         
-        // Report progress after each file is processed
-        progress_callback((i + 1) as u32, total_files).await;
-       
+        // Update progress
+        let completed = processed_count.fetch_add(1, AtomicOrdering::SeqCst) + 1;
+        
+        // We need to spawn a future to call the async callback
+        // This is just to report progress, not for the actual image processing
+        let _ = futures::executor::block_on(progress_callback(completed, total_files));
+    });
+    
+    // Check for errors
+    let error_messages = errors.lock().unwrap();
+    if !error_messages.is_empty() {
+        return Err(format!("Errors during parallel processing: {}", error_messages.join("; ")));
+    }
+    
+    // Collect results in order
+    let slices_result = results.lock().unwrap();
+    let slices = slices_result.iter()
+        .filter_map(|slice| slice.clone())
+        .collect::<Vec<_>>();
+    
+    // Ensure we have all slices
+    if slices.len() != entries.len() {
+        return Err("Some slices failed to load".to_string());
     }
     
     let depth = slices.len() as u32;
@@ -1263,6 +1309,7 @@ pub async fn load_volume_from_directory(
         None => return Err("Slice spacing not found".to_string()),
     };
     let data_type = if bits_allocated <= 8 { "unsigned char".to_string() } else { "unsigned short".to_string() };
+    
     Ok(DicomVolume {
         width,
         height,
