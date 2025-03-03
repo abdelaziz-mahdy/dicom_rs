@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'dicom_viewer_base.dart';
+import 'dicom_interaction_mixin.dart';
 
 /// A widget for displaying DICOM images with navigation controls
 class DicomImageViewer extends DicomViewerBase {
@@ -26,13 +27,57 @@ class DicomImageViewer extends DicomViewerBase {
   DicomImageViewerState createState() => DicomImageViewerState();
 }
 
-class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer> {
+class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
+    with DicomInteractionMixin {
   late int _currentIndex;
+  Uint8List? _processedImage;
+  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _updateProcessedImage();
+  }
+
+  @override
+  void dispose() {
+    disposeInteractionResources(); // Clean up timers
+    super.dispose();
+  }
+
+  // Implement the required method from DicomInteractionMixin
+  @override
+  void updateProcessedImage() {
+    _updateProcessedImage();
+  }
+
+  Future<void> _updateProcessedImage() async {
+    // if (_isProcessing) return;
+
+    // _isProcessing = true;
+    if (widget.imageBytesList.isNotEmpty &&
+        _currentIndex < widget.imageBytesList.length &&
+        widget.imageBytesList[_currentIndex] != null) {
+      _processedImage = await applyBrightnessContrast(
+        widget.imageBytesList[_currentIndex],
+      );
+    }
+    // _isProcessing = false;
+    // if (mounted) {
+    //   setState(() {
+    //     _isProcessing = false;
+    //   });
+    // }
+  }
+
+  @override
+  void didUpdateWidget(DicomImageViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageBytesList != widget.imageBytesList ||
+        oldWidget.initialIndex != widget.initialIndex) {
+      _updateProcessedImage();
+    }
   }
 
   @override
@@ -45,21 +90,81 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Image display area with scroll listener
+        // Image display area with interaction detectors
         Expanded(
-          child: Listener(
-            onPointerSignal: _handleScroll,
-            child: Center(
-              child:
-                  widget.imageBytesList.isNotEmpty &&
-                          _currentIndex < widget.imageBytesList.length &&
-                          widget.imageBytesList[_currentIndex] != null
-                      ? Image.memory(
-                        widget.imageBytesList[_currentIndex]!,
-                        gaplessPlayback: true,
-                      )
-                      : const Text('No image loaded'),
-            ),
+          child: Stack(
+            children: [
+              // Main image with gesture detectors
+              Listener(
+                onPointerSignal: _handleScroll,
+                onPointerDown: handlePointerDown,
+                onPointerMove: handlePointerMove,
+                onPointerUp: handlePointerUp,
+                child: GestureDetector(
+                  onScaleUpdate: handleScaleUpdate,
+                  onScaleEnd: handleScaleEnd,
+                  child: Center(
+                    child: Transform.scale(
+                      scale: scale,
+                      child:
+                          _processedImage != null
+                              ? Image.memory(
+                                _processedImage!,
+                                gaplessPlayback: true,
+                              )
+                              : widget.imageBytesList.isNotEmpty &&
+                                  _currentIndex <
+                                      widget.imageBytesList.length &&
+                                  widget.imageBytesList[_currentIndex] != null
+                              ? Image.memory(
+                                widget.imageBytesList[_currentIndex]!,
+                                gaplessPlayback: true,
+                              )
+                              : const Text('No image loaded'),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Brightness/contrast display overlay
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 4.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(4.0),
+                  ),
+                  child: Text(
+                    getAdjustmentText(),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
+
+              // Reset button for brightness/contrast
+              Positioned(
+                top: 10,
+                left: 10,
+                child: IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white70),
+                  onPressed: () {
+                    resetImageAdjustments();
+                    _updateProcessedImage();
+                  },
+                  tooltip: 'Reset adjustments',
+                  style: IconButton.styleFrom(backgroundColor: Colors.black38),
+                ),
+              ),
+
+              // Processing indicator
+              if (_isProcessing)
+                const Center(child: CircularProgressIndicator()),
+            ],
           ),
         ),
 
@@ -98,6 +203,7 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer> {
     setState(() {
       _currentIndex = (_currentIndex + 1) % widget.imageBytesList.length;
     });
+    _updateProcessedImage();
   }
 
   @override
@@ -109,6 +215,7 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer> {
           (_currentIndex - 1 + widget.imageBytesList.length) %
           widget.imageBytesList.length;
     });
+    _updateProcessedImage();
   }
 
   void _handleScroll(PointerSignalEvent event) {

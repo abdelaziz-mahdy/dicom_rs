@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import 'dicom_viewer_base.dart';
+import 'dicom_interaction_mixin.dart';
 
 /// A widget to display a 3D DICOM volume.
 /// It shows one slice at a time with slider and next/previous controls.
@@ -26,8 +27,11 @@ class VolumeViewer extends DicomViewerBase {
   VolumeViewerState createState() => VolumeViewerState();
 }
 
-class VolumeViewerState extends DicomViewerBaseState<VolumeViewer> {
+class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
+    with DicomInteractionMixin {
   late int _currentSliceIndex;
+  Uint8List? _processedImage;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -36,6 +40,38 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer> {
     if (_currentSliceIndex >= widget.volume.depth) {
       _currentSliceIndex = 0;
     }
+    _updateProcessedImage();
+  }
+
+  @override
+  void dispose() {
+    disposeInteractionResources(); // Clean up timers
+    super.dispose();
+  }
+
+  // Implement the required method from DicomInteractionMixin
+  @override
+  void updateProcessedImage() {
+    _updateProcessedImage();
+  }
+
+  Future<void> _updateProcessedImage() async {
+    // if (_isProcessing) return;
+
+    // _isProcessing = true;
+    Uint8List? currentSliceBytes;
+    if (widget.volume.slices.isNotEmpty) {
+      currentSliceBytes = widget.volume.slices[_currentSliceIndex].data;
+      if (currentSliceBytes != null) {
+        _processedImage = await applyBrightnessContrast(currentSliceBytes);
+      }
+    }
+    // _isProcessing = false;
+    // if (mounted) {
+    //   setState(() {
+    //     _isProcessing = false;
+    //   });
+    // }
   }
 
   @override
@@ -63,16 +99,80 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer> {
           ),
         ),
 
-        // Main image display with scroll wheel handling
+        // Main image display with interaction handlers
         Expanded(
-          child: Listener(
-            onPointerSignal: _handleScroll,
-            child: Center(
-              child:
-                  currentSliceBytes != null
-                      ? Image.memory(currentSliceBytes, gaplessPlayback: true)
-                      : const Center(child: Text('No image data available')),
-            ),
+          child: Stack(
+            children: [
+              // Main image with gesture detectors
+              Listener(
+                onPointerSignal: _handleScroll,
+                onPointerDown: handlePointerDown,
+                onPointerMove: handlePointerMove,
+                onPointerUp: handlePointerUp,
+                child: GestureDetector(
+                  onScaleUpdate: handleScaleUpdate,
+                  onScaleEnd: handleScaleEnd,
+                  child: Center(
+                    child: Transform.scale(
+                      scale: scale,
+                      child:
+                          _processedImage != null
+                              ? Image.memory(
+                                _processedImage!,
+                                gaplessPlayback: true,
+                              )
+                              : currentSliceBytes != null
+                              ? Image.memory(
+                                currentSliceBytes,
+                                gaplessPlayback: true,
+                              )
+                              : const Center(
+                                child: Text('No image data available'),
+                              ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Brightness/contrast display
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 4.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(4.0),
+                  ),
+                  child: Text(
+                    getAdjustmentText(),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
+
+              // Reset button
+              Positioned(
+                top: 10,
+                left: 10,
+                child: IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white70),
+                  onPressed: () {
+                    resetImageAdjustments();
+                    _updateProcessedImage();
+                  },
+                  tooltip: 'Reset adjustments',
+                  style: IconButton.styleFrom(backgroundColor: Colors.black38),
+                ),
+              ),
+
+              // Processing indicator
+              if (_isProcessing)
+                const Center(child: CircularProgressIndicator()),
+            ],
           ),
         ),
 
@@ -97,6 +197,7 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer> {
                     setState(() {
                       _currentSliceIndex = value.toInt();
                     });
+                    _updateProcessedImage();
                   },
                 ),
               ),
@@ -125,6 +226,7 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer> {
     setState(() {
       _currentSliceIndex = (_currentSliceIndex + 1) % widget.volume.depth;
     });
+    _updateProcessedImage();
   }
 
   @override
@@ -133,6 +235,7 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer> {
       _currentSliceIndex =
           (_currentSliceIndex - 1 + widget.volume.depth) % widget.volume.depth;
     });
+    _updateProcessedImage();
   }
 
   void _handleScroll(PointerSignalEvent event) {
