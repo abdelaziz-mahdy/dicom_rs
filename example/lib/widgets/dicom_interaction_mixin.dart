@@ -133,13 +133,27 @@ mixin DicomInteractionMixin<T extends StatefulWidget> on State<T> {
 
       // Apply brightness and contrast using OpenCV formula:
       // new_pixel = contrast * original_pixel + brightness
-      await convertScaleAbsAsync(
-        imageMat,
-        dst: imageMat,
-        alpha: contrast,
-        beta: brightness,
-      );
+      // await convertScaleAbsAsync(
+      //   imageMat,
+      //   dst: imageMat,
+      //   alpha: contrast,
+      //   beta: brightness,
+      // );
+      double newBrightness = brightness + (255 * (1 - contrast) / 2);
 
+      // """
+      // Adjusts contrast and brightness of an uint8 image.
+      // contrast:   (0.0,  inf) with 1.0 leaving the contrast as is
+      // brightness: [-255, 255] with 0 leaving the brightness as is
+      // """
+      await addWeightedAsync(
+        imageMat,
+        contrast,
+        imageMat,
+        0,
+        newBrightness,
+        dst: imageMat,
+      );
       // Convert back to bytes
       final Uint8List processedBytes =
           (await imencodeAsync('.png', imageMat)).$2;
