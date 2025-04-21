@@ -222,11 +222,23 @@ pub struct DicomDirEntry {
 #[derive(Clone, Debug, Default)]
 pub struct DicomHandler {}
 
+/// Controls how DICOM slices are loaded
+#[derive(Clone, Debug)]
+pub enum SliceLoadMode {
+    /// Don't decode slices (faster but requires later decoding)
+    DoNotDecode,
+    /// Decode all slices immediately (slower but ready to use)
+    DecodeAll,
+    /// Decode only the specified indices
+    DecodeIndices(Vec<usize>),
+}
+
 /// Represents a single slice from a DICOM volume.
 #[derive(Clone, Debug)]
 pub struct DicomSlice {
     pub path: String,
     pub data: Vec<u8>,
+    pub is_decoded: bool,
 }
 
 /// Represents a 3D volume constructed from 2D DICOM slices.
@@ -320,9 +332,13 @@ impl DicomHandler {
         parse_dicomdir_file(path)
     }
     
-    pub async fn load_volume(&self, path: String, progress_callback: impl Fn(u32, u32) -> DartFnFuture<()> + Send + Sync + 'static,
-) -> Result<DicomVolume, String> {
-        load_volume_from_directory(path, progress_callback).await
+    pub async fn load_volume(
+        &self, 
+        path: String, 
+        load_mode: SliceLoadMode,
+        progress_callback: impl Fn(u32, u32) -> DartFnFuture<()> + Send + Sync + 'static,
+    ) -> Result<DicomVolume, String> {
+        load_volume_from_directory(path, load_mode, progress_callback).await
     }
 }
 
@@ -360,7 +376,7 @@ pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
     let num_frames = get_number_of_frames(&obj).unwrap_or(1);
     
     // Extract slices/frames
-    let slices = extract_dicom_slices(& path)?;
+    let slices = extract_dicom_slices(& path, &SliceLoadMode::DecodeAll)?;
     
 
     Ok(DicomFile { 
@@ -553,6 +569,18 @@ pub fn get_encoded_image(path: String) -> Result<Vec<u8>, String> {
     dynamic_image.write_to(&mut cursor, image::ImageFormat::Png)
         .map_err(|e| format!("Failed to encode image: {}", e))?;
     Ok(encoded_bytes)
+}
+
+/// Get raw pixel data without decoding into an image format
+pub fn get_raw_pixel_data(path: &str) -> Result<Vec<u8>, String> {
+    let file_path = Path::new(path);
+    let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
+    if let Ok(element) = obj.element(tags::PIXEL_DATA) {
+        if let Value::Primitive(PrimitiveValue::Inlineable(bytes)) = element.value() {
+            return Ok(bytes.to_vec());
+        }
+    }
+    Err("Failed to extract raw pixel data".to_string())
 }
 
 /// Loads all DICOM files from a directory.
@@ -1222,6 +1250,7 @@ fn compute_row_length(width: u32, bits_allocated: u16, samples_per_pixel: u16) -
 /// Loads a multi-slice volume from a directory of DICOM files.
 pub async fn load_volume_from_directory(
     dir_path: String,
+    load_mode: SliceLoadMode,
     progress_callback: impl Fn(u32, u32) -> DartFnFuture<()> + Send + Sync + 'static,
 ) -> Result<DicomVolume, String> {
     let mut entries = load_dicom_directory(dir_path.clone())?;
@@ -1241,8 +1270,8 @@ pub async fn load_volume_from_directory(
     let obj = open_file(Path::new(&first_entry.path)).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
     let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
 
-    // Extract all slices using our new parallel extraction function
-    let slices = extract_slices_from_directory(&dir_path, progress_callback).await?;
+    // Extract all slices using our parallel extraction function with the specified load mode
+    let slices = extract_slices_from_directory(&dir_path, load_mode, progress_callback).await?;
     
     let depth = slices.len() as u32;
     let spacing_xy = match &first_entry.metadata.pixel_spacing {
@@ -1320,29 +1349,47 @@ fn extract_frame_data(obj: &FileDicomObject<InMemDicomObject>, frame_index: u32)
 }
 
 /// Extracts a single slice (or frame) from a DICOM file
-pub fn extract_dicom_slice(path: &str, frame_index: Option<u32>) -> Result<DicomSlice, String> {
-    let file_path = Path::new(path);
-    let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
-    
-    if let Some(frame_idx) = frame_index {
-        // Extract specific frame from multiframe DICOM
-        let frame_data = extract_frame_data(&obj, frame_idx)?;
-        Ok(DicomSlice {
-            path: path.to_string(),
-            data: frame_data,
-        })
+pub fn extract_dicom_slice(path: &str, frame_index: Option<u32>, decode: bool) -> Result<DicomSlice, String> {
+    if decode {
+        let file_path = Path::new(path);
+        let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
+        
+        if let Some(frame_idx) = frame_index {
+            // Extract specific frame from multiframe DICOM
+            let frame_data = extract_frame_data(&obj, frame_idx)?;
+            Ok(DicomSlice {
+                path: path.to_string(),
+                data: frame_data,
+                is_decoded: true,
+            })
+        } else {
+            // Extract image data from regular DICOM
+            let image_data = get_encoded_image(path.to_string())?;
+            Ok(DicomSlice {
+                path: path.to_string(),
+                data: image_data,
+                is_decoded: true,
+            })
+        }
     } else {
-        // Extract image data from regular DICOM
-        let image_data = get_encoded_image(path.to_string())?;
-        Ok(DicomSlice {
-            path: path.to_string(),
-            data: image_data,
-        })
+        // Store path but don't decode the data
+        match get_raw_pixel_data(path) {
+            Ok(raw_data) => Ok(DicomSlice {
+                path: path.to_string(),
+                data: raw_data,
+                is_decoded: false,
+            }),
+            Err(_) => Ok(DicomSlice {
+                path: path.to_string(),
+                data: vec![],
+                is_decoded: false,
+            }),
+        }
     }
 }
 
 /// Extracts all slices from a DICOM file (handles both multiframe and regular DICOMs)
-pub fn extract_dicom_slices(path: &str) -> Result<Vec<DicomSlice>, String> {
+pub fn extract_dicom_slices(path: &str, load_mode: &SliceLoadMode) -> Result<Vec<DicomSlice>, String> {
     let file_path = Path::new(path);
     let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
     
@@ -1352,15 +1399,28 @@ pub fn extract_dicom_slices(path: &str) -> Result<Vec<DicomSlice>, String> {
     if is_multiframe {
         // Handle multi-frame DICOM
         let num_frames = get_number_of_frames(&obj).unwrap_or(1);
+        
         for frame_index in 0..num_frames {
-            match extract_dicom_slice(path, Some(frame_index)) {
+            let should_decode = match load_mode {
+                SliceLoadMode::DoNotDecode => false,
+                SliceLoadMode::DecodeAll => true,
+                SliceLoadMode::DecodeIndices(indices) => indices.contains(&(frame_index as usize)),
+            };
+            
+            match extract_dicom_slice(path, Some(frame_index), should_decode) {
                 Ok(slice) => slices.push(slice),
                 Err(e) => return Err(format!("Failed to extract frame {}: {}", frame_index, e)),
             }
         }
     } else {
         // Handle single-frame DICOM
-        match extract_dicom_slice(path, None) {
+        let should_decode = match load_mode {
+            SliceLoadMode::DoNotDecode => false,
+            SliceLoadMode::DecodeAll => true,
+            SliceLoadMode::DecodeIndices(indices) => indices.contains(&0),
+        };
+        
+        match extract_dicom_slice(path, None, should_decode) {
             Ok(slice) => slices.push(slice),
             Err(e) => return Err(format!("Failed to extract slice: {}", e)),
         }
@@ -1372,6 +1432,7 @@ pub fn extract_dicom_slices(path: &str) -> Result<Vec<DicomSlice>, String> {
 /// Extracts slices from multiple DICOM files in a directory with parallel processing
 pub async fn extract_slices_from_directory(
     dir_path: &str,
+    load_mode: SliceLoadMode,
     progress_callback: impl Fn(u32, u32) -> DartFnFuture<()> + Send + Sync + 'static,
 ) -> Result<Vec<DicomSlice>, String> {
     let entries = load_dicom_directory(dir_path.to_string())?;
@@ -1384,7 +1445,6 @@ pub async fn extract_slices_from_directory(
     // Report initial progress if callback provided
     progress_callback(0, total_files).await;
     
-    
     // Prepare data structures to hold results and track progress
     let results: Arc<Mutex<Vec<Option<DicomSlice>>>> = Arc::new(Mutex::new(vec![None; entries.len()]));
     let errors: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
@@ -1394,11 +1454,27 @@ pub async fn extract_slices_from_directory(
     entries.par_iter().enumerate().for_each(|(i, entry)| {
         let path = entry.path.clone();
         
+        // Determine if we should decode this slice based on the load mode
+        let should_decode = match &load_mode {
+            SliceLoadMode::DoNotDecode => false,
+            SliceLoadMode::DecodeAll => true,
+            SliceLoadMode::DecodeIndices(indices) => indices.contains(&i),
+        };
+        
         // Process this file
-        match get_encoded_image(path.clone()) {
-            Ok(encoded) => {
-                let slice = DicomSlice { path, data: encoded };
-                
+        let result = if should_decode {
+            get_encoded_image(path.clone()).map(|encoded| {
+                DicomSlice { path: path.clone(), data: encoded, is_decoded: true }
+            })
+        } else {
+            match get_raw_pixel_data(&path) {
+                Ok(raw_data) => Ok(DicomSlice { path: path.clone(), data: raw_data, is_decoded: false }),
+                Err(_) => Ok(DicomSlice { path: path.clone(), data: vec![], is_decoded: false }),
+            }
+        };
+        
+        match result {
+            Ok(slice) => {
                 // Store the result in the correct position
                 if let Ok(mut results_guard) = results.lock() {
                     results_guard[i] = Some(slice);
@@ -1415,7 +1491,6 @@ pub async fn extract_slices_from_directory(
         // Update progress
         let completed = processed_count.fetch_add(1, AtomicOrdering::SeqCst) + 1;
         
-        // Call progress callback if provided
         // Call progress callback if provided
         futures::executor::block_on(progress_callback(completed, total_files));
     });
