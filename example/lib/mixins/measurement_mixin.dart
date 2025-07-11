@@ -7,6 +7,9 @@ mixin MeasurementMixin<T extends StatefulWidget> on State<T> {
   MeasurementType? _selectedTool;
   bool _measurementsVisible = true;
   List<MeasurementPoint> _currentMeasurementPoints = [];
+  String? _selectedMeasurementId;
+  int? _selectedPointIndex;
+  bool _isDraggingPoint = false;
 
   // Getters
   MeasurementManager get measurementManager => _measurementManager!;
@@ -44,15 +47,23 @@ mixin MeasurementMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
-  // Tool selection
+  // Tool selection - clicking the same tool will deselect it
   void selectMeasurementTool(MeasurementType? tool) {
     setState(() {
-      // Only clear points if we're switching to a different tool
-      if (tool != _selectedTool) {
+      // If clicking the same tool, deselect it
+      if (tool == _selectedTool) {
+        _selectedTool = null;
         _currentMeasurementPoints.clear();
+      } else {
+        // Switching to a different tool
+        _currentMeasurementPoints.clear();
+        _selectedTool = tool;
       }
-      
-      _selectedTool = tool;
+
+      // Deselect any selected measurements when using tools
+      if (_selectedTool != null) {
+        _deselectAllMeasurements();
+      }
     });
   }
 
@@ -68,6 +79,8 @@ mixin MeasurementMixin<T extends StatefulWidget> on State<T> {
     setState(() {
       _measurementManager?.clearMeasurements();
       _currentMeasurementPoints.clear();
+      _selectedMeasurementId = null;
+      _selectedPointIndex = null;
     });
   }
 
@@ -78,27 +91,107 @@ mixin MeasurementMixin<T extends StatefulWidget> on State<T> {
     });
   }
 
-  // Handle tap/click for measurement creation
+  // Handle tap/click for measurement creation or selection
   bool handleMeasurementTap(Offset localPosition, Size imageSize) {
-    if (_selectedTool == null || _measurementManager == null) {
+    if (_measurementManager == null) {
       return false;
     }
 
-    // Convert screen coordinates to image coordinates
     final imagePoint = MeasurementPoint(localPosition.dx, localPosition.dy);
-    
+
+    // If no tool is selected, check for point selection
+    if (_selectedTool == null) {
+      return _handlePointSelection(imagePoint);
+    }
+
+    // Tool is selected - create new measurement
     setState(() {
       _currentMeasurementPoints.add(imagePoint);
 
       // Check if we have enough points to complete the measurement
       final requiredPoints = _getRequiredPointsForTool(_selectedTool!);
-      
+
       if (_currentMeasurementPoints.length >= requiredPoints) {
         _completeMeasurement();
       }
     });
 
     return true; // Indicates the tap was handled
+  }
+
+  // Handle point selection for editing existing measurements
+  bool _handlePointSelection(MeasurementPoint tapPoint) {
+    for (final measurement in _measurementManager!.measurements) {
+      final hitIndex = measurement.getHitPointIndex(
+        Offset(tapPoint.x, tapPoint.y),
+        hitRadius: 20.0,
+      );
+
+      if (hitIndex != null) {
+        setState(() {
+          // Deselect all measurements first
+          _deselectAllMeasurements();
+
+          // Select this measurement and point
+          _selectedMeasurementId = measurement.id;
+          _selectedPointIndex = hitIndex;
+
+          // Update the measurement to show it's selected
+          final selectedMeasurement = measurement.copyWith(
+            isSelected: true,
+            selectedPointIndex: hitIndex,
+          );
+          _measurementManager!.updateMeasurement(selectedMeasurement);
+        });
+        return true;
+      }
+    }
+
+    // No point hit - deselect all
+    setState(() {
+      _deselectAllMeasurements();
+    });
+    return false;
+  }
+
+  // Handle dragging of selected points
+  bool handlePointDrag(Offset newPosition) {
+    if (_selectedMeasurementId == null || _selectedPointIndex == null) {
+      return false;
+    }
+
+    final measurement = _measurementManager!.measurements.firstWhere(
+      (m) => m.id == _selectedMeasurementId,
+    );
+
+    final newPoint = MeasurementPoint(newPosition.dx, newPosition.dy);
+    final updatedMeasurement = measurement.updatePoint(
+      _selectedPointIndex!,
+      newPoint,
+    );
+
+    setState(() {
+      _measurementManager!.updateMeasurement(updatedMeasurement);
+    });
+
+    return true;
+  }
+
+  // Deselect all measurements
+  void _deselectAllMeasurements() {
+    _selectedMeasurementId = null;
+    _selectedPointIndex = null;
+
+    final measurements = _measurementManager!.measurements;
+    for (final measurement in measurements) {
+      if (measurement.isSelected) {
+        final deselectedMeasurement = measurement.copyWith(
+          isSelected: false,
+          selectedPointIndex: null,
+        );
+        _measurementManager!.updateMeasurement(deselectedMeasurement);
+      }
+    }
   }
 
   // Complete the current measurement
@@ -190,6 +283,13 @@ mixin MeasurementMixin<T extends StatefulWidget> on State<T> {
   // Check if currently creating a measurement
   bool get isCreatingMeasurement =>
       _selectedTool != null && _currentMeasurementPoints.isNotEmpty;
+
+  // Check if a measurement is selected
+  bool get hasMeasurementSelected => _selectedMeasurementId != null;
+
+  // Get selected measurement info
+  String? get selectedMeasurementId => _selectedMeasurementId;
+  int? get selectedPointIndex => _selectedPointIndex;
 
   // Get measurement results for display
   List<MeasurementResult> getMeasurementResults() {

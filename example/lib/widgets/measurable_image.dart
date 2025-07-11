@@ -21,6 +21,8 @@ class MeasurableImage extends StatefulWidget {
   final Function(ScaleStartDetails)? onScaleStart;
   final Function(ScaleUpdateDetails)? onScaleUpdate;
   final Function(ScaleEndDetails)? onScaleEnd;
+  final Function(Offset)? onPointDrag;
+  final bool hasMeasurementSelected;
 
   const MeasurableImage({
     super.key,
@@ -38,6 +40,8 @@ class MeasurableImage extends StatefulWidget {
     this.onScaleStart,
     this.onScaleUpdate,
     this.onScaleEnd,
+    this.onPointDrag,
+    this.hasMeasurementSelected = false,
   });
 
   @override
@@ -51,9 +55,9 @@ class _MeasurableImageState extends State<MeasurableImage> {
       onPointerSignal: widget.onPointerSignal,
       child: GestureDetector(
         onTapUp: _handleTapUp,
-        onScaleStart: widget.onScaleStart,
-        onScaleUpdate: widget.onScaleUpdate,
-        onScaleEnd: widget.onScaleEnd,
+        onScaleStart: _handleScaleStart,
+        onScaleUpdate: _handleScaleUpdate,
+        onScaleEnd: _handleScaleEnd,
         child: Transform.scale(
           scale: widget.scale,
           child: Stack(
@@ -103,14 +107,42 @@ class _MeasurableImageState extends State<MeasurableImage> {
   }
 
   void _handleTapUp(TapUpDetails details) {
-    if (widget.selectedTool != null) {
-      // Get the render box of the image widget to calculate correct coordinates
+    // Get the render box of the image widget to calculate correct coordinates
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final localPosition = renderBox.globalToLocal(details.globalPosition);
+      widget.onImageTap(localPosition, renderBox.size);
+    }
+  }
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    widget.onScaleStart?.call(details);
+  }
+  
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    // Handle point dragging if a measurement is selected and we're dragging
+    if (widget.hasMeasurementSelected && details.scale == 1.0 && widget.onPointDrag != null) {
       final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
       if (renderBox != null) {
-        final localPosition = renderBox.globalToLocal(details.globalPosition);
-        widget.onImageTap(localPosition, renderBox.size);
+        final localPosition = renderBox.globalToLocal(details.focalPoint);
+        widget.onPointDrag!(localPosition);
+        return;
       }
     }
+    
+    // For brightness/contrast adjustment when no measurement tool is selected
+    if (widget.selectedTool == null && details.scale == 1.0) {
+      // This mimics a pointer move event for brightness/contrast adjustment
+      widget.onScaleUpdate?.call(details);
+      return;
+    }
+    
+    // Otherwise handle normal scale gesture
+    widget.onScaleUpdate?.call(details);
+  }
+  
+  void _handleScaleEnd(ScaleEndDetails details) {
+    widget.onScaleEnd?.call(details);
   }
 }
 

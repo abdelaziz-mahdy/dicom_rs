@@ -220,12 +220,12 @@ class MeasurementPainter extends CustomPainter {
     // Draw circle
     canvas.drawCircle(center, radius, paint);
 
-    // Draw center point
-    canvas.drawCircle(center, 4, paint..style = PaintingStyle.fill);
+    // Draw center and edge points with selection highlighting
+    _drawPoint(canvas, measurement.points[0], measurement, 0);
     
     // Draw radius line
     canvas.drawLine(center, edge, paint);
-    canvas.drawCircle(edge, 3, paint);
+    _drawPoint(canvas, measurement.points[1], measurement, 1);
     paint.style = PaintingStyle.stroke;
 
     // Draw measurement text
@@ -298,6 +298,37 @@ class MeasurementPainter extends CustomPainter {
 
   Offset _getMidpoint(Offset start, Offset end) {
     return Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
+  }
+
+  /// Helper method to draw a point with selection highlighting
+  void _drawPoint(Canvas canvas, MeasurementPoint point, DicomMeasurement measurement, int pointIndex) {
+    final isSelectedPoint = measurement.isSelected && measurement.selectedPointIndex == pointIndex;
+    final radius = isSelectedPoint ? 8.0 : 4.0;
+    final color = isSelectedPoint ? Colors.yellow : Colors.red;
+    
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(
+      Offset(point.x, point.y),
+      radius,
+      paint,
+    );
+    
+    // Add outline for selected points
+    if (isSelectedPoint) {
+      final outlinePaint = Paint()
+        ..color = Colors.orange
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      
+      canvas.drawCircle(
+        Offset(point.x, point.y),
+        radius,
+        outlinePaint,
+      );
+    }
   }
 
   @override

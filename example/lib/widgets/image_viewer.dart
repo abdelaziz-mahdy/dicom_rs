@@ -129,6 +129,8 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
                   onScaleStart: _handleScaleStart,
                   onScaleUpdate: _handleScaleUpdate,
                   onScaleEnd: _handleScaleEnd,
+                  onPointDrag: _handlePointDrag,
+                  hasMeasurementSelected: hasMeasurementSelected,
                 ),
               ),
 
@@ -217,6 +219,10 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
     handleMeasurementTap(localPosition, imageSize);
   }
 
+  void _handlePointDrag(Offset newPosition) {
+    handlePointDrag(newPosition);
+  }
+
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       final scrollDelta = event.scrollDelta;
@@ -246,22 +252,20 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
 
   void _handleScaleStart(ScaleStartDetails details) {
     if (selectedTool == null) {
-      final event = PointerDownEvent(position: details.focalPoint);
-      handlePointerDown(event);
+      handleScaleStart(details);
     }
   }
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     if (selectedTool == null) {
       handleScaleUpdate(details);
+      _updateProcessedImage(); // Update the processed image after brightness/contrast changes
     }
   }
 
   void _handleScaleEnd(ScaleEndDetails details) {
     if (selectedTool == null) {
       handleScaleEnd(details);
-      final event = PointerUpEvent(position: Offset.zero);
-      handlePointerUp(event);
     }
   }
 

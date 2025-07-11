@@ -1,12 +1,8 @@
 import 'dart:math';
+import 'dart:ui';
 
 /// Types of measurements that can be performed
-enum MeasurementType {
-  distance,
-  angle,
-  area,
-  circle,
-}
+enum MeasurementType { distance, angle, area, circle }
 
 /// A point in 2D space with pixel coordinates
 class MeasurementPoint {
@@ -55,6 +51,8 @@ class DicomMeasurement {
   final String label;
   final DateTime createdAt;
   final Map<String, dynamic> metadata;
+  final bool isSelected;
+  final int? selectedPointIndex;
 
   const DicomMeasurement({
     required this.id,
@@ -63,6 +61,8 @@ class DicomMeasurement {
     required this.label,
     required this.createdAt,
     this.metadata = const {},
+    this.isSelected = false,
+    this.selectedPointIndex,
   });
 
   /// Create a distance measurement between two points
@@ -114,6 +114,53 @@ class DicomMeasurement {
     );
   }
 
+  /// Create a copy of this measurement with updated properties
+  DicomMeasurement copyWith({
+    String? id,
+    MeasurementType? type,
+    List<MeasurementPoint>? points,
+    String? label,
+    DateTime? createdAt,
+    Map<String, dynamic>? metadata,
+    bool? isSelected,
+    int? selectedPointIndex,
+  }) {
+    return DicomMeasurement(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      points: points ?? this.points,
+      label: label ?? this.label,
+      createdAt: createdAt ?? this.createdAt,
+      metadata: metadata ?? this.metadata,
+      isSelected: isSelected ?? this.isSelected,
+      selectedPointIndex: selectedPointIndex ?? this.selectedPointIndex,
+    );
+  }
+
+  /// Update a specific point in this measurement
+  DicomMeasurement updatePoint(int index, MeasurementPoint newPoint) {
+    if (index < 0 || index >= points.length) {
+      return this;
+    }
+    final newPoints = List<MeasurementPoint>.from(points);
+    newPoints[index] = newPoint;
+    return copyWith(points: newPoints);
+  }
+
+  /// Check if a tap is near any point (within hitRadius pixels)
+  int? getHitPointIndex(Offset tapPosition, {double hitRadius = 20.0}) {
+    for (int i = 0; i < points.length; i++) {
+      final point = points[i];
+      final distance = sqrt(
+        pow(tapPosition.dx - point.x, 2) + pow(tapPosition.dy - point.y, 2),
+      );
+      if (distance <= hitRadius) {
+        return i;
+      }
+    }
+    return null;
+  }
+
   /// Calculate the measurement value based on type and pixel spacing
   MeasurementResult calculateValue({
     List<double>? pixelSpacing,
@@ -131,22 +178,27 @@ class DicomMeasurement {
     }
   }
 
-  MeasurementResult _calculateDistance(List<double>? pixelSpacing, String units) {
+  MeasurementResult _calculateDistance(
+    List<double>? pixelSpacing,
+    String units,
+  ) {
     if (points.length != 2) {
       return MeasurementResult.invalid('Distance requires exactly 2 points');
     }
 
     final pixelDistance = points[0].distanceTo(points[1]);
-    
+
     if (pixelSpacing != null && pixelSpacing.isNotEmpty) {
       // Use pixel spacing to convert to real-world units
-      final mmDistance = pixelDistance * pixelSpacing[0]; // Assume square pixels
+      final mmDistance =
+          pixelDistance * pixelSpacing[0]; // Assume square pixels
       return MeasurementResult.distance(
         pixels: pixelDistance,
         realWorld: mmDistance,
         units: units,
       );
     } else {
+      // No pixel spacing available - show only pixel measurements
       return MeasurementResult.distance(
         pixels: pixelDistance,
         realWorld: null,
@@ -283,14 +335,15 @@ class MeasurementResult {
     final displayRadius = radiusRealWorld ?? radiusPixels;
     final displayArea = areaRealWorld ?? areaPixels;
     final displayUnits = radiusRealWorld != null ? units : 'px';
-    
+
     return MeasurementResult(
       type: MeasurementType.circle,
       pixelValue: radiusPixels,
       realWorldValue: radiusRealWorld,
       units: units,
-      displayText: 'R: ${displayRadius.toStringAsFixed(2)} $displayUnits\n'
-                  'A: ${displayArea.toStringAsFixed(2)} $displayUnits²',
+      displayText:
+          'R: ${displayRadius.toStringAsFixed(2)} $displayUnits\n'
+          'A: ${displayArea.toStringAsFixed(2)} $displayUnits²',
       additionalData: {
         'radius': displayRadius,
         'area': displayArea,
@@ -320,10 +373,7 @@ class MeasurementManager {
   final List<double>? pixelSpacing;
   final String units;
 
-  MeasurementManager({
-    this.pixelSpacing,
-    this.units = 'mm',
-  });
+  MeasurementManager({this.pixelSpacing, this.units = 'mm'});
 
   List<DicomMeasurement> get measurements => List.unmodifiable(_measurements);
 
@@ -337,6 +387,18 @@ class MeasurementManager {
     final index = _measurements.indexWhere((m) => m.id == id);
     if (index >= 0) {
       _measurements.removeAt(index);
+      return true;
+    }
+    return false;
+  }
+
+  /// Update an existing measurement
+  bool updateMeasurement(DicomMeasurement updatedMeasurement) {
+    final index = _measurements.indexWhere(
+      (m) => m.id == updatedMeasurement.id,
+    );
+    if (index >= 0) {
+      _measurements[index] = updatedMeasurement;
       return true;
     }
     return false;
@@ -371,14 +433,19 @@ class MeasurementManager {
   /// Export measurements to a map for saving
   Map<String, dynamic> toJson() {
     return {
-      'measurements': _measurements.map((m) => {
-        'id': m.id,
-        'type': m.type.name,
-        'points': m.points.map((p) => {'x': p.x, 'y': p.y}).toList(),
-        'label': m.label,
-        'createdAt': m.createdAt.toIso8601String(),
-        'metadata': m.metadata,
-      }).toList(),
+      'measurements':
+          _measurements
+              .map(
+                (m) => {
+                  'id': m.id,
+                  'type': m.type.name,
+                  'points': m.points.map((p) => {'x': p.x, 'y': p.y}).toList(),
+                  'label': m.label,
+                  'createdAt': m.createdAt.toIso8601String(),
+                  'metadata': m.metadata,
+                },
+              )
+              .toList(),
       'pixelSpacing': pixelSpacing,
       'units': units,
     };
@@ -400,9 +467,10 @@ class MeasurementManager {
       );
 
       final pointsList = measurementData['points'] as List<dynamic>;
-      final points = pointsList
-          .map((p) => MeasurementPoint(p['x'] as double, p['y'] as double))
-          .toList();
+      final points =
+          pointsList
+              .map((p) => MeasurementPoint(p['x'] as double, p['y'] as double))
+              .toList();
 
       final measurement = DicomMeasurement(
         id: measurementData['id'] as String,

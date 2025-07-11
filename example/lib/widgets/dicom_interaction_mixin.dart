@@ -32,6 +32,12 @@ mixin DicomInteractionMixin<T extends StatefulWidget> on State<T> {
     _isDragging = true;
   }
 
+  /// Handle scale start event to begin interaction
+  void handleScaleStart(ScaleStartDetails details) {
+    _lastFocalPoint = details.focalPoint;
+    _isDragging = true;
+  }
+
   /// Process a pointer move event to update brightness/contrast
   void handlePointerMove(PointerMoveEvent event) {
     if (!_isDragging || _lastFocalPoint == null) return;
@@ -100,21 +106,65 @@ mixin DicomInteractionMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
-  /// Handle a scale gesture for zooming
+  /// Handle a scale gesture for zooming and brightness/contrast
   void handleScaleUpdate(ScaleUpdateDetails details) {
-    setState(() {
-      // Apply zoom/scale
-      scale *= details.scale;
+    // If it's a pinch gesture (scale != 1.0), handle zoom
+    if (details.scale != 1.0) {
+      setState(() {
+        // Apply zoom/scale
+        scale *= details.scale;
 
-      // Constrain scale to reasonable values
-      if (scale < 0.5) scale = 0.5;
-      if (scale > 5.0) scale = 5.0;
-    });
+        // Constrain scale to reasonable values
+        if (scale < 0.5) scale = 0.5;
+        if (scale > 5.0) scale = 5.0;
+      });
+    } else if (_isDragging && _lastFocalPoint != null) {
+      // Single finger drag - adjust brightness/contrast
+      final currentPoint = details.focalPoint;
+      final deltaX = currentPoint.dx - _lastFocalPoint!.dx;
+      final deltaY = _lastFocalPoint!.dy - currentPoint.dy;
+
+      // Store previous values to check if they changed
+      final previousContrast = contrast;
+      final previousBrightness = brightness;
+
+      // Apply sensitivity factors
+      final contrastFactor = 0.01; // Adjust for sensitivity
+      final brightnessFactor = 0.5; // Adjust for sensitivity
+
+      // Update brightness/contrast based on horizontal/vertical movement
+      setState(() {
+        // Horizontal movement: adjust contrast
+        contrast += deltaX * contrastFactor;
+        if (contrast < 0.1) contrast = 0.1; // Minimum contrast
+        if (contrast > 3.0) contrast = 3.0; // Maximum contrast
+
+        // Vertical movement: adjust brightness
+        brightness += deltaY * brightnessFactor;
+        if (brightness < -100.0) brightness = -100.0; // Minimum brightness
+        if (brightness > 100.0) brightness = 100.0; // Maximum brightness
+      });
+
+      // Update the last focal point
+      _lastFocalPoint = currentPoint;
+
+      // If values changed, trigger debounced update
+      if (previousContrast != contrast || previousBrightness != brightness) {
+        _triggerDebouncedUpdate();
+      }
+    }
   }
 
   /// Handle end of scale gesture
   void handleScaleEnd(ScaleEndDetails details) {
-    // No longer needed since we removed panning
+    if (_isDragging) {
+      _isDragging = false;
+      _lastFocalPoint = null;
+
+      // Immediately apply the final adjustment
+      _debounceTimer?.cancel();
+      updateProcessedImage();
+    }
   }
 
   /// Apply brightness and contrast adjustments to an image
