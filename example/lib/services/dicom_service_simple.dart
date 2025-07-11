@@ -92,12 +92,26 @@ class DicomServiceSimple {
 
   /// Sort files by instance number
   static List<DicomFile> sortByInstanceNumber(List<DicomFile> files) {
-    files.sort((a, b) {
-      final aNum = a.metadata.instanceNumber ?? 0;
-      final bNum = b.metadata.instanceNumber ?? 0;
-      return aNum.compareTo(bNum);
+    final sortedFiles = List<DicomFile>.from(files);
+    sortedFiles.sort((a, b) {
+      // First sort by instance number if available
+      final aInstance = a.metadata.instanceNumber ?? 0;
+      final bInstance = b.metadata.instanceNumber ?? 0;
+      if (aInstance != bInstance) {
+        return aInstance.compareTo(bInstance);
+      }
+      
+      // Then by slice location if available
+      final aLocation = a.metadata.sliceLocation ?? 0.0;
+      final bLocation = b.metadata.sliceLocation ?? 0.0;
+      if (aLocation != bLocation) {
+        return aLocation.compareTo(bLocation);
+      }
+
+      // Finally by filename as fallback
+      return a.path.compareTo(b.path);
     });
-    return files;
+    return sortedFiles;
   }
 
   /// Get basic statistics from a list of DICOM files

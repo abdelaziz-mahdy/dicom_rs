@@ -8,6 +8,30 @@ import '../models/complex_types.dart';
 class EnhancedDicomService {
   final DicomHandler _handler = DicomHandler();
 
+  /// Sort DICOM entries by instance number and slice location
+  List<DicomDirectoryEntry> _sortDicomEntries(List<DicomDirectoryEntry> entries) {
+    final sortedEntries = List<DicomDirectoryEntry>.from(entries);
+    sortedEntries.sort((a, b) {
+      // First sort by instance number if available
+      final aInstance = a.metadata.instanceNumber ?? 0;
+      final bInstance = b.metadata.instanceNumber ?? 0;
+      if (aInstance != bInstance) {
+        return aInstance.compareTo(bInstance);
+      }
+      
+      // Then by slice location if available
+      final aLocation = a.metadata.sliceLocation ?? 0.0;
+      final bLocation = b.metadata.sliceLocation ?? 0.0;
+      if (aLocation != bLocation) {
+        return aLocation.compareTo(bLocation);
+      }
+
+      // Finally by filename as fallback
+      return a.path.compareTo(b.path);
+    });
+    return sortedEntries;
+  }
+
   /// Check if a file is a valid DICOM file
   Future<bool> isValidDicom({required String path}) async {
     try {
@@ -92,7 +116,7 @@ class EnhancedDicomService {
     final entries = <DicomDirectoryEntry>[];
 
     if (!await directory.exists()) {
-      return entries;
+      return _sortDicomEntries(entries);
     }
 
     final files = directory
@@ -112,7 +136,7 @@ class EnhancedDicomService {
       }
     }
 
-    return entries;
+    return _sortDicomEntries(entries);
   }
 
   /// Load a directory recursively
@@ -121,7 +145,7 @@ class EnhancedDicomService {
     final entries = <DicomDirectoryEntry>[];
 
     if (!await directory.exists()) {
-      return entries;
+      return _sortDicomEntries(entries);
     }
 
     final files = directory
@@ -141,7 +165,7 @@ class EnhancedDicomService {
       }
     }
 
-    return entries;
+    return _sortDicomEntries(entries);
   }
 
   /// Load directory organized by patients
@@ -185,18 +209,7 @@ class EnhancedDicomService {
     }
 
     // Sort entries by instance number or slice location
-    final sortedEntries = List<DicomDirectoryEntry>.from(entries);
-    sortedEntries.sort((a, b) {
-      final aInstance = a.metadata.instanceNumber ?? 0;
-      final bInstance = b.metadata.instanceNumber ?? 0;
-      if (aInstance != bInstance) {
-        return aInstance.compareTo(bInstance);
-      }
-      
-      final aLocation = a.metadata.sliceLocation ?? 0.0;
-      final bLocation = b.metadata.sliceLocation ?? 0.0;
-      return aLocation.compareTo(bLocation);
-    });
+    final sortedEntries = _sortDicomEntries(entries);
 
     // Get dimensions from first slice
     final firstEntry = sortedEntries.first;
