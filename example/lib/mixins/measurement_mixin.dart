@@ -47,8 +47,12 @@ mixin MeasurementMixin<T extends StatefulWidget> on State<T> {
   // Tool selection
   void selectMeasurementTool(MeasurementType? tool) {
     setState(() {
+      // Only clear points if we're switching to a different tool
+      if (tool != _selectedTool) {
+        _currentMeasurementPoints.clear();
+      }
+      
       _selectedTool = tool;
-      _currentMeasurementPoints.clear();
     });
   }
 
@@ -76,16 +80,19 @@ mixin MeasurementMixin<T extends StatefulWidget> on State<T> {
 
   // Handle tap/click for measurement creation
   bool handleMeasurementTap(Offset localPosition, Size imageSize) {
-    if (_selectedTool == null || _measurementManager == null) return false;
+    if (_selectedTool == null || _measurementManager == null) {
+      return false;
+    }
 
     // Convert screen coordinates to image coordinates
     final imagePoint = MeasurementPoint(localPosition.dx, localPosition.dy);
-
+    
     setState(() {
       _currentMeasurementPoints.add(imagePoint);
 
       // Check if we have enough points to complete the measurement
       final requiredPoints = _getRequiredPointsForTool(_selectedTool!);
+      
       if (_currentMeasurementPoints.length >= requiredPoints) {
         _completeMeasurement();
       }

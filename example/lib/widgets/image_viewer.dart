@@ -1,14 +1,14 @@
 import 'dart:typed_data';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'dicom_viewer_base.dart';
 import 'dicom_interaction_mixin.dart';
 import '../mixins/measurement_mixin.dart';
 import '../models/measurement_models.dart';
 import 'measurement_toolbar.dart';
-import 'measurement_overlay.dart';
+import 'measurable_image.dart';
 
-/// A widget for displaying DICOM images with navigation controls
+/// A widget for displaying DICOM images with navigation controls and measurement tools
 class DicomImageViewer extends DicomViewerBase {
   final List<Uint8List?> imageBytesList;
   final int initialIndex;
@@ -35,32 +35,28 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
     with DicomInteractionMixin, MeasurementMixin {
   late int _currentIndex;
   Uint8List? _processedImage;
-  bool _isProcessing = false;
+  final bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-    initializeMeasurements(); // Initialize measurement system
+    initializeMeasurements();
     _updateProcessedImage();
   }
 
   @override
   void dispose() {
-    disposeInteractionResources(); // Clean up timers
+    disposeInteractionResources();
     super.dispose();
   }
 
-  // Implement the required method from DicomInteractionMixin
   @override
   void updateProcessedImage() {
     _updateProcessedImage();
   }
 
   Future<void> _updateProcessedImage() async {
-    // if (_isProcessing) return;
-
-    // _isProcessing = true;
     if (widget.imageBytesList.isNotEmpty &&
         _currentIndex < widget.imageBytesList.length &&
         widget.imageBytesList[_currentIndex] != null) {
@@ -68,12 +64,6 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
         widget.imageBytesList[_currentIndex],
       );
     }
-    // _isProcessing = false;
-    // if (mounted) {
-    //   setState(() {
-    //     _isProcessing = false;
-    //   });
-    // }
   }
 
   @override
@@ -91,6 +81,16 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
   @override
   int getTotalSlices() => widget.imageBytesList.length;
 
+  Uint8List? get _currentImageData {
+    if (_processedImage != null) {
+      return _processedImage;
+    } else if (widget.imageBytesList.isNotEmpty &&
+        _currentIndex < widget.imageBytesList.length) {
+      return widget.imageBytesList[_currentIndex];
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -107,137 +107,162 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
             measurementCount: measurements.length,
           ),
         ),
-        
-        // Image display area with interaction detectors
+
+        // Main image display with unified interaction handling
         Expanded(
           child: Stack(
             children: [
-              // Main image with gesture detectors
-              Listener(
-                onPointerSignal: _handleScroll,
-                onPointerDown: handlePointerDown,
-                onPointerMove: handlePointerMove,
-                onPointerUp: handlePointerUp,
-                child: GestureDetector(
-                  onTapUp: _handleImageTap,
-                  onScaleUpdate: handleScaleUpdate,
-                  onScaleEnd: handleScaleEnd,
-                  child: Center(
-                    child: Transform.scale(
-                      scale: scale,
-                      child: Stack(
-                        children: [
-                          // The actual image
-                          _processedImage != null
-                              ? Image.memory(
-                                _processedImage!,
-                                gaplessPlayback: true,
-                              )
-                              : widget.imageBytesList.isNotEmpty &&
-                                  _currentIndex <
-                                      widget.imageBytesList.length &&
-                                  widget.imageBytesList[_currentIndex] != null
-                              ? Image.memory(
-                                widget.imageBytesList[_currentIndex]!,
-                                gaplessPlayback: true,
-                              )
-                              : const Text('No image loaded'),
-                          
-                          // Measurement overlay
-                          if (measurementsVisible)
-                            MeasurementOverlay(
-                              measurements: measurements,
-                              pixelSpacing: null, // TODO: Get from DICOM metadata
-                              units: 'mm',
-                              visible: measurementsVisible,
-                              onMeasurementDelete: removeMeasurement,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
+              // The measurable image widget - handles everything in one place
+              Center(
+                child: MeasurableImage(
+                  imageData: _currentImageData,
+                  scale: scale,
+                  selectedTool: selectedTool,
+                  measurements: measurements,
+                  currentPoints: currentMeasurementPoints,
+                  measurementsVisible: measurementsVisible,
+                  pixelSpacing: null, // TODO: Get from DICOM metadata
+                  units: 'mm',
+                  onImageTap: _handleImageTap,
+                  onMeasurementDelete: removeMeasurement,
+                  onPointerSignal: _handlePointerSignal,
+                  onScaleStart: _handleScaleStart,
+                  onScaleUpdate: _handleScaleUpdate,
+                  onScaleEnd: _handleScaleEnd,
                 ),
               ),
 
-              // Brightness/contrast display overlay
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8.0,
-                    vertical: 4.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(4.0),
-                  ),
-                  child: Text(
-                    getAdjustmentText(),
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ),
-              ),
-
-              // Reset button for brightness/contrast
-              Positioned(
-                top: 10,
-                left: 10,
-                child: IconButton(
-                  icon: const Icon(Icons.refresh, color: Colors.white70),
-                  onPressed: () {
-                    resetImageAdjustments();
-                    _updateProcessedImage();
-                  },
-                  tooltip: 'Reset adjustments',
-                  style: IconButton.styleFrom(backgroundColor: Colors.black38),
-                ),
-              ),
-
-              // Processing indicator
-              if (_isProcessing)
-                const Center(child: CircularProgressIndicator()),
-                
-              // Current measurement points preview
-              if (isCreatingMeasurement)
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _MeasurementPreviewPainter(
-                      points: currentMeasurementPoints,
-                      tool: selectedTool!,
-                    ),
-                  ),
-                ),
+              // UI overlays
+              _buildUIOverlays(),
             ],
           ),
         ),
 
         // Navigation controls
         if (widget.showControls && widget.imageBytesList.length > 1)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.navigate_before),
-                  onPressed: previousSlice,
-                  tooltip: 'Previous slice',
-                ),
-                Text(
-                  'Slice: ${_currentIndex + 1} / ${widget.imageBytesList.length}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.navigate_next),
-                  onPressed: nextSlice,
-                  tooltip: 'Next slice',
-                ),
-              ],
-            ),
-          ),
+          _buildNavigationControls(),
       ],
     );
+  }
+
+  Widget _buildUIOverlays() {
+    return Stack(
+      children: [
+        // Brightness/contrast display
+        Positioned(
+          top: 10,
+          right: 10,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(4.0),
+            ),
+            child: Text(
+              getAdjustmentText(),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ),
+        ),
+
+        // Reset button
+        Positioned(
+          top: 10,
+          left: 10,
+          child: IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white70),
+            onPressed: () {
+              resetImageAdjustments();
+              _updateProcessedImage();
+            },
+            tooltip: 'Reset adjustments',
+            style: IconButton.styleFrom(backgroundColor: Colors.black38),
+          ),
+        ),
+
+        // Processing indicator
+        if (_isProcessing) const Center(child: CircularProgressIndicator()),
+      ],
+    );
+  }
+
+  Widget _buildNavigationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.navigate_before),
+            onPressed: previousSlice,
+            tooltip: 'Previous slice',
+          ),
+          Text(
+            'Slice: ${_currentIndex + 1} / ${widget.imageBytesList.length}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          IconButton(
+            icon: const Icon(Icons.navigate_next),
+            onPressed: nextSlice,
+            tooltip: 'Next slice',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Gesture handlers - now much simpler since most logic is in MeasurableImage
+  void _handleImageTap(Offset localPosition, Size imageSize) {
+    // This is called directly from the image widget with correct coordinates
+    handleMeasurementTap(localPosition, imageSize);
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      final scrollDelta = event.scrollDelta;
+      const threshold = 10.0;
+
+      if (scrollDelta.dy.abs() > threshold ||
+          scrollDelta.dx.abs() > threshold) {
+        final deltaY = scrollDelta.dy;
+        final deltaX = scrollDelta.dx;
+
+        if (deltaY.abs() > deltaX.abs()) {
+          if (deltaY > 0) {
+            nextSlice();
+          } else {
+            previousSlice();
+          }
+        } else {
+          if (deltaX > 0) {
+            nextSlice();
+          } else {
+            previousSlice();
+          }
+        }
+      }
+    }
+  }
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    if (selectedTool == null) {
+      final event = PointerDownEvent(position: details.focalPoint);
+      handlePointerDown(event);
+    }
+  }
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    if (selectedTool == null) {
+      handleScaleUpdate(details);
+    }
+  }
+
+  void _handleScaleEnd(ScaleEndDetails details) {
+    if (selectedTool == null) {
+      handleScaleEnd(details);
+      final event = PointerUpEvent(position: Offset.zero);
+      handlePointerUp(event);
+    }
   }
 
   @override
@@ -260,104 +285,5 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
           widget.imageBytesList.length;
     });
     _updateProcessedImage();
-  }
-
-  void _handleScroll(PointerSignalEvent event) {
-    if (event is PointerScrollEvent) {
-      if (event.scrollDelta.dy > 0) {
-        nextSlice();
-      } else if (event.scrollDelta.dy < 0) {
-        previousSlice();
-      }
-    }
-  }
-  
-  void _handleImageTap(TapUpDetails details) {
-    // Handle measurement creation on tap
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final localPosition = renderBox.globalToLocal(details.globalPosition);
-    
-    // Only handle if we have a selected measurement tool
-    if (selectedTool != null) {
-      handleMeasurementTap(localPosition, renderBox.size);
-    }
-  }
-}
-
-/// Custom painter for measurement preview while creating
-class _MeasurementPreviewPainter extends CustomPainter {
-  final List<MeasurementPoint> points;
-  final MeasurementType tool;
-  
-  _MeasurementPreviewPainter({required this.points, required this.tool});
-  
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) return;
-    
-    final paint = Paint()
-      ..color = Colors.cyan.withOpacity(0.7)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-    
-    // Draw existing points
-    for (final point in points) {
-      canvas.drawCircle(
-        Offset(point.x, point.y),
-        4,
-        paint..style = PaintingStyle.fill,
-      );
-    }
-    
-    paint.style = PaintingStyle.stroke;
-    
-    // Draw preview lines based on tool type
-    if (points.length >= 2) {
-      switch (tool) {
-        case MeasurementType.distance:
-          canvas.drawLine(
-            Offset(points[0].x, points[0].y),
-            Offset(points[1].x, points[1].y),
-            paint,
-          );
-          break;
-        case MeasurementType.angle:
-          if (points.length >= 2) {
-            canvas.drawLine(
-              Offset(points[0].x, points[0].y),
-              Offset(points[1].x, points[1].y),
-              paint,
-            );
-          }
-          if (points.length >= 3) {
-            canvas.drawLine(
-              Offset(points[0].x, points[0].y),
-              Offset(points[2].x, points[2].y),
-              paint,
-            );
-          }
-          break;
-        case MeasurementType.circle:
-          final center = Offset(points[0].x, points[0].y);
-          final edge = Offset(points[1].x, points[1].y);
-          final radius = (edge - center).distance;
-          canvas.drawCircle(center, radius, paint);
-          break;
-        case MeasurementType.area:
-          // Draw polygon preview
-          final path = Path();
-          path.moveTo(points[0].x, points[0].y);
-          for (int i = 1; i < points.length; i++) {
-            path.lineTo(points[i].x, points[i].y);
-          }
-          canvas.drawPath(path, paint);
-          break;
-      }
-    }
-  }
-  
-  @override
-  bool shouldRepaint(covariant _MeasurementPreviewPainter oldDelegate) {
-    return oldDelegate.points != points || oldDelegate.tool != tool;
   }
 }

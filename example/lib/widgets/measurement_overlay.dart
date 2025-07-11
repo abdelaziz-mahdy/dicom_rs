@@ -49,17 +49,23 @@ class MeasurementOverlay extends StatelessWidget {
     final centerY = measurement.points.map((p) => p.y).reduce((a, b) => a + b) / measurement.points.length;
 
     return Positioned(
-      left: centerX - 15,
-      top: centerY - 15,
+      left: centerX - 20,
+      top: centerY - 20,
       child: GestureDetector(
         onTap: () => onMeasurementTap?.call(measurement.id),
         onLongPress: () => _showMeasurementOptions(context, measurement),
         child: Container(
-          width: 30,
-          height: 30,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.yellow.withOpacity(0.3), width: 1),
+          ),
+          child: const Icon(
+            Icons.touch_app,
+            color: Colors.yellow,
+            size: 16,
           ),
         ),
       ),

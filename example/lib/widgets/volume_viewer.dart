@@ -134,43 +134,77 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
               // Main image with gesture detectors
               Listener(
                 onPointerSignal: _handleScroll,
-                onPointerDown: handlePointerDown,
-                onPointerMove: handlePointerMove,
-                onPointerUp: handlePointerUp,
+                onPointerDown: (event) {
+                  // Only handle pointer events if not creating measurements
+                  if (selectedTool == null) {
+                    handlePointerDown(event);
+                  }
+                },
+                onPointerMove: (event) {
+                  if (selectedTool == null) {
+                    handlePointerMove(event);
+                  }
+                },
+                onPointerUp: (event) {
+                  if (selectedTool == null) {
+                    handlePointerUp(event);
+                  }
+                },
                 child: GestureDetector(
                   onTapUp: _handleImageTap,
-                  onScaleUpdate: handleScaleUpdate,
-                  onScaleEnd: handleScaleEnd,
-                  child: Center(
-                    child: Transform.scale(
-                      scale: scale,
-                      child: Stack(
-                        children: [
-                          // The actual volume slice
-                          _processedImage != null
-                              ? Image.memory(
-                                _processedImage!,
-                                gaplessPlayback: true,
-                              )
-                              : currentSliceBytes != null
-                              ? Image.memory(
-                                currentSliceBytes,
-                                gaplessPlayback: true,
-                              )
-                              : const Center(
-                                child: Text('No image data available'),
-                              ),
-                          
-                          // Measurement overlay
-                          if (measurementsVisible)
-                            MeasurementOverlay(
-                              measurements: measurements,
-                              pixelSpacing: widget.volume.pixelSpacing,
-                              units: 'mm',
-                              visible: measurementsVisible,
-                              onMeasurementDelete: removeMeasurement,
+                  onScaleUpdate: (details) {
+                    // Only handle scale if not creating measurements
+                    if (selectedTool == null) {
+                      handleScaleUpdate(details);
+                    }
+                  },
+                  onScaleEnd: (details) {
+                    if (selectedTool == null) {
+                      handleScaleEnd(details);
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    child: Center(
+                      child: Transform.scale(
+                        scale: scale,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // The actual volume slice with measurement gesture detector
+                            GestureDetector(
+                              onTapUp: selectedTool != null ? _handleImageTap : null,
+                              child: _processedImage != null
+                                  ? Image.memory(
+                                    _processedImage!,
+                                    gaplessPlayback: true,
+                                    key: const ValueKey('processed_volume_image'),
+                                  )
+                                  : currentSliceBytes != null
+                                  ? Image.memory(
+                                    currentSliceBytes,
+                                    gaplessPlayback: true,
+                                    key: ValueKey('volume_slice_$_currentSliceIndex'),
+                                  )
+                                  : const Center(
+                                    child: Text('No image data available'),
+                                  ),
                             ),
-                        ],
+                            
+                            // Measurement overlay
+                            if (measurementsVisible)
+                              Positioned.fill(
+                                child: MeasurementOverlay(
+                                  measurements: measurements,
+                                  pixelSpacing: widget.volume.pixelSpacing,
+                                  units: 'mm',
+                                  visible: measurementsVisible,
+                                  onMeasurementDelete: removeMeasurement,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -294,23 +328,48 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
 
   void _handleScroll(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
-      if (event.scrollDelta.dy > 0) {
-        nextSlice();
-      } else if (event.scrollDelta.dy < 0) {
-        previousSlice();
+      // Handle both vertical and horizontal scroll (for Mac trackpad)
+      final scrollDelta = event.scrollDelta;
+      final threshold = 10.0; // Minimum scroll distance to trigger slice change
+      
+      // Check if this is a significant scroll gesture
+      if (scrollDelta.dy.abs() > threshold || scrollDelta.dx.abs() > threshold) {
+        // Use the larger scroll direction
+        final deltaY = scrollDelta.dy;
+        final deltaX = scrollDelta.dx;
+        
+        if (deltaY.abs() > deltaX.abs()) {
+          // Vertical scroll
+          if (deltaY > 0) {
+            nextSlice();
+          } else {
+            previousSlice();
+          }
+        } else {
+          // Horizontal scroll (for trackpad gestures)
+          if (deltaX > 0) {
+            nextSlice();
+          } else {
+            previousSlice();
+          }
+        }
       }
     }
   }
   
   void _handleImageTap(TapUpDetails details) {
     // Handle measurement creation on tap
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final localPosition = renderBox.globalToLocal(details.globalPosition);
+    if (selectedTool == null) return;
+
+    // Get the tap position relative to the image widget itself
+    final RenderBox imageBox = context.findRenderObject() as RenderBox;
+    final localPosition = imageBox.globalToLocal(details.globalPosition);
     
-    // Only handle if we have a selected measurement tool
-    if (selectedTool != null) {
-      handleMeasurementTap(localPosition, renderBox.size);
-    }
+    // Use the image coordinates directly - no transformation needed
+    final imagePosition = Offset(localPosition.dx, localPosition.dy);
+    final imageSize = imageBox.size;
+    
+    handleMeasurementTap(imagePosition, imageSize);
   }
 }
 
@@ -326,7 +385,7 @@ class _VolumeViewerMeasurementPreviewPainter extends CustomPainter {
     if (points.isEmpty) return;
     
     final paint = Paint()
-      ..color = Colors.cyan.withOpacity(0.7)
+      ..color = Colors.cyan.withValues(alpha: 0.7)
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
     

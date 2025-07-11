@@ -137,7 +137,11 @@ class MeasurementToolbar extends StatelessWidget {
     final isSelected = selectedTool == tool;
     
     return GestureDetector(
-      onTap: () => onToolSelected(isSelected ? null : tool),
+      onTap: () {
+        // Always allow selecting the tool, even if already selected
+        // This ensures the tool stays active for multiple point creation
+        onToolSelected(tool);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
