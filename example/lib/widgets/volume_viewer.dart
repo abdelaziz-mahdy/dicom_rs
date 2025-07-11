@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import '../models/complex_types.dart';
+import '../mixins/measurement_mixin.dart';
+import '../models/measurement_models.dart';
 import 'dicom_viewer_base.dart';
 import 'dicom_interaction_mixin.dart';
+import 'measurement_toolbar.dart';
+import 'measurement_overlay.dart';
 
 /// A widget to display a 3D DICOM volume.
 /// It shows one slice at a time with slider and next/previous controls.
@@ -29,7 +33,7 @@ class VolumeViewer extends DicomViewerBase {
 }
 
 class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
-    with DicomInteractionMixin {
+    with DicomInteractionMixin, MeasurementMixin {
   late int _currentSliceIndex;
   Uint8List? _processedImage;
   bool _isProcessing = false;
@@ -41,6 +45,10 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
     if (_currentSliceIndex >= widget.volume.depth) {
       _currentSliceIndex = 0;
     }
+    initializeMeasurements(
+      pixelSpacing: widget.volume.pixelSpacing,
+      units: 'mm',
+    );
     _updateProcessedImage();
   }
 
@@ -94,9 +102,28 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
         // Volume info header
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Text(
-            '3D Volume: ${widget.volume.width} × ${widget.volume.height} × ${widget.volume.depth}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '3D Volume: ${widget.volume.width} × ${widget.volume.height} × ${widget.volume.depth}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Measurement toolbar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: MeasurementToolbar(
+            selectedTool: selectedTool,
+            onToolSelected: selectMeasurementTool,
+            onClearMeasurements: clearAllMeasurements,
+            onToggleMeasurements: toggleMeasurementsVisibility,
+            measurementsVisible: measurementsVisible,
+            measurementCount: measurements.length,
           ),
         ),
 
@@ -111,12 +138,15 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
                 onPointerMove: handlePointerMove,
                 onPointerUp: handlePointerUp,
                 child: GestureDetector(
+                  onTapUp: _handleImageTap,
                   onScaleUpdate: handleScaleUpdate,
                   onScaleEnd: handleScaleEnd,
                   child: Center(
                     child: Transform.scale(
                       scale: scale,
-                      child:
+                      child: Stack(
+                        children: [
+                          // The actual volume slice
                           _processedImage != null
                               ? Image.memory(
                                 _processedImage!,
@@ -130,6 +160,18 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
                               : const Center(
                                 child: Text('No image data available'),
                               ),
+                          
+                          // Measurement overlay
+                          if (measurementsVisible)
+                            MeasurementOverlay(
+                              measurements: measurements,
+                              pixelSpacing: widget.volume.pixelSpacing,
+                              units: 'mm',
+                              visible: measurementsVisible,
+                              onMeasurementDelete: removeMeasurement,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -173,6 +215,17 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
               // Processing indicator
               if (_isProcessing)
                 const Center(child: CircularProgressIndicator()),
+                
+              // Current measurement points preview
+              if (isCreatingMeasurement)
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _VolumeViewerMeasurementPreviewPainter(
+                      points: currentMeasurementPoints,
+                      tool: selectedTool!,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -247,5 +300,94 @@ class VolumeViewerState extends DicomViewerBaseState<VolumeViewer>
         previousSlice();
       }
     }
+  }
+  
+  void _handleImageTap(TapUpDetails details) {
+    // Handle measurement creation on tap
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final localPosition = renderBox.globalToLocal(details.globalPosition);
+    
+    // Only handle if we have a selected measurement tool
+    if (selectedTool != null) {
+      handleMeasurementTap(localPosition, renderBox.size);
+    }
+  }
+}
+
+/// Custom painter for measurement preview in volume viewer
+class _VolumeViewerMeasurementPreviewPainter extends CustomPainter {
+  final List<MeasurementPoint> points;
+  final MeasurementType tool;
+  
+  _VolumeViewerMeasurementPreviewPainter({required this.points, required this.tool});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+    
+    final paint = Paint()
+      ..color = Colors.cyan.withOpacity(0.7)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    
+    // Draw existing points
+    for (final point in points) {
+      canvas.drawCircle(
+        Offset(point.x, point.y),
+        4,
+        paint..style = PaintingStyle.fill,
+      );
+    }
+    
+    paint.style = PaintingStyle.stroke;
+    
+    // Draw preview lines based on tool type
+    if (points.length >= 2) {
+      switch (tool) {
+        case MeasurementType.distance:
+          canvas.drawLine(
+            Offset(points[0].x, points[0].y),
+            Offset(points[1].x, points[1].y),
+            paint,
+          );
+          break;
+        case MeasurementType.angle:
+          if (points.length >= 2) {
+            canvas.drawLine(
+              Offset(points[0].x, points[0].y),
+              Offset(points[1].x, points[1].y),
+              paint,
+            );
+          }
+          if (points.length >= 3) {
+            canvas.drawLine(
+              Offset(points[0].x, points[0].y),
+              Offset(points[2].x, points[2].y),
+              paint,
+            );
+          }
+          break;
+        case MeasurementType.circle:
+          final center = Offset(points[0].x, points[0].y);
+          final edge = Offset(points[1].x, points[1].y);
+          final radius = (edge - center).distance;
+          canvas.drawCircle(center, radius, paint);
+          break;
+        case MeasurementType.area:
+          // Draw polygon preview
+          final path = Path();
+          path.moveTo(points[0].x, points[0].y);
+          for (int i = 1; i < points.length; i++) {
+            path.lineTo(points[i].x, points[i].y);
+          }
+          canvas.drawPath(path, paint);
+          break;
+      }
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant _VolumeViewerMeasurementPreviewPainter oldDelegate) {
+    return oldDelegate.points != points || oldDelegate.tool != tool;
   }
 }

@@ -3,6 +3,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'dicom_viewer_base.dart';
 import 'dicom_interaction_mixin.dart';
+import '../mixins/measurement_mixin.dart';
+import '../models/measurement_models.dart';
+import 'measurement_toolbar.dart';
+import 'measurement_overlay.dart';
 
 /// A widget for displaying DICOM images with navigation controls
 class DicomImageViewer extends DicomViewerBase {
@@ -28,7 +32,7 @@ class DicomImageViewer extends DicomViewerBase {
 }
 
 class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
-    with DicomInteractionMixin {
+    with DicomInteractionMixin, MeasurementMixin {
   late int _currentIndex;
   Uint8List? _processedImage;
   bool _isProcessing = false;
@@ -37,6 +41,7 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    initializeMeasurements(); // Initialize measurement system
     _updateProcessedImage();
   }
 
@@ -90,6 +95,19 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Measurement toolbar
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: MeasurementToolbar(
+            selectedTool: selectedTool,
+            onToolSelected: selectMeasurementTool,
+            onClearMeasurements: clearAllMeasurements,
+            onToggleMeasurements: toggleMeasurementsVisibility,
+            measurementsVisible: measurementsVisible,
+            measurementCount: measurements.length,
+          ),
+        ),
+        
         // Image display area with interaction detectors
         Expanded(
           child: Stack(
@@ -101,12 +119,15 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
                 onPointerMove: handlePointerMove,
                 onPointerUp: handlePointerUp,
                 child: GestureDetector(
+                  onTapUp: _handleImageTap,
                   onScaleUpdate: handleScaleUpdate,
                   onScaleEnd: handleScaleEnd,
                   child: Center(
                     child: Transform.scale(
                       scale: scale,
-                      child:
+                      child: Stack(
+                        children: [
+                          // The actual image
                           _processedImage != null
                               ? Image.memory(
                                 _processedImage!,
@@ -121,6 +142,18 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
                                 gaplessPlayback: true,
                               )
                               : const Text('No image loaded'),
+                          
+                          // Measurement overlay
+                          if (measurementsVisible)
+                            MeasurementOverlay(
+                              measurements: measurements,
+                              pixelSpacing: null, // TODO: Get from DICOM metadata
+                              units: 'mm',
+                              visible: measurementsVisible,
+                              onMeasurementDelete: removeMeasurement,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -164,6 +197,17 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
               // Processing indicator
               if (_isProcessing)
                 const Center(child: CircularProgressIndicator()),
+                
+              // Current measurement points preview
+              if (isCreatingMeasurement)
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _MeasurementPreviewPainter(
+                      points: currentMeasurementPoints,
+                      tool: selectedTool!,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -226,5 +270,94 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
         previousSlice();
       }
     }
+  }
+  
+  void _handleImageTap(TapUpDetails details) {
+    // Handle measurement creation on tap
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final localPosition = renderBox.globalToLocal(details.globalPosition);
+    
+    // Only handle if we have a selected measurement tool
+    if (selectedTool != null) {
+      handleMeasurementTap(localPosition, renderBox.size);
+    }
+  }
+}
+
+/// Custom painter for measurement preview while creating
+class _MeasurementPreviewPainter extends CustomPainter {
+  final List<MeasurementPoint> points;
+  final MeasurementType tool;
+  
+  _MeasurementPreviewPainter({required this.points, required this.tool});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+    
+    final paint = Paint()
+      ..color = Colors.cyan.withOpacity(0.7)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    
+    // Draw existing points
+    for (final point in points) {
+      canvas.drawCircle(
+        Offset(point.x, point.y),
+        4,
+        paint..style = PaintingStyle.fill,
+      );
+    }
+    
+    paint.style = PaintingStyle.stroke;
+    
+    // Draw preview lines based on tool type
+    if (points.length >= 2) {
+      switch (tool) {
+        case MeasurementType.distance:
+          canvas.drawLine(
+            Offset(points[0].x, points[0].y),
+            Offset(points[1].x, points[1].y),
+            paint,
+          );
+          break;
+        case MeasurementType.angle:
+          if (points.length >= 2) {
+            canvas.drawLine(
+              Offset(points[0].x, points[0].y),
+              Offset(points[1].x, points[1].y),
+              paint,
+            );
+          }
+          if (points.length >= 3) {
+            canvas.drawLine(
+              Offset(points[0].x, points[0].y),
+              Offset(points[2].x, points[2].y),
+              paint,
+            );
+          }
+          break;
+        case MeasurementType.circle:
+          final center = Offset(points[0].x, points[0].y);
+          final edge = Offset(points[1].x, points[1].y);
+          final radius = (edge - center).distance;
+          canvas.drawCircle(center, radius, paint);
+          break;
+        case MeasurementType.area:
+          // Draw polygon preview
+          final path = Path();
+          path.moveTo(points[0].x, points[0].y);
+          for (int i = 1; i < points.length; i++) {
+            path.lineTo(points[i].x, points[i].y);
+          }
+          canvas.drawPath(path, paint);
+          break;
+      }
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant _MeasurementPreviewPainter oldDelegate) {
+    return oldDelegate.points != points || oldDelegate.tool != tool;
   }
 }
