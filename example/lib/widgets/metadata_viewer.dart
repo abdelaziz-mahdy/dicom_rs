@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:dicom_rs/dicom_rs.dart';
+import '../models/complex_types.dart';
 
 /// Widget to display the full DICOM metadata in a structured way
 class MetadataViewer extends StatelessWidget {

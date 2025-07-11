@@ -1,7 +1,9 @@
 name: dicom_rs
-description: "A new Flutter FFI plugin project."
-version: 0.0.1
-homepage:
+description: "A minimal, efficient Flutter package for DICOM file handling using Rust backend."
+version: 0.1.0
+homepage: https://github.com/yourusername/dicom_rs
+repository: https://github.com/yourusername/dicom_rs
+issue_tracker: https://github.com/yourusername/dicom_rs/issues
 
 environment:
   sdk: ^3.7.0

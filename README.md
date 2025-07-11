@@ -1,92 +1,155 @@
-# dicom_rs
+# DICOM RS
 
-A new Flutter FFI plugin project.
+A minimal, efficient Flutter package for DICOM file handling using Rust backend.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter
-[FFI plugin](https://flutter.dev/to/ffi-package),
-a specialized package that includes native code directly invoked with Dart FFI.
+✅ **Core DICOM Operations**
+- Validate DICOM files
+- Extract metadata (patient info, study details, etc.)
+- Load pixel data and convert to display-ready formats
+- Lightweight and fast
 
-## Project structure
+✅ **Simple API**
+- Only essential functions exposed
+- Clean, easy-to-use interface
+- Comprehensive documentation
 
-This template uses the following structure:
+✅ **Rust-Powered Performance**
+- Fast DICOM parsing using the Rust `dicom` crate
+- Memory-efficient operations
+- Cross-platform support (iOS, Android, Windows, macOS, Linux)
 
-* `src`: Contains the native source code, and a CmakeFile.txt file for building
-  that source code into a dynamic library.
+## Quick Start
 
-* `lib`: Contains the Dart code that defines the API of the plugin, and which
-  calls into the native code using `dart:ffi`.
-
-* platform folders (`android`, `ios`, `windows`, etc.): Contains the build files
-  for building and bundling the native code library with the platform application.
-
-## Building and bundling native code
-
-The `pubspec.yaml` specifies FFI plugins as follows:
-
-```yaml
-  plugin:
-    platforms:
-      some_platform:
-        ffiPlugin: true
-```
-
-This configuration invokes the native build for the various target platforms
-and bundles the binaries in Flutter applications using these FFI plugins.
-
-This can be combined with dartPluginClass, such as when FFI is used for the
-implementation of one platform in a federated plugin:
+### 1. Add to pubspec.yaml
 
 ```yaml
-  plugin:
-    implements: some_other_plugin
-    platforms:
-      some_platform:
-        dartPluginClass: SomeClass
-        ffiPlugin: true
+dependencies:
+  dicom_rs: ^0.1.0
 ```
 
-A plugin can have both FFI and method channels:
+### 2. Initialize the library
 
-```yaml
-  plugin:
-    platforms:
-      some_platform:
-        pluginClass: SomeName
-        ffiPlugin: true
+```dart
+import 'package:dicom_rs/dicom_rs.dart';
+
+void main() async {
+  // Initialize the Rust library
+  await RustLib.init();
+  
+  runApp(MyApp());
+}
 ```
 
-The native build systems that are invoked by FFI (and method channel) plugins are:
+### 3. Use the DICOM handler
 
-* For Android: Gradle, which invokes the Android NDK for native builds.
-  * See the documentation in android/build.gradle.
-* For iOS and MacOS: Xcode, via CocoaPods.
-  * See the documentation in ios/dicom_rs.podspec.
-  * See the documentation in macos/dicom_rs.podspec.
-* For Linux and Windows: CMake.
-  * See the documentation in linux/CMakeLists.txt.
-  * See the documentation in windows/CMakeLists.txt.
+```dart
+import 'package:dicom_rs/dicom_rs.dart';
 
-## Binding to native code
+Future<void> loadDicomFile() async {
+  final handler = DicomHandler();
+  
+  // Check if file is valid DICOM
+  bool isValid = await handler.isDicomFile('/path/to/file.dcm');
+  if (!isValid) return;
+  
+  // Load complete file with metadata and image
+  DicomFile file = await handler.loadFile('/path/to/file.dcm');
+  print('Patient: ${file.metadata.patientName}');
+  print('Study: ${file.metadata.studyDescription}');
+  
+  // Get image bytes for display
+  Uint8List imageBytes = await handler.getImageBytes('/path/to/file.dcm');
+  
+  // Display in Flutter widget
+  Image.memory(imageBytes);
+}
+```
 
-To use the native code, bindings in Dart are needed.
-To avoid writing these by hand, they are generated from the header file
-(`src/dicom_rs.h`) by `package:ffigen`.
-Regenerate the bindings by running `dart run ffigen --config ffigen.yaml`.
+## API Reference
 
-## Invoking native code
+### DicomHandler
 
-Very short-running native functions can be directly invoked from any isolate.
-For example, see `sum` in `lib/dicom_rs.dart`.
+The main interface for DICOM operations:
 
-Longer-running functions should be invoked on a helper isolate to avoid
-dropping frames in Flutter applications.
-For example, see `sumAsync` in `lib/dicom_rs.dart`.
+#### Methods
 
-## Flutter help
+- `Future<bool> isDicomFile(String path)` - Validate DICOM file
+- `Future<DicomFile> loadFile(String path)` - Load complete DICOM file
+- `Future<DicomMetadata> getMetadata(String path)` - Extract metadata only
+- `Future<Uint8List> getImageBytes(String path)` - Get display-ready image bytes
+- `Future<DicomImage> extractPixelData(String path)` - Get raw pixel data
 
-For help getting started with Flutter, view our
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Data Classes
 
+#### DicomMetadata
+Contains essential DICOM metadata:
+- `patientName`, `patientId`
+- `studyDate`, `studyDescription`
+- `modality`, `seriesDescription`
+- `imagePosition`, `pixelSpacing`
+- And more...
+
+#### DicomImage
+Contains pixel data and image parameters:
+- `width`, `height`
+- `bitsAllocated`, `bitsStored`
+- `photometricInterpretation`
+- `pixelData` (raw bytes)
+
+#### DicomFile
+Complete file representation:
+- `path` - file path
+- `metadata` - DicomMetadata
+- `image` - DicomImage (optional)
+- `isValid` - validation status
+
+## Example App
+
+The example app demonstrates advanced features:
+- Volume loading and 3D visualization
+- DICOMDIR parsing
+- Interactive image viewers with brightness/contrast
+- Directory scanning and organization
+- Parallel processing
+
+Run the example:
+```bash
+cd example
+flutter run
+```
+
+## Performance
+
+- **Minimal API Surface**: Only essential functions
+- **Rust Backend**: Fast, memory-efficient DICOM parsing
+- **Zero-Copy Operations**: Direct memory access where possible
+- **Small Package Size**: No unnecessary dependencies
+
+## Platform Support
+
+- ✅ iOS
+- ✅ Android  
+- ✅ Windows
+- ✅ macOS
+- ✅ Linux
+
+## Requirements
+
+- Flutter 3.3.0+
+- Dart 3.7.0+
+
+## Contributing
+
+Contributions are welcome! Please see the [example app](example/) for advanced usage patterns and feel free to submit issues or pull requests.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Built with [flutter_rust_bridge](https://pub.dev/packages/flutter_rust_bridge)
+- Uses the excellent [dicom](https://crates.io/crates/dicom) Rust crate
+- Inspired by the need for a simple, efficient DICOM package for Flutter

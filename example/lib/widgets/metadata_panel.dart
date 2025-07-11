@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dicom_rs/dicom_rs.dart';
+import '../models/complex_types.dart';
 
 /// A widget that displays DICOM metadata in a side panel
 class MetadataPanel extends StatelessWidget {
@@ -212,36 +213,36 @@ class MetadataPanel extends StatelessWidget {
         _buildSectionHeader('Spacing'),
         _buildDetailItem(
           'X Spacing',
-          vol.spacing.$1.toStringAsFixed(3) + ' mm',
+          '${vol.spacing?[0]?.toStringAsFixed(3) ?? 'Unknown'} mm',
         ),
         _buildDetailItem(
           'Y Spacing',
-          vol.spacing.$2.toStringAsFixed(3) + ' mm',
+          '${vol.spacing?[1]?.toStringAsFixed(3) ?? 'Unknown'} mm',
         ),
         _buildDetailItem(
           'Z Spacing',
-          vol.spacing.$3.toStringAsFixed(3) + ' mm',
+          '${vol.spacing?[2]?.toStringAsFixed(3) ?? 'Unknown'} mm',
         ),
 
         const Divider(),
 
         // Patient/Study/Series info if available
         _buildSectionHeader('Patient'),
-        _buildDetailItem('Name', vol.metadata.patientName ?? 'Unknown'),
-        _buildDetailItem('ID', vol.metadata!.patientId ?? 'Unknown'),
+        _buildDetailItem('Name', vol.metadata?.patientName ?? 'Unknown'),
+        _buildDetailItem('ID', vol.metadata?.patientId ?? 'Unknown'),
         const Divider(),
 
         _buildSectionHeader('Study'),
-        _buildDetailItem('ID', vol.metadata!.studyId ?? 'Unknown'),
+        _buildDetailItem('ID', vol.metadata?.studyInstanceUID ?? 'Unknown'),
         _buildDetailItem(
           'Description',
-          vol.metadata!.studyDescription ?? 'Unknown',
+          vol.metadata?.studyDescription ?? 'Unknown',
         ),
         _buildDetailItem(
           'truncated UID',
-          _truncateUID(vol.metadata!.studyInstanceUid),
+          _truncateUID(vol.metadata?.studyInstanceUid),
         ),
-        _buildDetailItem("UID", vol.metadata!.studyInstanceUid),
+        _buildDetailItem("UID", vol.metadata?.studyInstanceUid ?? 'Unknown'),
         const Divider(),
 
         if (series != null) ...[

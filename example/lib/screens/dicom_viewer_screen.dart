@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 
 import '../models/load_method.dart';
+import '../models/complex_types.dart';
 import '../services/dicom_service.dart';
 import '../widgets/metadata_viewer.dart';
 import '../widgets/image_viewer.dart';
@@ -454,7 +455,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
 
   // Process DICOM file result with unified viewer
   void _processDicomFileResult(DicomFile file) async {
-    final imageBytes = await _dicomService.getImageBytes(path: file.path);
+    final imageBytes = await _dicomService.getImageBytes(file.path);
 
     setState(() {
       _currentMetadata = file.metadata;
@@ -518,9 +519,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     _imageBytesList = List.filled(entries.length, null);
 
     // Load the first image immediately
-    _imageBytesList[0] = await _dicomService.getImageBytes(
-      path: entries[0].path,
-    );
+    _imageBytesList[0] = await _dicomService.getImageBytes(entries[0].path);
     final metadata = await _dicomService.getMetadata(path: entries[0].path);
     final allMetadata = await _dicomService.getAllMetadata(
       path: entries[0].path,
@@ -540,7 +539,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     // Load remaining images in background
     for (int i = 1; i < entries.length; i++) {
       final index = i;
-      _dicomService.getImageBytes(path: entries[index].path).then((bytes) {
+      _dicomService.getImageBytes(entries[index].path).then((bytes) {
         setState(() {
           _imageBytesList[index] = bytes;
         });
@@ -587,7 +586,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
               patientId: _selectedPatient?.patientId,
               studyDate: _selectedStudy?.studyDate,
               studyDescription: _selectedStudy?.studyDescription,
-              accessionNumber: _selectedStudy?.accessionNumber,
               studyInstanceUid: _selectedStudy?.studyInstanceUid,
 
               // Series-level information
@@ -618,9 +616,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
 
     if (_dicomFiles.isNotEmpty) {
       // Load first image and create viewer
-      final firstBytes = await _dicomService.getImageBytes(
-        path: _dicomFiles[0].path,
-      );
+      final firstBytes = await _dicomService.getImageBytes(_dicomFiles[0].path);
       final metadata = await _dicomService.getMetadata(
         path: _dicomFiles[0].path,
       );
@@ -643,7 +639,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       // Load remaining images in background
       for (int i = 1; i < _dicomFiles.length; i++) {
         final index = i;
-        _dicomService.getImageBytes(path: _dicomFiles[index].path).then((
+        _dicomService.getImageBytes(_dicomFiles[index].path).then((
           bytes,
         ) {
           setState(() {

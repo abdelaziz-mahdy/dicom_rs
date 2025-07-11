@@ -10,8 +10,4 @@ crate-type = ["cdylib", "staticlib"]
 flutter_rust_bridge = "=2.8.0"
 dicom = "0.8.1"
 anyhow = "1.0"
-smallvec = "1.14.0"
-dicom-pixeldata = { version = "0.8", features = ["image","rayon"] }
-futures = "0.3"
-num_cpus = "1.15"
-rayon = "1.7"
+dicom-pixeldata = { version = "0.8", features = ["image"] }

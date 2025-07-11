@@ -2,9 +2,11 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import '../models/load_method.dart';
+import '../models/complex_types.dart';
+import 'enhanced_dicom_service.dart';
 
 class DicomService {
-  final DicomHandler _handler = DicomHandler();
+  final EnhancedDicomService _enhancedService = EnhancedDicomService();
 
   /// Load DICOM data using the selected method
   Future<DicomLoadResult> loadDicomData({
@@ -14,109 +16,103 @@ class DicomService {
   }) async {
     switch (method) {
       case DicomLoadMethod.directory:
-        final entries = await _handler.loadDirectory(path: path);
+        final entries = await _enhancedService.loadDirectory(path: path);
         return DirectoryLoadResult(entries: entries);
 
       case DicomLoadMethod.directoryRecursive:
-        final entries = await _handler.loadDirectoryRecursive(path: path);
+        final entries = await _enhancedService.loadDirectoryRecursive(path: path);
         return DirectoryLoadResult(entries: entries);
 
       case DicomLoadMethod.loadDicomFile:
-        final dicomFile = await _handler.loadFile(path: path);
+        final dicomFile = await _enhancedService.loadFile(path: path);
         return DicomFileLoadResult(file: dicomFile);
+        
       case DicomLoadMethod.volume:
-        final volume = await _handler.loadVolume(
-          path: path,
-          progressCallback:
-              onProgress != null
-                  ? (current, total) async {
-                    onProgress(current, total);
-                  }
-                  : (current, total) {},
-        );
-
-        volume.spacing;
-        for (final instance in volume.slices) {
-          if (instance.path.isNotEmpty) {
-            try {
-              final metadata = await getAllMetadata(path: instance.path);
-              metadata;
-            } catch (_) {}
-          }
+        // For volume loading, first get all entries then create volume
+        final entries = await _enhancedService.loadDirectoryRecursive(path: path);
+        if (entries.isEmpty) {
+          throw Exception('No DICOM files found for volume creation');
         }
+        final volume = await _enhancedService.createVolumeFromSeries(entries);
         return VolumeLoadResult(volume: volume);
     }
   }
 
-  /// Get image bytes for display
-  Future<Uint8List> getImageBytes({required String path}) {
-    return _handler.getImageBytes(path: path);
+  /// Get DICOM metadata
+  Future<DicomMetadata> getMetadata({required String path}) async {
+    return await _enhancedService.getMetadata(path: path);
   }
 
-  /// Get metadata for a specific DICOM file
-  Future<DicomMetadata> getMetadata({required String path}) {
-    return _handler.getMetadata(path: path);
+  /// Get enhanced metadata map
+  Future<DicomMetadataMap> getAllMetadata({required String path}) async {
+    return await _enhancedService.getAllMetadata(path: path);
   }
 
-  /// Get all metadata for a specific DICOM file
-  Future<DicomMetadataMap> getAllMetadata({required String path}) {
-    return _handler.getAllMetadata(path: path);
-  }
-
-  /// Extract patient ID from a study by checking for valid instances
+  /// Extract patient ID from study
   Future<String?> extractPatientIdFromStudy(DicomStudy study) async {
-    for (final series in study.series) {
-      for (final instance in series.instances) {
-        if (instance.isValid) {
-          try {
-            final metadata = await getMetadata(path: instance.path);
-            return metadata.patientId;
-          } catch (_) {}
-        }
-      }
-    }
-    return null;
+    return await _enhancedService.extractPatientIdFromStudy(study);
   }
 
-  /// Extract patient name from a study by checking for valid instances
+  /// Extract patient name from study
   Future<String?> extractPatientNameFromStudy(DicomStudy study) async {
-    for (final series in study.series) {
-      for (final instance in series.instances) {
-        if (instance.isValid) {
-          try {
-            final metadata = await getMetadata(path: instance.path);
-            return metadata.patientName;
-          } catch (_) {}
-        }
-      }
-    }
-    return null;
+    return await _enhancedService.extractPatientNameFromStudy(study);
+  }
+
+  /// Load volume from series
+  Future<DicomVolume> loadVolumeFromSeries(List<DicomDirectoryEntry> entries) async {
+    return await _enhancedService.createVolumeFromSeries(entries);
+  }
+
+  /// Check if file is valid DICOM
+  Future<bool> isValidDicom(String path) async {
+    return await _enhancedService.isValidDicom(path: path);
+  }
+
+  /// Get pixel data from DICOM file
+  Future<DicomImage> getPixelData(String path) async {
+    return await _enhancedService.getPixelData(path: path);
+  }
+
+  /// Get image bytes (PNG) from DICOM file
+  Future<Uint8List> getImageBytes(String path) async {
+    return await _enhancedService.getImageBytes(path: path);
   }
 }
 
-/// Base class for all DICOM load results
+/// Base class for load results
 abstract class DicomLoadResult {}
 
-/// Result for directory loading methods
+/// Result for directory loading
 class DirectoryLoadResult extends DicomLoadResult {
   final List<DicomDirectoryEntry> entries;
+  
   DirectoryLoadResult({required this.entries});
 }
 
-/// Result for study loading methods
+/// Result for organized directory loading
+class OrganizedLoadResult extends DicomLoadResult {
+  final List<DicomPatient> patients;
+  
+  OrganizedLoadResult({required this.patients});
+}
+
+/// Result for single file loading
+class DicomFileLoadResult extends DicomLoadResult {
+  final DicomFile file;
+  
+  DicomFileLoadResult({required this.file});
+}
+
+/// Result for study loading
 class StudyLoadResult extends DicomLoadResult {
   final DicomStudy study;
+  
   StudyLoadResult({required this.study});
 }
 
-/// Result for volume loading methods
+/// Result for volume loading
 class VolumeLoadResult extends DicomLoadResult {
   final DicomVolume volume;
+  
   VolumeLoadResult({required this.volume});
-}
-
-/// Result for file loading methods
-class DicomFileLoadResult extends DicomLoadResult {
-  final DicomFile file;
-  DicomFileLoadResult({required this.file});
 }

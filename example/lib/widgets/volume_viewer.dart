@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:dicom_rs/dicom_rs.dart';
+import '../models/complex_types.dart';
 import 'dicom_viewer_base.dart';
 import 'dicom_interaction_mixin.dart';
 

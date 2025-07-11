@@ -564,10 +564,6 @@ dependencies = [
  "dicom",
  "dicom-pixeldata",
  "flutter_rust_bridge",
- "futures",
- "num_cpus",
- "rayon",
- "smallvec",
 ]
 
 [[package]]
