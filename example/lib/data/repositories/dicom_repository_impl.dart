@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:dicom_rs/dicom_rs.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/result.dart';
 import '../../domain/entities/dicom_image_entity.dart';
@@ -102,73 +101,46 @@ class DicomRepositoryImpl implements DicomRepository {
     double contrast,
   ) async {
     try {
-      // Decode the image
+      // Use ColorFilter matrix approach on all platforms for hardware acceleration
       final codec = await ui.instantiateImageCodec(imageBytes);
       final frame = await codec.getNextFrame();
       final image = frame.image;
       
-      // Get pixel data
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (byteData == null) return imageBytes;
+      // Create a picture recorder to apply transformations
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
       
-      final pixels = byteData.buffer.asUint8List();
-      final processedPixels = Uint8List(pixels.length);
+      // Apply color transformations using ColorFilter matrix
+      final paint = ui.Paint()
+        ..colorFilter = ui.ColorFilter.matrix(_createBrightnessContrastMatrix(brightness, contrast));
       
-      // Apply brightness and contrast to each pixel
-      for (int i = 0; i < pixels.length; i += 4) {
-        // Process RGB channels (skip alpha)
-        for (int j = 0; j < 3; j++) {
-          final pixel = pixels[i + j];
-          
-          // Apply contrast then brightness
-          // Formula: new_pixel = (pixel * contrast) + brightness
-          double newPixel = (pixel * contrast) + (brightness * 255);
-          
-          // Clamp to valid range [0, 255]
-          newPixel = newPixel.clamp(0, 255);
-          
-          processedPixels[i + j] = newPixel.round();
-        }
-        
-        // Keep alpha channel unchanged
-        processedPixels[i + 3] = pixels[i + 3];
-      }
+      canvas.drawImage(image, ui.Offset.zero, paint);
       
-      // Create new image from processed pixels
-      final processedImage = await _createImageFromPixels(
-        processedPixels,
-        image.width,
-        image.height,
-      );
+      final picture = recorder.endRecording();
+      final processedImage = await picture.toImage(image.width, image.height);
       
       // Encode back to bytes
-      final processedByteData = await processedImage.toByteData(
-        format: ui.ImageByteFormat.png
-      );
-      
-      return processedByteData?.buffer.asUint8List() ?? imageBytes;
+      final byteData = await processedImage.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List() ?? imageBytes;
     } catch (e) {
       // If processing fails, return original image
       return imageBytes;
     }
   }
 
-  /// Create an image from RGBA pixel data
-  Future<ui.Image> _createImageFromPixels(
-    Uint8List pixels,
-    int width,
-    int height,
-  ) async {
-    final completer = Completer<ui.Image>();
+  /// Create a color matrix for brightness and contrast adjustments
+  List<double> _createBrightnessContrastMatrix(double brightness, double contrast) {
+    // Standard color matrix for brightness/contrast
+    // Matrix format: [R, G, B, A, offset] for each channel
+    // Reduce brightness scaling for finer control
+    final brightnessOffset = brightness * 127.5; // Reduced from 255 to 127.5 for finer control
     
-    ui.decodeImageFromPixels(
-      pixels,
-      width,
-      height,
-      ui.PixelFormat.rgba8888,
-      completer.complete,
-    );
-    
-    return completer.future;
+    return [
+      contrast, 0, 0, 0, brightnessOffset, // Red
+      0, contrast, 0, 0, brightnessOffset, // Green  
+      0, 0, contrast, 0, brightnessOffset, // Blue
+      0, 0, 0, 1, 0, // Alpha (unchanged)
+    ];
   }
+
 }

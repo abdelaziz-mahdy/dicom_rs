@@ -12,7 +12,7 @@ class ImageInteractionController extends ChangeNotifier {
     this.enableZoom = true,
     this.enableMeasurements = true,
     this.scrollThreshold = 5.0,
-    this.brightnessContrastSensitivity = 0.01,
+    this.brightnessContrastSensitivity = 0.001,
     this.zoomSensitivity = 0.1,
   });
 
