@@ -13,12 +13,16 @@ class DicomImageViewer extends DicomViewerBase {
   final List<Uint8List?> imageBytesList;
   final int initialIndex;
   final bool showControls;
+  final List<double>? pixelSpacing;
+  final Function(int)? onSliceChanged; // Callback for lazy loading
 
   const DicomImageViewer({
     super.key,
     required this.imageBytesList,
     this.initialIndex = 0,
     this.showControls = true,
+    this.pixelSpacing,
+    this.onSliceChanged,
   });
 
   @override
@@ -41,7 +45,7 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-    initializeMeasurements();
+    initializeMeasurements(pixelSpacing: widget.pixelSpacing);
     _updateProcessedImage();
   }
 
@@ -72,6 +76,11 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
     if (oldWidget.imageBytesList != widget.imageBytesList ||
         oldWidget.initialIndex != widget.initialIndex) {
       _updateProcessedImage();
+    }
+    
+    // Update pixel spacing if it changed
+    if (oldWidget.pixelSpacing != widget.pixelSpacing) {
+      updatePixelSpacing(widget.pixelSpacing);
     }
   }
 
@@ -121,7 +130,7 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
                   measurements: measurements,
                   currentPoints: currentMeasurementPoints,
                   measurementsVisible: measurementsVisible,
-                  pixelSpacing: null, // TODO: Get from DICOM metadata
+                  pixelSpacing: widget.pixelSpacing,
                   units: 'mm',
                   onImageTap: _handleImageTap,
                   onMeasurementDelete: removeMeasurement,
@@ -277,6 +286,9 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
       _currentIndex = (_currentIndex + 1) % widget.imageBytesList.length;
     });
     _updateProcessedImage();
+    
+    // Notify about slice change for lazy loading
+    widget.onSliceChanged?.call(_currentIndex);
   }
 
   @override
@@ -289,5 +301,8 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
           widget.imageBytesList.length;
     });
     _updateProcessedImage();
+    
+    // Notify about slice change for lazy loading
+    widget.onSliceChanged?.call(_currentIndex);
   }
 }

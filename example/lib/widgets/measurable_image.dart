@@ -52,7 +52,14 @@ class _MeasurableImageState extends State<MeasurableImage> {
   @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerSignal: widget.onPointerSignal,
+      onPointerSignal: (event) {
+        // ALWAYS handle scroll events first for slice navigation
+        // This prevents GestureDetector from interfering
+        if (widget.onPointerSignal != null) {
+          widget.onPointerSignal!(event);
+          return; // Don't let it propagate to GestureDetector
+        }
+      },
       child: GestureDetector(
         onTapUp: _handleTapUp,
         onScaleStart: _handleScaleStart,
@@ -102,7 +109,23 @@ class _MeasurableImageState extends State<MeasurableImage> {
         gaplessPlayback: true,
       );
     } else {
-      return const Text('No image loaded');
+      // Show loading indicator when image is not loaded
+      return Container(
+        width: 200,
+        height: 200,
+        color: Colors.grey[200],
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Loading image...',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
     }
   }
 

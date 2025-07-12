@@ -7,6 +7,7 @@ import 'package:dicom_rs/dicom_rs.dart';
 import '../models/load_method.dart';
 import '../models/complex_types.dart';
 import '../services/dicom_service.dart';
+import '../services/lazy_image_service.dart';
 import '../widgets/metadata_viewer.dart';
 import '../widgets/image_viewer.dart';
 import '../widgets/metadata_panel.dart';
@@ -21,6 +22,7 @@ class DicomViewerScreen extends StatefulWidget {
 
 class _DicomViewerScreenState extends State<DicomViewerScreen> {
   final DicomService _dicomService = DicomService();
+  late final LazyImageService _lazyImageService;
 
   // Loading state
   bool _isLoading = false;
@@ -56,6 +58,21 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
 
   // Metadata panel state
   bool _isMetadataPanelCollapsed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lazyImageService = LazyImageService(
+      dicomService: _dicomService,
+      preloadBuffer: 3, // Load 3 images ahead/behind
+    );
+  }
+
+  @override
+  void dispose() {
+    _lazyImageService.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -473,6 +490,8 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       _currentViewer = DicomImageViewer(
         key: _viewerKey,
         imageBytesList: _imageBytesList,
+        pixelSpacing: _currentMetadata?.pixelSpacing,
+        onSliceChanged: _onSliceChanged,
       );
     });
   }
@@ -533,17 +552,21 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
       _currentViewer = DicomImageViewer(
         key: _viewerKey,
         imageBytesList: _imageBytesList,
+        pixelSpacing: _currentMetadata?.pixelSpacing,
+        onSliceChanged: _onSliceChanged,
       );
     });
 
-    // Load remaining images in background
-    for (int i = 1; i < entries.length; i++) {
-      final index = i;
-      _dicomService.getImageBytes(entries[index].path).then((bytes) {
-        setState(() {
-          _imageBytesList[index] = bytes;
-        });
-      });
+    // Initialize lazy loading for this method as well
+    if (entries.length > 1) {
+      final dicomEntries = entries.map((entry) => DicomDirectoryEntry(
+        path: entry.path,
+        metadata: entry.metadata,
+        isValid: true,
+      )).toList();
+      
+      _lazyImageService.initialize(dicomEntries);
+      await _lazyImageService.updateCurrentIndex(0);
     }
   }
 
@@ -615,8 +638,11 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
     });
 
     if (_dicomFiles.isNotEmpty) {
+      // Initialize lazy loading service
+      _lazyImageService.initialize(_dicomFiles);
+      
       // Load first image and create viewer
-      final firstBytes = await _dicomService.getImageBytes(_dicomFiles[0].path);
+      final firstBytes = await _lazyImageService.getImageAt(0);
       final metadata = await _dicomService.getMetadata(
         path: _dicomFiles[0].path,
       );
@@ -629,24 +655,34 @@ class _DicomViewerScreenState extends State<DicomViewerScreen> {
         _currentMetadata = metadata;
         _currentAllMetadata = allMetadata;
 
-        // Create image viewer with all images (will load progressively)
+        // Create image viewer with lazy loading support
         _currentViewer = DicomImageViewer(
           key: _viewerKey,
           imageBytesList: _imageBytesList,
+          pixelSpacing: _currentMetadata?.pixelSpacing,
+          onSliceChanged: _onSliceChanged,
         );
       });
 
-      // Load remaining images in background
-      for (int i = 1; i < _dicomFiles.length; i++) {
-        final index = i;
-        _dicomService.getImageBytes(_dicomFiles[index].path).then((
-          bytes,
-        ) {
-          setState(() {
-            _imageBytesList[index] = bytes;
-          });
-        });
-      }
+      // Preload surrounding images
+      await _lazyImageService.updateCurrentIndex(0);
+    }
+  }
+
+  // Handle slice changes for lazy loading
+  void _onSliceChanged(int newIndex) async {
+    _currentSliceIndex = newIndex;
+    
+    // Update lazy loading service
+    await _lazyImageService.updateCurrentIndex(newIndex);
+    
+    // Load the image if not already loaded
+    final imageBytes = await _lazyImageService.getImageAt(newIndex);
+    
+    if (mounted && imageBytes != null) {
+      setState(() {
+        _imageBytesList[newIndex] = imageBytes;
+      });
     }
   }
 

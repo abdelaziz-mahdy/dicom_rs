@@ -128,8 +128,15 @@ class EnhancedDicomService {
     for (final file in files) {
       try {
         if (await _handler.isDicomFile(file.path)) {
-          final dicomFile = await _handler.loadFile(file.path);
-          entries.add(DicomDirectoryEntry.fromDicomFile(dicomFile));
+          // FAST: Only load metadata, not the full file with image data
+          final metadata = await _handler.getMetadata(file.path);
+          entries.add(DicomDirectoryEntry(
+            path: file.path,
+            metadata: metadata,
+            isValid: true,
+            // Don't load image data during directory scan - will be loaded lazily
+            image: null,
+          ));
         }
       } catch (e) {
         // Skip invalid files
@@ -157,8 +164,15 @@ class EnhancedDicomService {
     for (final file in files) {
       try {
         if (await _handler.isDicomFile(file.path)) {
-          final dicomFile = await _handler.loadFile(file.path);
-          entries.add(DicomDirectoryEntry.fromDicomFile(dicomFile));
+          // FAST: Only load metadata, not the full file with image data
+          final metadata = await _handler.getMetadata(file.path);
+          entries.add(DicomDirectoryEntry(
+            path: file.path,
+            metadata: metadata,
+            isValid: true,
+            // Don't load image data during directory scan - will be loaded lazily
+            image: null,
+          ));
         }
       } catch (e) {
         // Skip invalid files
