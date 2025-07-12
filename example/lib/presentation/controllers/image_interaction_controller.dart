@@ -31,6 +31,10 @@ class ImageInteractionController extends ChangeNotifier {
   // Current state
   bool _isRightClickDragging = false;
   Offset? _lastPanPosition;
+  
+  // Selected measurement tracking for highlighting
+  dynamic _selectedMeasurement;
+  int? _selectedPointIndex;
 
   // Callbacks
   VoidCallback? onNextImage;
@@ -53,6 +57,8 @@ class ImageInteractionController extends ChangeNotifier {
   static const Duration _fastNavigationInterval = Duration(milliseconds: 100);
 
   bool get isInteracting => _isRightClickDragging;
+  dynamic get selectedMeasurement => _selectedMeasurement;
+  int? get selectedPointIndex => _selectedPointIndex;
 
   @override
   void dispose() {
@@ -217,6 +223,12 @@ class ImageInteractionController extends ChangeNotifier {
   void handleScaleStart(ScaleStartDetails details) {
     if (!enableZoom || _isRightClickDragging) return;
     
+    // For single-finger gestures, allow measurement point detection
+    if (enableMeasurements && details.pointerCount == 1) {
+      // Single finger gesture - could be measurement point dragging
+      return;
+    }
+    
     // Only handle multi-touch zoom gestures
     if (details.pointerCount >= 2) {
       // Prepare for zoom
@@ -225,9 +237,9 @@ class ImageInteractionController extends ChangeNotifier {
 
   /// Handle scale update (zoom/pan gestures)
   void handleScaleUpdate(ScaleUpdateDetails details) {
-    // Priority 1: Measurement point dragging
+    // Priority 1: Measurement point dragging (single finger pan with scale = 1.0)
     if (enableMeasurements && details.scale == 1.0 && details.pointerCount == 1) {
-      // Check if we're dragging a measurement point
+      // Always try measurement point dragging for single-finger pan
       onMeasurementPointDragged?.call(details.localFocalPoint);
       return;
     }
@@ -246,7 +258,22 @@ class ImageInteractionController extends ChangeNotifier {
 
   /// Handle scale end (zoom/pan gestures)
   void handleScaleEnd(ScaleEndDetails details) {
-    // Cleanup any ongoing interactions
+    // Clear selected measurement when gesture ends (user releases)
+    clearSelectedMeasurement();
+  }
+
+  /// Set the selected measurement for highlighting
+  void setSelectedMeasurement(dynamic measurement, int? pointIndex) {
+    _selectedMeasurement = measurement;
+    _selectedPointIndex = pointIndex;
+    notifyListeners();
+  }
+
+  /// Clear the selected measurement
+  void clearSelectedMeasurement() {
+    _selectedMeasurement = null;
+    _selectedPointIndex = null;
+    notifyListeners();
   }
 
   /// Reset interaction state
@@ -261,6 +288,10 @@ class ImageInteractionController extends ChangeNotifier {
     _fastNavigationTimer = null;
     _activeKey = null;
     _isFastNavigating = false;
+    
+    // Clear selected measurement
+    _selectedMeasurement = null;
+    _selectedPointIndex = null;
     
     notifyListeners();
   }

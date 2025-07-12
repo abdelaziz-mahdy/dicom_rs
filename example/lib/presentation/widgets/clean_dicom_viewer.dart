@@ -50,6 +50,10 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   MeasurementType? _selectedMeasurementTool;
   bool _measurementsVisible = true;
 
+  // Measurement point dragging state
+  MeasurementEntity? _draggingMeasurement;
+  int? _draggingPointIndex;
+
   @override
   void initState() {
     super.initState();
@@ -100,6 +104,15 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       ..onImageTapped = _handleImageTap
       ..onMeasurementPointDragged = _handleMeasurementPointDrag
       ..onPointDrag = _handlePointDrag;
+
+    // Listen to interaction controller changes to clear drag state when needed
+    _interactionController.addListener(() {
+      if (_interactionController.selectedMeasurement == null) {
+        setState(() {
+          _clearDragState();
+        });
+      }
+    });
   }
 
   void _onControllerChanged() {
@@ -311,7 +324,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     setState(() {
       _selectedMeasurementTool = tool;
       _currentMeasurementPoints.clear();
-      
+
       // Reset scale to 1.0 when starting measurements to avoid scaling issues
       if (tool != null) {
         _controller.updateScale(1.0);
@@ -320,7 +333,24 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   }
 
   void _handleImageTap(Offset position, Size imageSize) {
+    // Don't handle measurement point selection in tap - let scale events handle dragging
+    // This prevents the double-click issue by allowing scale events to handle everything
+
+    // Only add new measurement points if we have a selected tool
     if (_selectedMeasurementTool == null) return;
+
+    // Check if tap is on an existing measurement point - if so, don't add new point
+    for (final measurement in _measurements) {
+      for (int i = 0; i < measurement.points.length; i++) {
+        final point = measurement.points[i];
+        final pointCenter = Offset(point.x, point.y);
+        final distance = (position - pointCenter).distance;
+        if (distance <= 12) {
+          // Hit an existing point, don't add new measurement point
+          return;
+        }
+      }
+    }
 
     setState(() {
       _currentMeasurementPoints.add(
@@ -336,7 +366,89 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   }
 
   void _handleMeasurementPointDrag(Offset position) {
-    // Legacy method for backward compatibility
+    // If no drag is in progress, check if we're starting a drag on a measurement point
+    if (_draggingMeasurement == null) {
+      // Check for point hit and immediately start dragging if found
+      for (final measurement in _measurements) {
+        for (int i = 0; i < measurement.points.length; i++) {
+          final point = measurement.points[i];
+          final pointCenter = Offset(point.x, point.y);
+          final distance = (position - pointCenter).distance;
+
+          // Check if the drag started on a measurement point (radius 12)
+          if (distance <= 12) {
+            // Immediately select and start dragging this point
+            _draggingMeasurement = measurement;
+            _draggingPointIndex = i;
+            _interactionController.setSelectedMeasurement(measurement, i);
+
+            // Start dragging immediately - update position on first detection
+            final updatedMeasurement = _updateMeasurementPoint(
+              measurement,
+              i,
+              position,
+            );
+
+            if (updatedMeasurement != null) {
+              setState(() {
+                final index = _measurements.indexWhere(
+                  (m) => m.id == measurement.id,
+                );
+                if (index != -1) {
+                  _measurements[index] = updatedMeasurement;
+                }
+              });
+            }
+            return;
+          }
+        }
+      }
+      // No point hit, nothing to drag
+      return;
+    }
+
+    // Continue dragging the selected point
+    if (_draggingMeasurement != null && _draggingPointIndex != null) {
+      final updatedMeasurement = _updateMeasurementPoint(
+        _draggingMeasurement!,
+        _draggingPointIndex!,
+        position,
+      );
+
+      if (updatedMeasurement != null) {
+        setState(() {
+          final index = _measurements.indexWhere(
+            (m) => m.id == _draggingMeasurement!.id,
+          );
+          if (index != -1) {
+            _measurements[index] = updatedMeasurement;
+          }
+        });
+      }
+    }
+  }
+
+  /// Update a specific measurement point position
+  MeasurementEntity? _updateMeasurementPoint(
+    MeasurementEntity measurement,
+    int pointIndex,
+    Offset newPosition,
+  ) {
+    if (pointIndex >= measurement.points.length) return null;
+
+    final updatedPoints = List<MeasurementPoint>.from(measurement.points);
+    updatedPoints[pointIndex] = MeasurementPoint(
+      x: newPosition.dx,
+      y: newPosition.dy,
+    );
+
+    return MeasurementEntity(
+      id: measurement.id,
+      type: measurement.type,
+      points: updatedPoints,
+      pixelSpacing: measurement.pixelSpacing,
+      imageScale: measurement.imageScale,
+    );
   }
 
   void _handlePointDrag(
@@ -379,6 +491,11 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     });
   }
 
+  void _clearDragState() {
+    _draggingMeasurement = null;
+    _draggingPointIndex = null;
+  }
+
   void _completeMeasurement() {
     if (_selectedMeasurementTool == null || _currentMeasurementPoints.isEmpty) {
       return;
@@ -401,6 +518,9 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       _currentMeasurementPoints.clear();
       _selectedMeasurementTool = null;
     });
+
+    // Clear any selected measurement highlighting
+    _interactionController.clearSelectedMeasurement();
   }
 
   void _clearAllMeasurements() {
@@ -408,6 +528,9 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       _measurements.clear();
       _currentMeasurementPoints.clear();
     });
+
+    // Clear any selected measurement highlighting
+    _interactionController.clearSelectedMeasurement();
   }
 
   void _toggleMeasurementsVisibility() {

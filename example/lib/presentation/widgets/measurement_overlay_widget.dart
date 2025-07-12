@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/measurement_entity.dart';
 
+/// Information about a measurement point hit
+class MeasurementPointHit {
+  const MeasurementPointHit({
+    required this.measurement,
+    required this.pointIndex,
+    required this.originalPosition,
+  });
+
+  final MeasurementEntity measurement;
+  final int pointIndex;
+  final Offset originalPosition;
+}
+
 /// Widget that renders measurement overlays on top of the image
 class MeasurementOverlayWidget extends StatelessWidget {
   const MeasurementOverlayWidget({
@@ -10,13 +23,43 @@ class MeasurementOverlayWidget extends StatelessWidget {
     this.selectedTool,
     this.scale = 1.0,
     this.onPointDrag,
+    this.selectedMeasurement,
+    this.selectedPointIndex,
   });
 
   final List<MeasurementEntity> measurements;
   final List<MeasurementPoint> currentPoints;
   final MeasurementType? selectedTool;
   final double scale;
-  final Function(MeasurementEntity measurement, int pointIndex, Offset newPosition)? onPointDrag;
+  final Function(
+    MeasurementEntity measurement,
+    int pointIndex,
+    Offset newPosition,
+  )?
+  onPointDrag;
+  final MeasurementEntity? selectedMeasurement;
+  final int? selectedPointIndex;
+
+  /// Check if a position hits any measurement point and return the hit info
+  MeasurementPointHit? getPointHit(Offset position) {
+    for (final measurement in measurements) {
+      for (int i = 0; i < measurement.points.length; i++) {
+        final point = measurement.points[i];
+        final pointCenter = Offset(point.x, point.y);
+        final distance = (position - pointCenter).distance;
+
+        // Check if the tap is within the measurement point bounds (radius 12)
+        if (distance <= 12) {
+          return MeasurementPointHit(
+            measurement: measurement,
+            pointIndex: i,
+            originalPosition: pointCenter,
+          );
+        }
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,11 +74,12 @@ class MeasurementOverlayWidget extends StatelessWidget {
           ),
           child: Container(),
         ),
-        
+
         // Interactive points overlay
-        ...measurements.map((measurement) => 
-          _buildMeasurementPoints(measurement)),
-        
+        ...measurements.map(
+          (measurement) => _buildMeasurementPoints(measurement),
+        ),
+
         // Current measurement points
         ..._buildCurrentPoints(),
       ],
@@ -44,57 +88,83 @@ class MeasurementOverlayWidget extends StatelessWidget {
 
   Widget _buildMeasurementPoints(MeasurementEntity measurement) {
     return Stack(
-      children: measurement.points.asMap().entries.map((entry) {
-        final index = entry.key;
-        final point = entry.value;
-        
-        return Positioned(
-          left: point.x - 12, // Fixed size since scale is always 1.0 during measurements
-          top: point.y - 12,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.grab,
-            child: GestureDetector(
-              onPanUpdate: (details) {
-                if (onPointDrag != null) {
-                  final newPosition = Offset(
-                    point.x + details.delta.dx, // Direct positioning since scale is 1.0
-                    point.y + details.delta.dy,
-                  );
-                  onPointDrag!(measurement, index, newPosition);
-                }
-              },
-              child: Container(
-                width: 24, // Fixed size
-                height: 24,
-                decoration: BoxDecoration(
-                  color: Colors.cyan.withValues(alpha: 0.9),
-                  border: Border.all(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+      children:
+          measurement.points.asMap().entries.map((entry) {
+            final index = entry.key;
+            final point = entry.value;
+
+            // Check if this point is currently selected
+            final isSelected =
+                selectedMeasurement?.id == measurement.id &&
+                selectedPointIndex == index;
+
+            return Positioned(
+              left: point.x - (isSelected ? 14 : 12), // Larger when selected
+              top: point.y - (isSelected ? 14 : 12),
+              child: MouseRegion(
+                cursor:
+                    isSelected
+                        ? SystemMouseCursors.grabbing
+                        : SystemMouseCursors.grab,
+                child: Container(
+                  width: isSelected ? 28 : 24, // Larger when selected
+                  height: isSelected ? 28 : 24,
+                  decoration: BoxDecoration(
+                    color:
+                        isSelected
+                            ? Colors.orange.withValues(
+                              alpha: 0.9,
+                            ) // Orange when selected
+                            : Colors.cyan.withValues(
+                              alpha: 0.9,
+                            ), // Cyan normally
+                    border: Border.all(
+                      color: isSelected ? Colors.yellow : Colors.white,
+                      width: isSelected ? 3 : 2, // Thicker border when selected
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.open_with_rounded, // Better icon for draggable points
-                  size: 12,
-                  color: Colors.white,
+                    borderRadius: BorderRadius.circular(isSelected ? 14 : 12),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            isSelected
+                                ? Colors.orange.withValues(
+                                  alpha: 0.8,
+                                ) // Stronger glow when selected
+                                : Colors.black.withValues(
+                                  alpha: 0.5,
+                                ), // Normal shadow
+                        blurRadius:
+                            isSelected ? 12 : 6, // Larger glow when selected
+                        offset: const Offset(0, 2),
+                      ),
+                      if (isSelected) // Additional inner glow for selected state
+                        BoxShadow(
+                          color: Colors.yellow.withValues(alpha: 0.6),
+                          blurRadius: 4,
+                          offset: const Offset(0, 0),
+                          spreadRadius: 1,
+                        ),
+                    ],
+                  ),
+                  child: Icon(
+                    isSelected
+                        ? Icons
+                            .my_location_rounded // Different icon when selected
+                        : Icons.open_with_rounded, // Normal drag icon
+                    size: isSelected ? 14 : 12,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
 
   List<Widget> _buildCurrentPoints() {
     return currentPoints.asMap().entries.map((entry) {
       final point = entry.value;
-      
+
       return Positioned(
         left: point.x - 10, // Fixed size since scale is 1.0 during measurements
         top: point.y - 10,
@@ -144,11 +214,16 @@ class MeasurementPainter extends CustomPainter {
     }
   }
 
-  void _paintMeasurement(Canvas canvas, MeasurementEntity measurement, bool isActive) {
-    final paint = Paint()
-      ..color = isActive ? Colors.cyan : Colors.cyan.withValues(alpha: 0.8)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
+  void _paintMeasurement(
+    Canvas canvas,
+    MeasurementEntity measurement,
+    bool isActive,
+  ) {
+    final paint =
+        Paint()
+          ..color = isActive ? Colors.cyan : Colors.cyan.withValues(alpha: 0.8)
+          ..strokeWidth = 2.0
+          ..style = PaintingStyle.stroke;
 
     final points = measurement.points;
     if (points.isEmpty) return;
@@ -175,11 +250,16 @@ class MeasurementPainter extends CustomPainter {
     _paintLabel(canvas, measurement);
   }
 
-  void _paintCurrentMeasurement(Canvas canvas, List<MeasurementPoint> points, MeasurementType type) {
-    final paint = Paint()
-      ..color = Colors.yellow
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
+  void _paintCurrentMeasurement(
+    Canvas canvas,
+    List<MeasurementPoint> points,
+    MeasurementType type,
+  ) {
+    final paint =
+        Paint()
+          ..color = Colors.yellow
+          ..strokeWidth = 2.0
+          ..style = PaintingStyle.stroke;
 
     if (points.isEmpty) return;
 
@@ -210,7 +290,11 @@ class MeasurementPainter extends CustomPainter {
     _paintPoints(canvas, points, paint);
   }
 
-  void _paintDistance(Canvas canvas, List<MeasurementPoint> points, Paint paint) {
+  void _paintDistance(
+    Canvas canvas,
+    List<MeasurementPoint> points,
+    Paint paint,
+  ) {
     if (points.length < 2) return;
 
     final start = Offset(points[0].x, points[0].y);
@@ -270,26 +354,25 @@ class MeasurementPainter extends CustomPainter {
   }
 
   void _paintPoints(Canvas canvas, List<MeasurementPoint> points, Paint paint) {
-    final pointPaint = Paint()
-      ..color = paint.color
-      ..style = PaintingStyle.fill;
+    final pointPaint =
+        Paint()
+          ..color = paint.color
+          ..style = PaintingStyle.fill;
 
     for (final point in points) {
-      canvas.drawCircle(
-        Offset(point.x, point.y),
-        4.0,
-        pointPaint,
-      );
+      canvas.drawCircle(Offset(point.x, point.y), 4.0, pointPaint);
     }
   }
 
   void _paintLabel(Canvas canvas, MeasurementEntity measurement) {
     if (measurement.points.isEmpty) return;
 
-    final center = measurement.points.fold<Offset>(
-      Offset.zero,
-      (sum, point) => sum + Offset(point.x, point.y),
-    ) / measurement.points.length.toDouble();
+    final center =
+        measurement.points.fold<Offset>(
+          Offset.zero,
+          (sum, point) => sum + Offset(point.x, point.y),
+        ) /
+        measurement.points.length.toDouble();
 
     final textPainter = TextPainter(
       text: TextSpan(
@@ -299,11 +382,7 @@ class MeasurementPainter extends CustomPainter {
           fontSize: 12,
           fontWeight: FontWeight.bold,
           shadows: [
-            Shadow(
-              offset: Offset(1, 1),
-              blurRadius: 2,
-              color: Colors.black,
-            ),
+            Shadow(offset: Offset(1, 1), blurRadius: 2, color: Colors.black),
           ],
         ),
       ),
@@ -311,19 +390,17 @@ class MeasurementPainter extends CustomPainter {
     );
 
     textPainter.layout();
-    
-    final labelOffset = center - Offset(
-      textPainter.width / 2,
-      textPainter.height / 2,
-    );
-    
+
+    final labelOffset =
+        center - Offset(textPainter.width / 2, textPainter.height / 2);
+
     textPainter.paint(canvas, labelOffset);
   }
 
   @override
   bool shouldRepaint(covariant MeasurementPainter oldDelegate) {
     return measurements != oldDelegate.measurements ||
-           currentPoints != oldDelegate.currentPoints ||
-           selectedTool != oldDelegate.selectedTool;
+        currentPoints != oldDelegate.currentPoints ||
+        selectedTool != oldDelegate.selectedTool;
   }
 }
