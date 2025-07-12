@@ -43,7 +43,6 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   
   // Current image data
   Uint8List? _currentImageData;
-  bool _isLoadingImage = false;
 
   // Measurement state
   final List<MeasurementEntity> _measurements = [];
@@ -110,18 +109,11 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   }
 
   Future<void> _loadCurrentImage() async {
-    if (_isLoadingImage) return;
-    
-    setState(() {
-      _isLoadingImage = true;
-    });
-
     final imageData = await _controller.getCurrentImageData();
     
     if (mounted) {
       setState(() {
         _currentImageData = imageData;
-        _isLoadingImage = false;
       });
     }
   }
@@ -166,7 +158,6 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
                         currentMeasurementPoints: _currentMeasurementPoints,
                         selectedTool: _selectedMeasurementTool,
                         measurementsVisible: _measurementsVisible,
-                        isLoading: _isLoadingImage,
                         interactionController: _interactionController,
                       ),
                     ),

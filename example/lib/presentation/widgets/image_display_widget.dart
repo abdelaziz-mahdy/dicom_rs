@@ -15,7 +15,6 @@ class ImageDisplayWidget extends StatefulWidget {
     required this.currentMeasurementPoints,
     this.selectedTool,
     this.measurementsVisible = true,
-    this.isLoading = false,
     required this.interactionController,
   });
 
@@ -25,7 +24,6 @@ class ImageDisplayWidget extends StatefulWidget {
   final List<MeasurementPoint> currentMeasurementPoints;
   final MeasurementType? selectedTool;
   final bool measurementsVisible;
-  final bool isLoading;
   final ImageInteractionController interactionController;
 
   @override
@@ -109,16 +107,9 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
   }
 
   Widget _buildImage() {
-    if (widget.isLoading) {
-      return _buildLoadingIndicator();
-    }
-
     if (widget.imageData != null) {
       return Image.memory(
         widget.imageData!,
-        key: ValueKey(
-          'dicom_image_${widget.imageData!.length}',
-        ), // More stable key based on data length
         gaplessPlayback: true,
         filterQuality: FilterQuality.medium,
         fit: BoxFit.contain,
@@ -127,30 +118,8 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
       );
     }
 
+    // Show placeholder only when no image data, not during loading
     return _buildPlaceholder();
-  }
-
-  Widget _buildLoadingIndicator() {
-    return Container(
-      width: 300,
-      height: 300,
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
-      ),
-      child: const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(color: Colors.cyan, strokeWidth: 2),
-          SizedBox(height: 16),
-          Text(
-            'Loading image...',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildErrorIndicator() {
