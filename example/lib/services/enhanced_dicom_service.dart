@@ -95,6 +95,16 @@ class EnhancedDicomService {
     return DicomMetadataMap(tags: tags, groupElements: groupElements);
   }
 
+  /// Get ONLY metadata from a DICOM file (fast directory scanning)
+  Future<DicomMetadata> getMetadataOnly({required String path}) async {
+    return await _handler.getMetadata(path);
+  }
+
+  /// Get ONLY image data from a DICOM file (separate from metadata)
+  Future<Uint8List> getImageDataOnly({required String path}) async {
+    return await _handler.getImageBytes(path);
+  }
+
   /// Load a DICOM file
   Future<DicomFile> loadFile({required String path}) async {
     return await _handler.loadFile(path);
@@ -110,7 +120,7 @@ class EnhancedDicomService {
     return await _handler.getImageBytes(path);
   }
 
-  /// Load a directory and return directory entries
+  /// Load a directory and return directory entries (FAST - metadata only)
   Future<List<DicomDirectoryEntry>> loadDirectory({required String path}) async {
     final directory = Directory(path);
     final entries = <DicomDirectoryEntry>[];
@@ -128,13 +138,13 @@ class EnhancedDicomService {
     for (final file in files) {
       try {
         if (await _handler.isDicomFile(file.path)) {
-          // FAST: Only load metadata, not the full file with image data
-          final metadata = await _handler.getMetadata(file.path);
+          // OPTIMIZED: Use metadata-only function for fast directory scanning
+          final metadata = await getMetadataOnly(path: file.path);
           entries.add(DicomDirectoryEntry(
             path: file.path,
             metadata: metadata,
             isValid: true,
-            // Don't load image data during directory scan - will be loaded lazily
+            // Image data will be loaded separately when needed
             image: null,
           ));
         }
@@ -146,7 +156,7 @@ class EnhancedDicomService {
     return _sortDicomEntries(entries);
   }
 
-  /// Load a directory recursively
+  /// Load a directory recursively (FAST - metadata only)
   Future<List<DicomDirectoryEntry>> loadDirectoryRecursive({required String path}) async {
     final directory = Directory(path);
     final entries = <DicomDirectoryEntry>[];
@@ -164,13 +174,13 @@ class EnhancedDicomService {
     for (final file in files) {
       try {
         if (await _handler.isDicomFile(file.path)) {
-          // FAST: Only load metadata, not the full file with image data
-          final metadata = await _handler.getMetadata(file.path);
+          // OPTIMIZED: Use metadata-only function for fast recursive scanning
+          final metadata = await getMetadataOnly(path: file.path);
           entries.add(DicomDirectoryEntry(
             path: file.path,
             metadata: metadata,
             isValid: true,
-            // Don't load image data during directory scan - will be loaded lazily
+            // Image data will be loaded separately when needed
             image: null,
           ));
         }

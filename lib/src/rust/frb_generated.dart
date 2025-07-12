@@ -62,7 +62,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.8.0';
 
   @override
-  int get rustContentHash => 1389215581;
+  int get rustContentHash => 293362247;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -127,6 +127,11 @@ abstract class RustLibApi extends BaseApi {
     required String path,
   });
 
+  Future<DicomFile> crateApiDicomRsInterfaceDicomHandlerLoadFileWithImage({
+    required DicomHandler that,
+    required String path,
+  });
+
   Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerNew();
 
   Future<DicomImage> crateApiDicomRsInterfaceExtractPixelData({
@@ -140,6 +145,10 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiDicomRsInterfaceIsDicomFile({required String path});
 
   Future<DicomFile> crateApiDicomRsInterfaceLoadDicomFile({
+    required String path,
+  });
+
+  Future<DicomFile> crateApiDicomRsInterfaceLoadDicomFileWithImage({
     required String path,
   });
 
@@ -570,6 +579,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DicomFile> crateApiDicomRsInterfaceDicomHandlerLoadFileWithImage({
+    required DicomHandler that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_dicom_handler(that, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_file,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiDicomRsInterfaceDicomHandlerLoadFileWithImageConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiDicomRsInterfaceDicomHandlerLoadFileWithImageConstMeta =>
+      const TaskConstMeta(
+        debugName: "dicom_handler_load_file_with_image",
+        argNames: ["that", "path"],
+      );
+
+  @override
   Future<DicomHandler> crateApiDicomRsInterfaceDicomHandlerNew() {
     return handler.executeNormal(
       NormalTask(
@@ -578,7 +624,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -608,7 +654,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 15,
             port: port_,
           );
         },
@@ -638,7 +684,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 16,
             port: port_,
           );
         },
@@ -666,7 +712,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -696,7 +742,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 18,
             port: port_,
           );
         },
@@ -713,6 +759,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDicomRsInterfaceLoadDicomFileConstMeta =>
       const TaskConstMeta(debugName: "load_dicom_file", argNames: ["path"]);
+
+  @override
+  Future<DicomFile> crateApiDicomRsInterfaceLoadDicomFileWithImage({
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dicom_file,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDicomRsInterfaceLoadDicomFileWithImageConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDicomRsInterfaceLoadDicomFileWithImageConstMeta =>
+      const TaskConstMeta(
+        debugName: "load_dicom_file_with_image",
+        argNames: ["path"],
+      );
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_DicomElement =>

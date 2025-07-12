@@ -53,27 +53,28 @@ class _MeasurableImageState extends State<MeasurableImage> {
   Widget build(BuildContext context) {
     return Listener(
       onPointerSignal: (event) {
-        // ALWAYS handle scroll events first for slice navigation
-        // This prevents GestureDetector from interfering
-        if (widget.onPointerSignal != null) {
-          widget.onPointerSignal!(event);
-          return; // Don't let it propagate to GestureDetector
-        }
+        // Priority 1: Handle scroll events for slice navigation
+        // This ensures smooth scrolling between slices
+        widget.onPointerSignal?.call(event);
       },
       child: GestureDetector(
+        // Priority 2: Handle tap events for measurement placement
         onTapUp: _handleTapUp,
+        
+        // Priority 3: Handle scale/pan gestures for zoom and brightness/contrast
         onScaleStart: _handleScaleStart,
         onScaleUpdate: _handleScaleUpdate,
         onScaleEnd: _handleScaleEnd,
+        
         child: Transform.scale(
           scale: widget.scale,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // The image itself
+              // Base image layer
               _buildImage(),
 
-              // Measurement overlay
+              // Measurement overlay layer
               if (widget.measurementsVisible)
                 Positioned.fill(
                   child: MeasurementOverlay(
@@ -85,7 +86,7 @@ class _MeasurableImageState extends State<MeasurableImage> {
                   ),
                 ),
 
-              // Current measurement preview
+              // Active measurement preview layer
               if (widget.selectedTool != null && widget.currentPoints.isNotEmpty)
                 Positioned.fill(
                   child: CustomPaint(
@@ -143,24 +144,23 @@ class _MeasurableImageState extends State<MeasurableImage> {
   }
   
   void _handleScaleUpdate(ScaleUpdateDetails details) {
-    // Handle point dragging if a measurement is selected and we're dragging
-    if (widget.hasMeasurementSelected && details.scale == 1.0 && widget.onPointDrag != null) {
+    // Priority 1: Handle measurement point dragging
+    if (widget.hasMeasurementSelected && details.scale == 1.0) {
       final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
       if (renderBox != null) {
         final localPosition = renderBox.globalToLocal(details.focalPoint);
-        widget.onPointDrag!(localPosition);
+        widget.onPointDrag?.call(localPosition);
         return;
       }
     }
     
-    // For brightness/contrast adjustment when no measurement tool is selected
+    // Priority 2: Handle brightness/contrast adjustment (when no measurement tool selected)
     if (widget.selectedTool == null && details.scale == 1.0) {
-      // This mimics a pointer move event for brightness/contrast adjustment
       widget.onScaleUpdate?.call(details);
       return;
     }
     
-    // Otherwise handle normal scale gesture
+    // Priority 3: Handle normal scale/zoom gestures
     widget.onScaleUpdate?.call(details);
   }
   

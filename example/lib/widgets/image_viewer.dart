@@ -191,6 +191,18 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
           ),
         ),
 
+        // Help button
+        Positioned(
+          bottom: 10,
+          right: 10,
+          child: IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.white70),
+            onPressed: _showHelpDialog,
+            tooltip: 'Show viewer controls help',
+            style: IconButton.styleFrom(backgroundColor: Colors.black38),
+          ),
+        ),
+
         // Processing indicator
         if (_isProcessing) const Center(child: CircularProgressIndicator()),
       ],
@@ -235,25 +247,21 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       final scrollDelta = event.scrollDelta;
-      const threshold = 10.0;
-
-      if (scrollDelta.dy.abs() > threshold ||
-          scrollDelta.dx.abs() > threshold) {
-        final deltaY = scrollDelta.dy;
-        final deltaX = scrollDelta.dx;
-
-        if (deltaY.abs() > deltaX.abs()) {
-          if (deltaY > 0) {
-            nextSlice();
-          } else {
-            previousSlice();
-          }
+      
+      // Simplified scroll handling - prioritize vertical scrolling for slice navigation
+      if (scrollDelta.dy.abs() > 5.0) {
+        // Vertical scroll - navigate slices
+        if (scrollDelta.dy > 0) {
+          nextSlice();
         } else {
-          if (deltaX > 0) {
-            nextSlice();
-          } else {
-            previousSlice();
-          }
+          previousSlice();
+        }
+      } else if (scrollDelta.dx.abs() > 5.0) {
+        // Horizontal scroll - also navigate slices for trackpad users
+        if (scrollDelta.dx > 0) {
+          nextSlice();
+        } else {
+          previousSlice();
         }
       }
     }
@@ -304,5 +312,112 @@ class DicomImageViewerState extends DicomViewerBaseState<DicomImageViewer>
     
     // Notify about slice change for lazy loading
     widget.onSliceChanged?.call(_currentIndex);
+  }
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.help_outline, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('DICOM Viewer Controls'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildHelpSection(
+                  'Navigation',
+                  Icons.navigation,
+                  [
+                    'Mouse wheel: Navigate between slices',
+                    'Arrow buttons: Previous/Next slice',
+                    'Keyboard: ←/→ arrow keys',
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildHelpSection(
+                  'Image Adjustments',
+                  Icons.tune,
+                  [
+                    'Right-click + drag: Brightness/Contrast',
+                    'Pinch to zoom: Scale image',
+                    'Reset button: Restore original settings',
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildHelpSection(
+                  'Measurements',
+                  Icons.straighten,
+                  [
+                    'Select tool from toolbar',
+                    'Click on image to place points',
+                    'Distance: 2 points',
+                    'Angle: 3 points',
+                    'Circle: 2 points (center + edge)',
+                    'Area: Multiple points (close polygon)',
+                    'Drag measurement points to adjust',
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildHelpSection(
+                  'Tips',
+                  Icons.lightbulb_outline,
+                  [
+                    'Measurements show in mm when pixel spacing available',
+                    'Use eye icon to toggle measurement visibility',
+                    'Clear all measurements with trash icon',
+                    'Zoom in for more precise measurements',
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Got it!'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHelpSection(String title, IconData icon, List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: Colors.blue),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...items.map((item) => Padding(
+          padding: const EdgeInsets.only(left: 24, bottom: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+              Expanded(child: Text(item)),
+            ],
+          ),
+        )).toList(),
+      ],
+    );
   }
 }

@@ -13,9 +13,15 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<bool> isDicomFile({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceIsDicomFile(path: path);
 
-/// Load a complete DICOM file
+/// Load a DICOM file with metadata only (fast for directory scanning)
 Future<DicomFile> loadDicomFile({required String path}) =>
     RustLib.instance.api.crateApiDicomRsInterfaceLoadDicomFile(path: path);
+
+/// Load a complete DICOM file with both metadata and image data
+Future<DicomFile> loadDicomFileWithImage({required String path}) => RustLib
+    .instance
+    .api
+    .crateApiDicomRsInterfaceLoadDicomFileWithImage(path: path);
 
 /// Extract pixel data from a DICOM file
 Future<DicomImage> extractPixelData({required String path}) =>
@@ -100,9 +106,18 @@ class DicomHandler {
   Future<bool> isDicomFile({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerIsDicomFile(that: this, path: path);
 
-  /// Load a complete DICOM file with metadata and image data
+  /// Load a DICOM file with metadata only (fast for directory scanning)
   Future<DicomFile> loadFile({required String path}) => RustLib.instance.api
       .crateApiDicomRsInterfaceDicomHandlerLoadFile(that: this, path: path);
+
+  /// Load a complete DICOM file with both metadata and image data
+  Future<DicomFile> loadFileWithImage({required String path}) => RustLib
+      .instance
+      .api
+      .crateApiDicomRsInterfaceDicomHandlerLoadFileWithImage(
+        that: this,
+        path: path,
+      );
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<DicomHandler> newInstance() =>

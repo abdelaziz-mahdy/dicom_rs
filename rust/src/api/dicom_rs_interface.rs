@@ -185,9 +185,14 @@ impl DicomHandler {
         is_dicom_file(path)
     }
 
-    /// Load a complete DICOM file with metadata and image data
+    /// Load a DICOM file with metadata only (fast for directory scanning)
     pub fn load_file(&self, path: String) -> Result<DicomFile, String> {
         load_dicom_file(path)
+    }
+
+    /// Load a complete DICOM file with both metadata and image data
+    pub fn load_file_with_image(&self, path: String) -> Result<DicomFile, String> {
+        load_dicom_file_with_image(path)
     }
 
     /// Extract only metadata from a DICOM file (faster than full load)
@@ -218,14 +223,33 @@ pub fn is_dicom_file(path: String) -> bool {
     open_file(file_path).is_ok()
 }
 
-/// Load a complete DICOM file
+/// Load a DICOM file with metadata only (fast for directory scanning)
 pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
     let file_path = Path::new(&path);
     let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
 
     let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
     
-    // Try to extract image data (optional)
+    // OPTIMIZED: Don't extract image data automatically - load separately when needed
+    // This makes directory scanning much faster
+    let image = None;
+
+    Ok(DicomFile {
+        path,
+        metadata,
+        image,
+        is_valid: true,
+    })
+}
+
+/// Load a complete DICOM file with both metadata and image data
+pub fn load_dicom_file_with_image(path: String) -> Result<DicomFile, String> {
+    let file_path = Path::new(&path);
+    let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
+
+    let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
+    
+    // Extract image data when explicitly requested
     let image = match extract_pixel_data(path.clone()) {
         Ok(img) => Some(img),
         Err(_) => None, // Some DICOM files may not have pixel data

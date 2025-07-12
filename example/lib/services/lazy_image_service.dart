@@ -160,9 +160,10 @@ class LazyImageService {
     });
   }
 
-  /// Load a single image
+  /// Load a single image using optimized image-only loading
   Future<Uint8List?> _loadImage(int index) async {
     try {
+      // Use the optimized image-only loading function for better performance
       final bytes = await _dicomService.getImageBytes(_dicomFiles[index].path);
       _imageCache[index] = bytes;
       return bytes;
