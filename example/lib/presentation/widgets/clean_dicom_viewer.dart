@@ -91,7 +91,12 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
           contrast: contrast,
         );
       }
-      ..onScaleChanged = _controller.updateScale
+      ..onScaleChanged = (scale) {
+        // Only allow scaling when not measuring
+        if (_selectedMeasurementTool == null) {
+          _controller.updateScale(scale);
+        }
+      }
       ..onImageTapped = _handleImageTap
       ..onMeasurementPointDragged = _handleMeasurementPointDrag
       ..onPointDrag = _handlePointDrag;
@@ -306,6 +311,11 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     setState(() {
       _selectedMeasurementTool = tool;
       _currentMeasurementPoints.clear();
+      
+      // Reset scale to 1.0 when starting measurements to avoid scaling issues
+      if (tool != null) {
+        _controller.updateScale(1.0);
+      }
     });
   }
 
@@ -370,8 +380,9 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   }
 
   void _completeMeasurement() {
-    if (_selectedMeasurementTool == null || _currentMeasurementPoints.isEmpty)
+    if (_selectedMeasurementTool == null || _currentMeasurementPoints.isEmpty) {
       return;
+    }
 
     // Get pixel spacing from current DICOM image metadata
     final pixelSpacing = _controller.state.currentImage?.metadata.pixelSpacing;

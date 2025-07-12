@@ -29,29 +29,25 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Setup animations
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     // Setup clean architecture dependencies
     final repository = DicomRepositoryImpl();
     final loadDirectoryUseCase = LoadDicomDirectoryUseCase(repository);
-    
+
     _controller = DicomViewerController(
       loadDirectoryUseCase: loadDirectoryUseCase,
       repository: repository,
     );
-    
+
     _interactionController = ImageInteractionController(
       enableScrollNavigation: true,
       enableKeyboardNavigation: true,
@@ -59,7 +55,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
       enableZoom: true,
       enableMeasurements: true,
     );
-    
+
     // Listen to controller changes for animations
     _controller.addListener(_onControllerChanged);
   }
@@ -86,8 +82,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
       backgroundColor: const Color(0xFF0A0A0A),
       appBar: _buildAppBar(),
       body: _buildBody(),
-      floatingActionButton: _buildFloatingActionButton(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 
@@ -117,10 +111,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
           const SizedBox(width: 12),
           const Text(
             'Medical Image Viewer',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -142,8 +133,26 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
             tooltip: 'Open single DICOM file',
           ),
         ],
-        // Show back button when images are loaded
-        if (_controller.state.hasImages)
+        // Show back and new directory buttons when images are loaded
+        if (_controller.state.hasImages) ...[
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: _goBackToWelcome,
+            tooltip: 'Back to welcome',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.grey.withValues(alpha: 0.1),
+              foregroundColor: Colors.grey[300],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.folder_open_rounded),
+            onPressed: _selectDirectory,
+            tooltip: 'Open new directory',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.cyan.withValues(alpha: 0.1),
+              foregroundColor: Colors.cyan,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.close_rounded),
             onPressed: _closeViewer,
@@ -153,6 +162,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
               foregroundColor: Colors.red,
             ),
           ),
+        ],
         IconButton(
           icon: const Icon(Icons.settings_rounded),
           onPressed: _showSettings,
@@ -187,14 +197,11 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Colors.grey[900]!,
-                const Color(0xFF0A0A0A),
-              ],
+              colors: [Colors.grey[900]!, const Color(0xFF0A0A0A)],
             ),
           ),
         ),
-        
+
         // Main content
         if (_controller.state.hasImages)
           FadeTransition(
@@ -238,9 +245,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
                 color: Colors.cyan,
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Welcome text
             const Text(
               'Welcome to DICOM Viewer',
@@ -251,9 +258,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             Text(
               'Advanced medical image viewing with measurement tools, '
               'brightness/contrast controls, and intuitive navigation.',
@@ -264,9 +271,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 40),
-            
+
             // Quick start buttons
             Column(
               children: [
@@ -286,9 +293,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 Row(
                   children: [
                     Expanded(
@@ -306,9 +313,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(width: 16),
-                    
+
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _showExamples,
@@ -328,9 +335,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 40),
-            
+
             // Recent directory hint
             if (_lastDirectory != null)
               Container(
@@ -338,9 +345,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
                 decoration: BoxDecoration(
                   color: Colors.grey[800]?.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.grey[700]!,
-                  ),
+                  border: Border.all(color: Colors.grey[700]!),
                 ),
                 child: Row(
                   children: [
@@ -386,32 +391,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     );
   }
 
-  Widget? _buildFloatingActionButton() {
-    if (!_controller.state.hasImages) return null;
-    
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FloatingActionButton(
-          heroTag: "back",
-          onPressed: _goBackToWelcome,
-          backgroundColor: Colors.grey[700],
-          foregroundColor: Colors.white,
-          child: const Icon(Icons.arrow_back_rounded),
-        ),
-        const SizedBox(height: 16),
-        FloatingActionButton.extended(
-          heroTag: "new",
-          onPressed: _selectDirectory,
-          backgroundColor: Colors.cyan,
-          foregroundColor: Colors.black,
-          icon: const Icon(Icons.folder_open_rounded),
-          label: const Text('New Directory'),
-        ),
-      ],
-    );
-  }
-
   void _closeViewer() {
     _controller.reset();
     setState(() {
@@ -450,9 +429,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
       setState(() {
         _lastDirectory = filePath;
       });
-      
+
       await _controller.loadSingleFile(filePath);
-      
+
       if (mounted && _controller.state.hasImages) {
         _showSuccessSnackBar('DICOM file loaded successfully');
       }
@@ -468,9 +447,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
       setState(() {
         _lastDirectory = path;
       });
-      
+
       await _controller.loadDirectory(path, recursive: true);
-      
+
       if (mounted && _controller.state.hasImages) {
         _showSuccessSnackBar(
           '${_controller.state.totalImages} DICOM images loaded successfully',
@@ -486,37 +465,32 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   void _showSettings() {
     showDialog(
       context: context,
-      builder: (context) => _SettingsDialog(
-        interactionController: _interactionController,
-      ),
+      builder:
+          (context) =>
+              _SettingsDialog(interactionController: _interactionController),
     );
   }
 
   void _showHelp() {
-    showDialog(
-      context: context,
-      builder: (context) => _HelpDialog(),
-    );
+    showDialog(context: context, builder: (context) => _HelpDialog());
   }
 
   void _showExamples() {
-    showDialog(
-      context: context,
-      builder: (context) => _ExamplesDialog(),
-    );
+    showDialog(context: context, builder: (context) => _ExamplesDialog());
   }
 
   void _showMetadata() {
     if (!_controller.state.hasImages) return;
-    
+
     showDialog(
       context: context,
-      builder: (context) => _MetadataDialog(
-        metadata: _controller.state.currentImage?.metadata,
-        imagePath: _controller.state.currentImage?.path ?? '',
-        imageIndex: _controller.state.currentIndex + 1,
-        totalImages: _controller.state.totalImages,
-      ),
+      builder:
+          (context) => _MetadataDialog(
+            metadata: _controller.state.currentImage?.metadata,
+            imagePath: _controller.state.currentImage?.path ?? '',
+            imageIndex: _controller.state.currentIndex + 1,
+            totalImages: _controller.state.totalImages,
+          ),
     );
   }
 
@@ -529,10 +503,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   }
 
   void _showAbout() {
-    showDialog(
-      context: context,
-      builder: (context) => _AboutDialog(),
-    );
+    showDialog(context: context, builder: (context) => _AboutDialog());
   }
 
   void _showSuccessSnackBar(String message) {
@@ -577,9 +548,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
 
 /// Enhanced settings dialog with better UX
 class _SettingsDialog extends StatefulWidget {
-  const _SettingsDialog({
-    required this.interactionController,
-  });
+  const _SettingsDialog({required this.interactionController});
 
   final ImageInteractionController interactionController;
 
@@ -597,9 +566,12 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   @override
   void initState() {
     super.initState();
-    _enableScrollNavigation = widget.interactionController.enableScrollNavigation;
-    _enableKeyboardNavigation = widget.interactionController.enableKeyboardNavigation;
-    _enableBrightnessContrast = widget.interactionController.enableBrightnessContrast;
+    _enableScrollNavigation =
+        widget.interactionController.enableScrollNavigation;
+    _enableKeyboardNavigation =
+        widget.interactionController.enableKeyboardNavigation;
+    _enableBrightnessContrast =
+        widget.interactionController.enableBrightnessContrast;
     _enableZoom = widget.interactionController.enableZoom;
     _enableMeasurements = widget.interactionController.enableMeasurements;
   }
@@ -642,7 +614,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 24),
             const Divider(color: Colors.cyan),
             const SizedBox(height: 24),
@@ -655,7 +627,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               _enableScrollNavigation,
               (value) => setState(() => _enableScrollNavigation = value),
             ),
-            
+
             _buildSettingCard(
               Icons.keyboard_rounded,
               'Keyboard Navigation',
@@ -663,7 +635,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               _enableKeyboardNavigation,
               (value) => setState(() => _enableKeyboardNavigation = value),
             ),
-            
+
             _buildSettingCard(
               Icons.tune_rounded,
               'Image Adjustments',
@@ -671,7 +643,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               _enableBrightnessContrast,
               (value) => setState(() => _enableBrightnessContrast = value),
             ),
-            
+
             _buildSettingCard(
               Icons.zoom_in_rounded,
               'Zoom Controls',
@@ -679,7 +651,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               _enableZoom,
               (value) => setState(() => _enableZoom = value),
             ),
-            
+
             _buildSettingCard(
               Icons.straighten_rounded,
               'Measurement Tools',
@@ -689,7 +661,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
             ),
 
             const SizedBox(height: 24),
-            
+
             // Actions
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -743,11 +715,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: value ? Colors.cyan : Colors.grey[400],
-            size: 24,
-          ),
+          Icon(icon, color: value ? Colors.cyan : Colors.grey[400], size: 24),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -764,19 +732,12 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
                 ),
               ],
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: Colors.cyan,
-          ),
+          Switch(value: value, onChanged: onChanged, activeColor: Colors.cyan),
         ],
       ),
     );
@@ -823,11 +784,11 @@ class _HelpDialog extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 24),
             const Divider(color: Colors.cyan),
             const SizedBox(height: 16),
-            
+
             // Help content (scrollable)
             const Expanded(
               child: SingleChildScrollView(
@@ -860,9 +821,9 @@ class _HelpDialog extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Close button
             Align(
               alignment: Alignment.centerRight,
@@ -925,11 +886,11 @@ class _ExamplesDialog extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 24),
             const Divider(color: Colors.cyan),
             const SizedBox(height: 16),
-            
+
             // Examples
             const Text(
               'Common Workflows:\n\n'
@@ -945,15 +906,11 @@ class _ExamplesDialog extends StatelessWidget {
               '   • Use fast navigation\n'
               '   • Consistent window/level\n'
               '   • Save measurements',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                height: 1.6,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 14, height: 1.6),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Close button
             Align(
               alignment: Alignment.centerRight,
@@ -1002,9 +959,9 @@ class _AboutDialog extends StatelessWidget {
                 size: 48,
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // App info
             const Text(
               'DICOM Viewer',
@@ -1014,19 +971,16 @@ class _AboutDialog extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             Text(
               'Version 2.0.0',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.grey[400], fontSize: 16),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             Text(
               'Advanced medical image viewer built with Flutter and Rust. '
               'Features clean architecture, modern UI, and powerful '
@@ -1038,9 +992,9 @@ class _AboutDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Close button
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -1116,10 +1070,7 @@ class _MetadataDialog extends StatelessWidget {
                       ),
                       Text(
                         'Image $imageIndex of $totalImages',
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
                       ),
                     ],
                   ),
@@ -1130,71 +1081,111 @@ class _MetadataDialog extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
             const Divider(color: Colors.blue),
             const SizedBox(height: 16),
-            
+
             // File path
             _buildInfoRow('File Path', imagePath, isPath: true),
-            
+
             const SizedBox(height: 16),
-            
+
             // Metadata content
             Expanded(
-              child: metadata != null
-                  ? SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSection('Patient Information', [
-                            _buildMetadataRow('Patient Name', metadata!.patientName),
-                            _buildMetadataRow('Patient ID', metadata!.patientId),
-                          ]),
-                          
-                          const SizedBox(height: 24),
-                          
-                          _buildSection('Study Information', [
-                            _buildMetadataRow('Study Date', metadata!.studyDate),
-                            _buildMetadataRow('Study Description', metadata!.studyDescription),
-                            _buildMetadataRow('Study Instance UID', metadata!.studyInstanceUid),
-                          ]),
-                          
-                          const SizedBox(height: 24),
-                          
-                          _buildSection('Series Information', [
-                            _buildMetadataRow('Series Number', metadata!.seriesNumber?.toString()),
-                            _buildMetadataRow('Series Description', metadata!.seriesDescription),
-                            _buildMetadataRow('Series Instance UID', metadata!.seriesInstanceUid),
-                            _buildMetadataRow('Modality', metadata!.modality),
-                          ]),
-                          
-                          const SizedBox(height: 24),
-                          
-                          _buildSection('Image Information', [
-                            _buildMetadataRow('Instance Number', metadata!.instanceNumber?.toString()),
-                            _buildMetadataRow('SOP Instance UID', metadata!.sopInstanceUid),
-                            _buildMetadataRow('Image Position', _formatList(metadata!.imagePosition)),
-                            _buildMetadataRow('Pixel Spacing', _formatList(metadata!.pixelSpacing)),
-                            _buildMetadataRow('Slice Location', metadata!.sliceLocation?.toString()),
-                            _buildMetadataRow('Slice Thickness', metadata!.sliceThickness?.toString()),
-                          ]),
-                        ],
-                      ),
-                    )
-                  : const Center(
-                      child: Text(
-                        'No metadata available',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
+              child:
+                  metadata != null
+                      ? SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSection('Patient Information', [
+                              _buildMetadataRow(
+                                'Patient Name',
+                                metadata!.patientName,
+                              ),
+                              _buildMetadataRow(
+                                'Patient ID',
+                                metadata!.patientId,
+                              ),
+                            ]),
+
+                            const SizedBox(height: 24),
+
+                            _buildSection('Study Information', [
+                              _buildMetadataRow(
+                                'Study Date',
+                                metadata!.studyDate,
+                              ),
+                              _buildMetadataRow(
+                                'Study Description',
+                                metadata!.studyDescription,
+                              ),
+                              _buildMetadataRow(
+                                'Study Instance UID',
+                                metadata!.studyInstanceUid,
+                              ),
+                            ]),
+
+                            const SizedBox(height: 24),
+
+                            _buildSection('Series Information', [
+                              _buildMetadataRow(
+                                'Series Number',
+                                metadata!.seriesNumber?.toString(),
+                              ),
+                              _buildMetadataRow(
+                                'Series Description',
+                                metadata!.seriesDescription,
+                              ),
+                              _buildMetadataRow(
+                                'Series Instance UID',
+                                metadata!.seriesInstanceUid,
+                              ),
+                              _buildMetadataRow('Modality', metadata!.modality),
+                            ]),
+
+                            const SizedBox(height: 24),
+
+                            _buildSection('Image Information', [
+                              _buildMetadataRow(
+                                'Instance Number',
+                                metadata!.instanceNumber?.toString(),
+                              ),
+                              _buildMetadataRow(
+                                'SOP Instance UID',
+                                metadata!.sopInstanceUid,
+                              ),
+                              _buildMetadataRow(
+                                'Image Position',
+                                _formatList(metadata!.imagePosition),
+                              ),
+                              _buildMetadataRow(
+                                'Pixel Spacing',
+                                _formatList(metadata!.pixelSpacing),
+                              ),
+                              _buildMetadataRow(
+                                'Slice Location',
+                                metadata!.sliceLocation?.toString(),
+                              ),
+                              _buildMetadataRow(
+                                'Slice Thickness',
+                                metadata!.sliceThickness?.toString(),
+                              ),
+                            ]),
+                          ],
+                        ),
+                      )
+                      : const Center(
+                        child: Text(
+                          'No metadata available',
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
                         ),
                       ),
-                    ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Close button
             Align(
               alignment: Alignment.centerRight,
@@ -1283,10 +1274,7 @@ class _MetadataDialog extends StatelessWidget {
             width: 150,
             child: Text(
               label,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
             ),
           ),
           Expanded(

@@ -49,38 +49,38 @@ class MeasurementOverlayWidget extends StatelessWidget {
         final point = entry.value;
         
         return Positioned(
-          left: point.x - (12 / scale), // Compensate for scale
-          top: point.y - (12 / scale),
-          child: GestureDetector(
-            onPanUpdate: (details) {
-              if (onPointDrag != null) {
-                final newPosition = Offset(
-                  point.x + (details.delta.dx / scale), // Scale compensation
-                  point.y + (details.delta.dy / scale),
-                );
-                onPointDrag!(measurement, index, newPosition);
-              }
-            },
-            child: MouseRegion(
-              cursor: SystemMouseCursors.move,
+          left: point.x - 12, // Fixed size since scale is always 1.0 during measurements
+          top: point.y - 12,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.grab,
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                if (onPointDrag != null) {
+                  final newPosition = Offset(
+                    point.x + details.delta.dx, // Direct positioning since scale is 1.0
+                    point.y + details.delta.dy,
+                  );
+                  onPointDrag!(measurement, index, newPosition);
+                }
+              },
               child: Container(
-                width: 24 / scale, // Scale-adjusted size
-                height: 24 / scale,
+                width: 24, // Fixed size
+                height: 24,
                 decoration: BoxDecoration(
-                  color: Colors.cyan.withValues(alpha: 0.8),
-                  border: Border.all(color: Colors.white, width: 2 / scale),
-                  borderRadius: BorderRadius.circular(12 / scale),
+                  color: Colors.cyan.withValues(alpha: 0.9),
+                  border: Border.all(color: Colors.white, width: 2),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 4 / scale,
-                      offset: Offset(0, 2 / scale),
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: Icon(
-                  Icons.drag_indicator,
-                  size: 12 / scale,
+                child: const Icon(
+                  Icons.open_with_rounded, // Better icon for draggable points
+                  size: 12,
                   color: Colors.white,
                 ),
               ),
@@ -96,20 +96,20 @@ class MeasurementOverlayWidget extends StatelessWidget {
       final point = entry.value;
       
       return Positioned(
-        left: point.x - (10 / scale),
-        top: point.y - (10 / scale),
+        left: point.x - 10, // Fixed size since scale is 1.0 during measurements
+        top: point.y - 10,
         child: Container(
-          width: 20 / scale,
-          height: 20 / scale,
+          width: 20,
+          height: 20,
           decoration: BoxDecoration(
             color: Colors.yellow.withValues(alpha: 0.8),
-            border: Border.all(color: Colors.white, width: 2 / scale),
-            borderRadius: BorderRadius.circular(10 / scale),
+            border: Border.all(color: Colors.white, width: 2),
+            borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 4 / scale,
-                offset: Offset(0, 2 / scale),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -185,7 +185,7 @@ class MeasurementPainter extends CustomPainter {
 
     switch (type) {
       case MeasurementType.distance:
-        if (points.length >= 1) {
+        if (points.isNotEmpty) {
           _paintDistance(canvas, points, paint);
         }
         break;
