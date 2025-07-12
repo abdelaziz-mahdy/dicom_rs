@@ -125,21 +125,34 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
         ],
       ),
       actions: [
-        // Quick actions
-        IconButton(
-          icon: const Icon(Icons.folder_open_rounded),
-          onPressed: _selectDirectory,
-          tooltip: 'Open DICOM directory',
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.cyan.withValues(alpha: 0.1),
-            foregroundColor: Colors.cyan,
+        // Show loading options only when no images are loaded
+        if (!_controller.state.hasImages) ...[
+          IconButton(
+            icon: const Icon(Icons.folder_open_rounded),
+            onPressed: _selectDirectory,
+            tooltip: 'Open DICOM directory',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.cyan.withValues(alpha: 0.1),
+              foregroundColor: Colors.cyan,
+            ),
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.file_open_rounded),
-          onPressed: _selectSingleFile,
-          tooltip: 'Open single DICOM file',
-        ),
+          IconButton(
+            icon: const Icon(Icons.file_open_rounded),
+            onPressed: _selectSingleFile,
+            tooltip: 'Open single DICOM file',
+          ),
+        ],
+        // Show back button when images are loaded
+        if (_controller.state.hasImages)
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            onPressed: _closeViewer,
+            tooltip: 'Close viewer',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.red.withValues(alpha: 0.1),
+              foregroundColor: Colors.red,
+            ),
+          ),
         IconButton(
           icon: const Icon(Icons.settings_rounded),
           onPressed: _showSettings,
@@ -397,6 +410,13 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
         ),
       ],
     );
+  }
+
+  void _closeViewer() {
+    _controller.reset();
+    setState(() {
+      _isFirstLoad = true;
+    });
   }
 
   Future<void> _selectDirectory() async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -43,7 +44,20 @@ class ImageInteractionController extends ChangeNotifier {
   double _currentBrightness = 0.0;
   double _currentContrast = 1.0;
 
+  // Fast navigation state
+  Timer? _fastNavigationTimer;
+  bool _isFastNavigating = false;
+  LogicalKeyboardKey? _activeKey;
+  static const Duration _fastNavigationDelay = Duration(milliseconds: 150);
+  static const Duration _fastNavigationInterval = Duration(milliseconds: 100);
+
   bool get isInteracting => _isRightClickDragging;
+
+  @override
+  void dispose() {
+    _fastNavigationTimer?.cancel();
+    super.dispose();
+  }
 
   /// Handle pointer signal events (scroll wheel and trackpad)
   void handlePointerSignal(PointerSignalEvent event) {
@@ -52,9 +66,9 @@ class ImageInteractionController extends ChangeNotifier {
     if (event is PointerScrollEvent) {
       final scrollDelta = event.scrollDelta;
       
-      // Handle trackpad and mouse wheel scrolling
-      // Use smaller threshold for better trackpad sensitivity
-      final effectiveThreshold = scrollThreshold * 0.3;
+      // Use very low threshold for maximum trackpad sensitivity
+      // Most trackpads send small delta values (0.1 - 3.0)
+      final effectiveThreshold = 0.1;
       
       // Prioritize vertical scrolling (most common)
       if (scrollDelta.dy.abs() > effectiveThreshold) {
@@ -74,22 +88,76 @@ class ImageInteractionController extends ChangeNotifier {
     }
   }
 
-  /// Handle keyboard events
+  /// Handle keyboard events with fast navigation support
   void handleKeyEvent(KeyEvent event) {
     if (!enableKeyboardNavigation) return;
     
+    final key = event.logicalKey;
+    final isNavigationKey = key == LogicalKeyboardKey.arrowLeft ||
+                          key == LogicalKeyboardKey.arrowRight ||
+                          key == LogicalKeyboardKey.arrowUp ||
+                          key == LogicalKeyboardKey.arrowDown;
+    
+    if (!isNavigationKey) return;
+    
     if (event is KeyDownEvent) {
-      switch (event.logicalKey) {
-        case LogicalKeyboardKey.arrowLeft:
-        case LogicalKeyboardKey.arrowUp:
-          onPreviousImage?.call();
-          break;
-        case LogicalKeyboardKey.arrowRight:
-        case LogicalKeyboardKey.arrowDown:
-          onNextImage?.call();
-          break;
-      }
+      _handleKeyDown(key);
+    } else if (event is KeyUpEvent) {
+      _handleKeyUp(key);
     }
+  }
+
+  void _handleKeyDown(LogicalKeyboardKey key) {
+    // Cancel any existing timer
+    _fastNavigationTimer?.cancel();
+    
+    // Immediate navigation on first press
+    _navigateWithKey(key);
+    
+    // Start fast navigation timer if this is a new key or continuing same key
+    if (_activeKey != key) {
+      _activeKey = key;
+      _isFastNavigating = false;
+    }
+    
+    // Start timer for fast navigation
+    _fastNavigationTimer = Timer(_fastNavigationDelay, () {
+      _isFastNavigating = true;
+      _startFastNavigation(key);
+    });
+  }
+
+  void _handleKeyUp(LogicalKeyboardKey key) {
+    if (_activeKey == key) {
+      _fastNavigationTimer?.cancel();
+      _fastNavigationTimer = null;
+      _activeKey = null;
+      _isFastNavigating = false;
+    }
+  }
+
+  void _navigateWithKey(LogicalKeyboardKey key) {
+    switch (key) {
+      case LogicalKeyboardKey.arrowLeft:
+      case LogicalKeyboardKey.arrowUp:
+        onPreviousImage?.call();
+        break;
+      case LogicalKeyboardKey.arrowRight:
+      case LogicalKeyboardKey.arrowDown:
+        onNextImage?.call();
+        break;
+    }
+  }
+
+  void _startFastNavigation(LogicalKeyboardKey key) {
+    if (!_isFastNavigating || _activeKey != key) return;
+    
+    _navigateWithKey(key);
+    
+    // Schedule next fast navigation
+    _fastNavigationTimer = Timer(_fastNavigationInterval, () {
+      _startFastNavigation(key);
+    });
   }
 
   /// Handle pointer down events (start of interactions)
@@ -184,7 +252,22 @@ class ImageInteractionController extends ChangeNotifier {
   void reset() {
     _isRightClickDragging = false;
     _lastPanPosition = null;
+    _currentBrightness = 0.0;
+    _currentContrast = 1.0;
+    
+    // Reset fast navigation state
+    _fastNavigationTimer?.cancel();
+    _fastNavigationTimer = null;
+    _activeKey = null;
+    _isFastNavigating = false;
+    
     notifyListeners();
+  }
+
+  /// Synchronize brightness/contrast values with external state
+  void syncBrightnessContrast(double brightness, double contrast) {
+    _currentBrightness = brightness;
+    _currentContrast = contrast;
   }
 
   /// Update feature toggles

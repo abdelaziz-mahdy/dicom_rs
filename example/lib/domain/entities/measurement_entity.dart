@@ -10,6 +10,8 @@ class MeasurementEntity {
     this.unit = 'px',
     this.color = const Color(0xFF00FFFF), // Cyan
     this.isSelected = false,
+    this.pixelSpacing,
+    this.imageScale = 1.0,
   });
 
   final String id;
@@ -19,6 +21,8 @@ class MeasurementEntity {
   final String unit;
   final Color color;
   final bool isSelected;
+  final List<double>? pixelSpacing; // DICOM pixel spacing [row, column] in mm/pixel
+  final double imageScale; // Current image scale factor
 
   MeasurementEntity copyWith({
     String? id,
@@ -28,6 +32,8 @@ class MeasurementEntity {
     String? unit,
     Color? color,
     bool? isSelected,
+    List<double>? pixelSpacing,
+    double? imageScale,
   }) {
     return MeasurementEntity(
       id: id ?? this.id,
@@ -37,6 +43,8 @@ class MeasurementEntity {
       unit: unit ?? this.unit,
       color: color ?? this.color,
       isSelected: isSelected ?? this.isSelected,
+      pixelSpacing: pixelSpacing ?? this.pixelSpacing,
+      imageScale: imageScale ?? this.imageScale,
     );
   }
 
@@ -53,7 +61,24 @@ class MeasurementEntity {
     
     // Calculate value based on measurement type
     final calculatedValue = _calculateValue();
-    return '${calculatedValue.toStringAsFixed(1)} $unit';
+    final actualUnit = _getActualUnit();
+    return '${calculatedValue.toStringAsFixed(1)} $actualUnit';
+  }
+
+  /// Get the actual unit based on pixel spacing availability
+  String _getActualUnit() {
+    if (pixelSpacing != null && pixelSpacing!.isNotEmpty) {
+      switch (type) {
+        case MeasurementType.distance:
+        case MeasurementType.circle:
+          return 'mm';
+        case MeasurementType.area:
+          return 'mm²';
+        case MeasurementType.angle:
+          return '°';
+      }
+    }
+    return unit; // Fallback to original unit (px)
   }
 
   double _calculateValue() {
@@ -64,7 +89,8 @@ class MeasurementEntity {
         if (points.length >= 2) {
           final p1 = points[0].toOffset();
           final p2 = points[1].toOffset();
-          return (p2 - p1).distance;
+          final pixelDistance = (p2 - p1).distance;
+          return _convertToRealWorldUnits(pixelDistance);
         }
         return 0.0;
 
@@ -78,7 +104,7 @@ class MeasurementEntity {
           final angle2 = (p2 - center).direction;
           final angleDiff = (angle2 - angle1).abs();
           
-          return angleDiff * 180 / 3.14159; // Convert to degrees
+          return angleDiff * 180 / 3.14159; // Convert to degrees (no scaling needed)
         }
         return 0.0;
 
@@ -86,23 +112,53 @@ class MeasurementEntity {
         if (points.length >= 2) {
           final center = points[0].toOffset();
           final edge = points[1].toOffset();
-          return (edge - center).distance; // Radius
+          final pixelRadius = (edge - center).distance;
+          return _convertToRealWorldUnits(pixelRadius); // Radius
         }
         return 0.0;
 
       case MeasurementType.area:
         if (points.length >= 3) {
           // Simple polygon area calculation using shoelace formula
-          double area = 0.0;
+          double pixelArea = 0.0;
           for (int i = 0; i < points.length; i++) {
             final j = (i + 1) % points.length;
-            area += points[i].x * points[j].y;
-            area -= points[j].x * points[i].y;
+            pixelArea += points[i].x * points[j].y;
+            pixelArea -= points[j].x * points[i].y;
           }
-          return area.abs() / 2.0;
+          pixelArea = pixelArea.abs() / 2.0;
+          return _convertAreaToRealWorldUnits(pixelArea);
         }
         return 0.0;
     }
+  }
+
+  /// Convert pixel distance to real-world units (mm) using DICOM pixel spacing
+  double _convertToRealWorldUnits(double pixelDistance) {
+    if (pixelSpacing == null || pixelSpacing!.isEmpty) {
+      return pixelDistance; // Return pixel value if no spacing info
+    }
+    
+    // Use average of row and column spacing for distance calculations
+    final avgSpacing = (pixelSpacing![0] + (pixelSpacing!.length > 1 ? pixelSpacing![1] : pixelSpacing![0])) / 2.0;
+    
+    // Account for image scaling: measurements are in original image space,
+    // but we want real-world measurements regardless of zoom level
+    return pixelDistance * avgSpacing;
+  }
+
+  /// Convert pixel area to real-world units (mm²) using DICOM pixel spacing
+  double _convertAreaToRealWorldUnits(double pixelArea) {
+    if (pixelSpacing == null || pixelSpacing!.isEmpty) {
+      return pixelArea; // Return pixel value if no spacing info
+    }
+    
+    // For area, we need both row and column spacing
+    final rowSpacing = pixelSpacing![0];
+    final colSpacing = pixelSpacing!.length > 1 ? pixelSpacing![1] : pixelSpacing![0];
+    
+    // Area scaling is spacing_row * spacing_col
+    return pixelArea * rowSpacing * colSpacing;
   }
 
   @override

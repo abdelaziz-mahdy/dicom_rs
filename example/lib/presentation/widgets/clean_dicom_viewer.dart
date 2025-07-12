@@ -34,6 +34,13 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   late final DicomViewerController _controller;
   late final ImageInteractionController _interactionController;
   
+  // Focus management
+  final FocusNode _mainFocusNode = FocusNode(
+    debugLabel: 'DicomViewer',
+    skipTraversal: false,
+    canRequestFocus: true,
+  );
+  
   // Current image data
   Uint8List? _currentImageData;
   bool _isLoadingImage = false;
@@ -56,11 +63,19 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     
     // Listen to controller changes
     _controller.addListener(_onControllerChanged);
+    
+    // Request focus on first frame to ensure keyboard events work
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _mainFocusNode.requestFocus();
+      }
+    });
   }
 
   @override
   void dispose() {
     _controller.removeListener(_onControllerChanged);
+    _mainFocusNode.dispose();
     if (widget.controller == null) _controller.dispose();
     if (widget.interactionController == null) _interactionController.dispose();
     super.dispose();
@@ -83,6 +98,12 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   void _onControllerChanged() {
     if (mounted) {
+      // Sync interaction controller with current brightness/contrast values
+      _interactionController.syncBrightnessContrast(
+        _controller.state.brightness,
+        _controller.state.contrast,
+      );
+      
       setState(() {});
       _loadCurrentImage();
     }
@@ -107,9 +128,16 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
+    return Focus(
+      focusNode: _mainFocusNode,
+      onKeyEvent: (node, event) {
+        // Handle keyboard navigation at the top level to prevent focus stealing
+        _interactionController.handleKeyEvent(event);
+        return KeyEventResult.handled;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
         children: [
           // Main content
           Column(
@@ -181,6 +209,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
             ),
         ],
       ),
+    ),
     );
   }
 
@@ -311,10 +340,16 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   void _completeMeasurement() {
     if (_selectedMeasurementTool == null || _currentMeasurementPoints.isEmpty) return;
 
+    // Get pixel spacing from current DICOM image metadata
+    final pixelSpacing = _controller.state.currentImage?.metadata.pixelSpacing;
+    final currentScale = _controller.state.scale;
+
     final measurement = MeasurementEntity(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: _selectedMeasurementTool!,
       points: List.from(_currentMeasurementPoints),
+      pixelSpacing: pixelSpacing,
+      imageScale: currentScale,
     );
 
     setState(() {

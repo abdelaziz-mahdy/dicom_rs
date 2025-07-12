@@ -145,21 +145,55 @@ class DicomViewerController extends ChangeNotifier {
     goToImage(prevIndex);
   }
 
-  /// Get current image data with buffer caching for smooth navigation
+  /// Get current image data with buffer caching and brightness/contrast processing
   Future<Uint8List?> getCurrentImageData() async {
     if (!_state.hasImages) return null;
 
     final currentIndex = _state.currentIndex;
     
-    // Check buffer cache first (fastest)
-    if (_bufferCache.containsKey(currentIndex)) {
-      return _bufferCache[currentIndex];
+    // Check if we have processed image with current adjustments
+    final adjustmentKey = '${currentIndex}_${_state.brightness}_${_state.contrast}';
+    if (_imageCache.containsKey(adjustmentKey)) {
+      return _imageCache[adjustmentKey];
     }
 
-    // Preload buffer around current image
-    await _preloadBuffer(currentIndex);
-    
-    return _bufferCache[currentIndex];
+    // Get raw image data from buffer
+    Uint8List? rawImageData;
+    if (_bufferCache.containsKey(currentIndex)) {
+      rawImageData = _bufferCache[currentIndex];
+    } else {
+      await _preloadBuffer(currentIndex);
+      rawImageData = _bufferCache[currentIndex];
+    }
+
+    if (rawImageData == null) return null;
+
+    // Apply brightness/contrast processing if adjustments are not default
+    if (_state.brightness != 0.0 || _state.contrast != 1.0) {
+      try {
+        final processedImage = await _repository.getProcessedImage(
+          path: _state.currentImage!.path,
+          brightness: _state.brightness,
+          contrast: _state.contrast,
+        );
+        
+        return processedImage.fold(
+          (data) {
+            _imageCache[adjustmentKey] = data;
+            return data;
+          },
+          (error) {
+            debugPrint('Failed to process image: $error');
+            return rawImageData;
+          },
+        );
+      } catch (e) {
+        debugPrint('Error processing image: $e');
+        return rawImageData;
+      }
+    }
+
+    return rawImageData;
   }
 
   /// Preload images in buffer zone around current index
@@ -233,11 +267,32 @@ class DicomViewerController extends ChangeNotifier {
     }
   }
 
+  /// Clear processed image cache entries (brightness/contrast adjustments)
+  void _clearProcessedImageCache() {
+    final currentIndex = _state.currentIndex;
+    final keysToRemove = <String>[];
+    
+    // Find all cached processed images for current index
+    for (final key in _imageCache.keys) {
+      if (key.startsWith('${currentIndex}_')) {
+        keysToRemove.add(key);
+      }
+    }
+    
+    // Remove processed image cache entries
+    for (final key in keysToRemove) {
+      _imageCache.remove(key);
+    }
+  }
+
   /// Update brightness and contrast
   void updateImageAdjustments({
     required double brightness,
     required double contrast,
   }) {
+    // Clear cached processed images to force regeneration
+    _clearProcessedImageCache();
+    
     _updateState(_state.copyWith(
       brightness: brightness,
       contrast: contrast,

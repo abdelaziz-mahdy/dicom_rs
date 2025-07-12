@@ -33,12 +33,21 @@ class ImageDisplayWidget extends StatefulWidget {
 }
 
 class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
-  final FocusNode _focusNode = FocusNode();
+  final FocusNode _focusNode = FocusNode(
+    skipTraversal: true, // Skip this widget in focus traversal
+    canRequestFocus: true,
+    descendantsAreFocusable: false, // Prevent children from stealing focus
+  );
 
   @override
   void initState() {
     super.initState();
-    _focusNode.requestFocus();
+    // Request focus on first frame to ensure keyboard events work
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   @override
@@ -58,7 +67,11 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
         onPointerMove: widget.interactionController.handlePointerMove,
         onPointerUp: widget.interactionController.handlePointerUp,
         child: GestureDetector(
-          onTapUp: (details) => widget.interactionController.handleTap(details, _getImageSize()),
+          onTapUp:
+              (details) => widget.interactionController.handleTap(
+                details,
+                _getImageSize(),
+              ),
           onScaleStart: widget.interactionController.handleScaleStart,
           onScaleUpdate: widget.interactionController.handleScaleUpdate,
           onScaleEnd: widget.interactionController.handleScaleEnd,
@@ -85,11 +98,7 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
                   const Positioned(
                     top: 10,
                     left: 10,
-                    child: Icon(
-                      Icons.tune,
-                      color: Colors.cyan,
-                      size: 24,
-                    ),
+                    child: Icon(Icons.tune, color: Colors.cyan, size: 24),
                   ),
               ],
             ),
@@ -107,9 +116,13 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
     if (widget.imageData != null) {
       return Image.memory(
         widget.imageData!,
-        key: ValueKey(widget.imageData.hashCode), // Force rebuild on data change
+        key: ValueKey(
+          'dicom_image_${widget.imageData!.length}',
+        ), // More stable key based on data length
         gaplessPlayback: true,
         filterQuality: FilterQuality.medium,
+        fit: BoxFit.contain,
+        isAntiAlias: true,
         errorBuilder: (context, error, stackTrace) => _buildErrorIndicator(),
       );
     }
@@ -129,17 +142,11 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
       child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            color: Colors.cyan,
-            strokeWidth: 2,
-          ),
+          CircularProgressIndicator(color: Colors.cyan, strokeWidth: 2),
           SizedBox(height: 16),
           Text(
             'Loading image...',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
       ),
@@ -158,18 +165,11 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
       child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            color: Colors.red,
-            size: 48,
-          ),
+          Icon(Icons.error_outline, color: Colors.red, size: 48),
           SizedBox(height: 16),
           Text(
             'Failed to load image',
-            style: TextStyle(
-              color: Colors.red,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.red, fontSize: 14),
           ),
         ],
       ),
@@ -188,18 +188,11 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
       child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.image_outlined,
-            color: Colors.cyan,
-            size: 48,
-          ),
+          Icon(Icons.image_outlined, color: Colors.cyan, size: 48),
           SizedBox(height: 16),
           Text(
             'No image loaded',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
       ),
@@ -212,7 +205,7 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
     if (renderBox != null) {
       return renderBox.size;
     }
-    
+
     // Fallback to default size
     return const Size(300, 300);
   }
