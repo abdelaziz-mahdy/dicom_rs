@@ -21,7 +21,7 @@ abstract interface class DicomRepository {
 
   /// Get processed image with brightness/contrast adjustments
   Future<Result<Uint8List>> getProcessedImage({
-    required String path,
+    required Uint8List imageBytes,
     double brightness = 0.0,
     double contrast = 1.0,
   });
