@@ -1,18 +1,14 @@
-import 'dart:typed_data';
-import 'package:dicom_rs_example/widgets/volume_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:dicom_rs/dicom_rs.dart';
 
-import '../models/load_method.dart';
-import '../models/complex_types.dart';
-import '../services/dicom_service.dart';
-import '../services/lazy_image_service.dart';
-import '../widgets/metadata_viewer.dart';
-import '../widgets/image_viewer.dart';
-import '../widgets/metadata_panel.dart';
-import '../widgets/dicom_viewer_base.dart';
+import '../presentation/widgets/clean_dicom_viewer.dart';
+import '../presentation/controllers/dicom_viewer_controller.dart';
+import '../presentation/controllers/image_interaction_controller.dart';
+import '../domain/usecases/load_dicom_directory_usecase.dart';
+import '../domain/entities/dicom_image_entity.dart';
+import '../data/repositories/dicom_repository_impl.dart';
 
+/// Modern DICOM viewer screen with clean architecture and enhanced UI/UX
 class DicomViewerScreen extends StatefulWidget {
   const DicomViewerScreen({super.key});
 
@@ -20,719 +16,1276 @@ class DicomViewerScreen extends StatefulWidget {
   State<DicomViewerScreen> createState() => _DicomViewerScreenState();
 }
 
-class _DicomViewerScreenState extends State<DicomViewerScreen> {
-  final DicomService _dicomService = DicomService();
-  late final LazyImageService _lazyImageService;
+class _DicomViewerScreenState extends State<DicomViewerScreen>
+    with SingleTickerProviderStateMixin {
+  late final DicomViewerController _controller;
+  late final ImageInteractionController _interactionController;
+  late final AnimationController _animationController;
+  late final Animation<double> _fadeAnimation;
 
-  // Loading state
-  bool _isLoading = false;
-  String? _directoryPath;
-  DicomLoadMethod _selectedLoadMethod = DicomLoadMethod.loadDicomFile;
-
-  // Progress tracking for volume loading
-  int _loadingProgress = 0;
-  int _totalFiles = 0;
-  bool _showProgress = false;
-
-  // Patient/Study/Series data
-  List<DicomPatient> _patients = [];
-  DicomPatient? _selectedPatient;
-  DicomStudy? _selectedStudy;
-  DicomSeries? _selectedSeries;
-
-  // Instance data for viewing
-  List<DicomDirectoryEntry> _dicomFiles = [];
-  List<Uint8List?> _imageBytesList = [];
-  int _currentSliceIndex = 0;
-
-  // Current metadata
-  DicomMetadata? _currentMetadata;
-  DicomMetadataMap? _currentAllMetadata;
-
-  // Volume data (if loaded as volume)
-  DicomVolume? _loadedVolume;
-
-  // Current viewer
-  DicomViewerBase? _currentViewer;
-  GlobalKey<DicomViewerBaseState> _viewerKey = GlobalKey();
-
-  // Metadata panel state
-  bool _isMetadataPanelCollapsed = false;
+  bool _isFirstLoad = true;
+  String? _lastDirectory;
 
   @override
   void initState() {
     super.initState();
-    _lazyImageService = LazyImageService(
-      dicomService: _dicomService,
-      preloadBuffer: 3, // Load 3 images ahead/behind
+    
+    // Setup animations
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
     );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+    
+    // Setup clean architecture dependencies
+    final repository = DicomRepositoryImpl();
+    final loadDirectoryUseCase = LoadDicomDirectoryUseCase(repository);
+    
+    _controller = DicomViewerController(
+      loadDirectoryUseCase: loadDirectoryUseCase,
+      repository: repository,
+    );
+    
+    _interactionController = ImageInteractionController(
+      enableScrollNavigation: true,
+      enableKeyboardNavigation: true,
+      enableBrightnessContrast: true,
+      enableZoom: true,
+      enableMeasurements: true,
+    );
+    
+    // Listen to controller changes for animations
+    _controller.addListener(_onControllerChanged);
   }
 
   @override
   void dispose() {
-    _lazyImageService.dispose();
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
+    _interactionController.dispose();
+    _animationController.dispose();
     super.dispose();
+  }
+
+  void _onControllerChanged() {
+    if (_controller.state.hasImages && _isFirstLoad) {
+      _animationController.forward();
+      _isFirstLoad = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('DICOM Viewer'),
-        leading:
-            _directoryPath != null
-                ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  tooltip: 'Back to loading options',
-                  onPressed: _resetViewer,
-                )
-                : null,
-        actions: [
-          // Directory path indicator
-          if (_directoryPath != null)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                'Dir: ${_directoryPath!.split('/').last}',
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-          // Metadata button
-          if (_currentViewer != null)
-            IconButton(
-              icon: const Icon(Icons.info_outline),
-              tooltip: 'Show Full Metadata',
-              onPressed: _showFullMetadata,
-            ),
-        ],
-      ),
-      body:
-          _showProgress
-              ? _buildProgressIndicator()
-              : _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _directoryPath == null
-              ? _buildLoadMethodSelector()
-              : _buildMainLayout(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _pickDirectory,
-        tooltip: 'Load DICOM Directory',
-        child: const Icon(Icons.folder_open),
-      ),
+      backgroundColor: const Color(0xFF0A0A0A),
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+      floatingActionButton: _buildFloatingActionButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 
-  // New method to build the main layout with side panel
-  Widget _buildMainLayout() {
-    return Column(
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.grey[900],
+      foregroundColor: Colors.white,
+      elevation: 0,
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.cyan.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'DICOM',
+              style: TextStyle(
+                color: Colors.cyan,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Medical Image Viewer',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        // Quick actions
+        IconButton(
+          icon: const Icon(Icons.folder_open_rounded),
+          onPressed: _selectDirectory,
+          tooltip: 'Open DICOM directory',
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.cyan.withValues(alpha: 0.1),
+            foregroundColor: Colors.cyan,
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.file_open_rounded),
+          onPressed: _selectSingleFile,
+          tooltip: 'Open single DICOM file',
+        ),
+        IconButton(
+          icon: const Icon(Icons.settings_rounded),
+          onPressed: _showSettings,
+          tooltip: 'Settings',
+        ),
+        if (_controller.state.hasImages)
+          IconButton(
+            icon: const Icon(Icons.info_rounded),
+            onPressed: _showMetadata,
+            tooltip: 'Show metadata',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.blue.withValues(alpha: 0.1),
+              foregroundColor: Colors.blue,
+            ),
+          ),
+        IconButton(
+          icon: const Icon(Icons.info_outline_rounded),
+          onPressed: _showAbout,
+          tooltip: 'About',
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildBody() {
+    return Stack(
       children: [
-        // Patient/study/series selectors at the top
-        if (_patients.isNotEmpty) _buildSelectors(),
+        // Background gradient
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey[900]!,
+                const Color(0xFF0A0A0A),
+              ],
+            ),
+          ),
+        ),
+        
+        // Main content
+        if (_controller.state.hasImages)
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: CleanDicomViewer(
+              controller: _controller,
+              interactionController: _interactionController,
+              showControls: true,
+              showMeasurementToolbar: true,
+              enableHelpButton: true,
+            ),
+          )
+        else
+          _buildWelcomeScreen(),
+      ],
+    );
+  }
 
-        // Main content area with metadata panel and viewer
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left side: Metadata Panel
-              if (_currentMetadata != null || _loadedVolume != null)
-                MetadataPanel(
-                  metadata: _currentMetadata,
-                  dicomFile: null,
-                  volume: _loadedVolume,
-                  currentSliceIndex:
-                      _viewerKey.currentState?.getCurrentSliceIndex() ??
-                      _currentSliceIndex,
-                  totalSlices:
-                      _viewerKey.currentState?.getTotalSlices() ??
-                      (_loadedVolume?.depth ?? _imageBytesList.length),
-                  patient: _selectedPatient,
-                  study: _selectedStudy,
-                  series: _selectedSeries,
-                  isCollapsed: _isMetadataPanelCollapsed,
-                  onTogglePanel: _toggleMetadataPanel,
+  Widget _buildWelcomeScreen() {
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Welcome icon
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.cyan.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.cyan.withValues(alpha: 0.3),
+                  width: 2,
                 ),
-
-              // Right side: Content area with unified viewer
-              Expanded(
-                child: Column(
+              ),
+              child: const Icon(
+                Icons.medical_information_rounded,
+                size: 64,
+                color: Colors.cyan,
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Welcome text
+            const Text(
+              'Welcome to DICOM Viewer',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 16),
+            
+            Text(
+              'Advanced medical image viewing with measurement tools, '
+              'brightness/contrast controls, and intuitive navigation.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 16,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 40),
+            
+            // Quick start buttons
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _selectDirectory,
+                    icon: const Icon(Icons.folder_open_rounded),
+                    label: const Text('Open DICOM Directory'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.cyan,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                Row(
                   children: [
-                    // Main viewer area with unified interface
                     Expanded(
-                      child:
-                          _currentViewer ??
-                          const Center(child: Text('No DICOM data loaded')),
+                      child: OutlinedButton.icon(
+                        onPressed: _showHelp,
+                        icon: const Icon(Icons.help_outline_rounded),
+                        label: const Text('Help'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.cyan,
+                          side: const BorderSide(color: Colors.cyan),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 16),
+                    
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _showExamples,
+                        icon: const Icon(Icons.play_circle_outline_rounded),
+                        label: const Text('Examples'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.cyan,
+                          side: const BorderSide(color: Colors.cyan),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 40),
+            
+            // Recent directory hint
+            if (_lastDirectory != null)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[800]?.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.grey[700]!,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.history_rounded,
+                      color: Colors.grey[400],
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Recent Directory',
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            _lastDirectory!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _loadDirectory(_lastDirectory!),
+                      child: const Text('Load'),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildFloatingActionButton() {
+    if (!_controller.state.hasImages) return null;
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FloatingActionButton(
+          heroTag: "back",
+          onPressed: _goBackToWelcome,
+          backgroundColor: Colors.grey[700],
+          foregroundColor: Colors.white,
+          child: const Icon(Icons.arrow_back_rounded),
+        ),
+        const SizedBox(height: 16),
+        FloatingActionButton.extended(
+          heroTag: "new",
+          onPressed: _selectDirectory,
+          backgroundColor: Colors.cyan,
+          foregroundColor: Colors.black,
+          icon: const Icon(Icons.folder_open_rounded),
+          label: const Text('New Directory'),
         ),
       ],
     );
   }
 
-  // Toggle metadata panel expanded/collapsed state
-  void _toggleMetadataPanel() {
-    setState(() {
-      _isMetadataPanelCollapsed = !_isMetadataPanelCollapsed;
-    });
-  }
-
-  Widget _buildProgressIndicator() {
-    final double percentComplete =
-        _totalFiles > 0 ? (_loadingProgress / _totalFiles * 100) : 0.0;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            value: _totalFiles > 0 ? _loadingProgress / _totalFiles : null,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Loading 3D Volume...',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '$_loadingProgress of $_totalFiles slices (${percentComplete.toStringAsFixed(1)}%)',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      ),
+  Future<void> _selectDirectory() async {
+    final result = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Select DICOM Directory',
     );
+
+    if (result != null && mounted) {
+      await _loadDirectory(result);
+    }
   }
 
-  Widget _buildLoadMethodSelector() {
-    return Center(
-      child: Card(
-        margin: const EdgeInsets.all(16.0),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Select DICOM Loading Method:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children:
-                    DicomLoadMethod.values.map((method) {
-                      return ChoiceChip(
-                        label: Text(method.description),
-                        selected: _selectedLoadMethod == method,
-                        onSelected: (bool selected) {
-                          if (selected) {
-                            setState(() {
-                              _selectedLoadMethod = method;
-                            });
-                          }
-                        },
-                        avatar: Icon(
-                          IconData(
-                            int.parse(
-                              '0xe${method.icon.hashCode.toString().substring(0, 3)}',
-                            ),
-                            fontFamily: 'MaterialIcons',
-                          ),
-                        ),
-                      );
-                    }).toList(),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Click the folder button to select a DICOM directory.',
-                style: TextStyle(fontStyle: FontStyle.italic),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Future<void> _selectSingleFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Select DICOM File',
+      type: FileType.custom,
+      allowedExtensions: ['dcm', 'dicom', 'ima', 'DICOM'],
+      allowMultiple: false,
     );
+
+    if (result != null && result.files.isNotEmpty && mounted) {
+      final filePath = result.files.first.path;
+      if (filePath != null) {
+        await _loadSingleFile(filePath);
+      }
+    }
   }
 
-  Widget _buildSelectors() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        children: [
-          // Patient selector
-          Expanded(
-            child: DropdownButton<DicomPatient>(
-              isExpanded: true,
-              value: _selectedPatient,
-              hint: const Text('Select Patient'),
-              items:
-                  _patients.map((patient) {
-                    return DropdownMenuItem<DicomPatient>(
-                      value: patient,
-                      child: Text(
-                        '${patient.patientName ?? 'Unknown'} (${patient.patientId ?? 'No ID'})',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-              onChanged: (DicomPatient? patient) {
-                if (patient != null) {
-                  setState(() {
-                    _selectedPatient = patient;
-                    _selectedStudy =
-                        patient.studies.isNotEmpty
-                            ? patient.studies.first
-                            : null;
-                    _selectedSeries =
-                        _selectedStudy?.series.isNotEmpty ?? false
-                            ? _selectedStudy!.series.first
-                            : null;
-                    _updateDicomFiles();
-                  });
-                }
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Study selector
-          Expanded(
-            child: DropdownButton<DicomStudy>(
-              isExpanded: true,
-              value: _selectedStudy,
-              hint: const Text('Select Study'),
-              items:
-                  _selectedPatient?.studies.map((study) {
-                    String label = study.studyDescription ?? 'Unknown';
-                    if (study.studyDate != null) {
-                      label += ' (${study.studyDate})';
-                    }
-                    return DropdownMenuItem<DicomStudy>(
-                      value: study,
-                      child: Text(label, overflow: TextOverflow.ellipsis),
-                    );
-                  }).toList() ??
-                  [],
-              onChanged: (DicomStudy? study) {
-                if (study != null) {
-                  setState(() {
-                    _selectedStudy = study;
-                    _selectedSeries =
-                        study.series.isNotEmpty ? study.series.first : null;
-                    _updateDicomFiles();
-                  });
-                }
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Series selector
-          Expanded(
-            child: DropdownButton<DicomSeries>(
-              isExpanded: true,
-              value: _selectedSeries,
-              hint: const Text('Select Series'),
-              items:
-                  _selectedStudy?.series.map((series) {
-                    String label = series.seriesDescription ?? 'Unknown';
-                    if (series.modality != null) {
-                      label += ' (${series.modality})';
-                    }
-                    return DropdownMenuItem<DicomSeries>(
-                      value: series,
-                      child: Text(label, overflow: TextOverflow.ellipsis),
-                    );
-                  }).toList() ??
-                  [],
-              onChanged: (DicomSeries? series) {
-                if (series != null) {
-                  setState(() {
-                    _selectedSeries = series;
-                    _updateDicomFiles();
-                  });
-                }
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _pickDirectory() async {
-    setState(() {
-      _isLoading = true;
-      _showProgress = false;
-    });
-
+  Future<void> _loadSingleFile(String filePath) async {
     try {
-      /// if the method is load file then pick file
-      if (_selectedLoadMethod == DicomLoadMethod.loadDicomFile) {
-        final result = await FilePicker.platform.pickFiles(
-          allowMultiple: false,
-          type: FileType.custom,
-          allowedExtensions: ['dcm'],
-        );
-        if (result != null && result.files.isNotEmpty) {
-          final file = result.files.first;
-          final path = file.path;
-          if (path != null) {
-            final result = await _dicomService.loadDicomData(
-              path: path,
-              method: _selectedLoadMethod,
-            );
-            await _processLoadResult(result);
-          }
-        }
-      } else {
-        String? selectedDirectory =
-            await FilePicker.platform.getDirectoryPath();
-
-        if (selectedDirectory != null) {
-          _directoryPath = selectedDirectory;
-
-          // For volume loading, enable progress tracking
-          if (_selectedLoadMethod == DicomLoadMethod.volume) {
-            setState(() {
-              _showProgress = true;
-              _loadingProgress = 0;
-              _totalFiles = 0;
-              _isLoading = false;
-            });
-          }
-
-          final result = await _dicomService.loadDicomData(
-            path: selectedDirectory,
-            method: _selectedLoadMethod,
-            onProgress:
-                _selectedLoadMethod == DicomLoadMethod.volume
-                    ? _updateProgress
-                    : null,
-          );
-
-          await _processLoadResult(result);
-        }
+      setState(() {
+        _lastDirectory = filePath;
+      });
+      
+      await _controller.loadSingleFile(filePath);
+      
+      if (mounted && _controller.state.hasImages) {
+        _showSuccessSnackBar('DICOM file loaded successfully');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading directory: $e')));
-      print(e);
-      _directoryPath = null;
-    } finally {
+      if (mounted) {
+        _showErrorSnackBar('Failed to load DICOM file: $e');
+      }
+    }
+  }
+
+  Future<void> _loadDirectory(String path) async {
+    try {
       setState(() {
-        _isLoading = false;
-        _showProgress = false;
+        _lastDirectory = path;
       });
+      
+      await _controller.loadDirectory(path, recursive: true);
+      
+      if (mounted && _controller.state.hasImages) {
+        _showSuccessSnackBar(
+          '${_controller.state.totalImages} DICOM images loaded successfully',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Failed to load directory: $e');
+      }
     }
   }
 
-  void _updateProgress(int current, int total) {
-    setState(() {
-      _loadingProgress = current;
-      _totalFiles = total;
-    });
+  void _showSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => _SettingsDialog(
+        interactionController: _interactionController,
+      ),
+    );
   }
 
-  Future<void> _processLoadResult(DicomLoadResult result) async {
-    // Reset state
-    setState(() {
-      _patients = [];
-      _selectedPatient = null;
-      _selectedStudy = null;
-      _selectedSeries = null;
-      _dicomFiles = [];
-      _imageBytesList = [];
-      _currentSliceIndex = 0;
-      _currentMetadata = null;
-      _currentAllMetadata = null;
-      _loadedVolume = null;
-      _currentViewer = null;
-      _viewerKey = GlobalKey();
-      _isMetadataPanelCollapsed = false;
-    });
-
-    // Handle different result types
-    if (result is StudyLoadResult) {
-      await _processStudyResult(result.study);
-    } else if (result is DirectoryLoadResult) {
-      await _processDirectoryResult(result.entries);
-    } else if (result is VolumeLoadResult) {
-      _processVolumeResult(result.volume);
-    } else if (result is DicomFileLoadResult) {
-      _processDicomFileResult(result.file);
-    }
+  void _showHelp() {
+    showDialog(
+      context: context,
+      builder: (context) => _HelpDialog(),
+    );
   }
 
-  // Process DICOM file result with unified viewer
-  void _processDicomFileResult(DicomFile file) async {
-    final imageBytes = await _dicomService.getImageBytes(file.path);
-
-    setState(() {
-      _currentMetadata = file.metadata;
-      _dicomFiles = [
-        DicomDirectoryEntry(
-          path: file.path,
-          metadata: file.metadata,
-          isValid: true,
-        ),
-      ];
-      _imageBytesList = [imageBytes];
-      _currentSliceIndex = 0;
-
-      // Create the viewer with the file data
-      _currentViewer = DicomImageViewer(
-        key: _viewerKey,
-        imageBytesList: _imageBytesList,
-        pixelSpacing: _currentMetadata?.pixelSpacing,
-        onSliceChanged: _onSliceChanged,
-      );
-    });
+  void _showExamples() {
+    showDialog(
+      context: context,
+      builder: (context) => _ExamplesDialog(),
+    );
   }
 
-  void _processVolumeResult(DicomVolume volume) {
+  void _showMetadata() {
+    if (!_controller.state.hasImages) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => _MetadataDialog(
+        metadata: _controller.state.currentImage?.metadata,
+        imagePath: _controller.state.currentImage?.path ?? '',
+        imageIndex: _controller.state.currentIndex + 1,
+        totalImages: _controller.state.totalImages,
+      ),
+    );
+  }
+
+  void _goBackToWelcome() {
+    _controller.reset();
     setState(() {
-      _loadedVolume = volume;
-      // // Try to extract metadata from the first slice if available
-      // if (volume.slices.isNotEmpty) {
-      //   _loadDicomImageMetadataOnly(volume.slices.first.path);
-      // }
-
-      // Create the volume viewer
-      _currentViewer = VolumeViewer(key: _viewerKey, volume: volume);
+      _isFirstLoad = true;
     });
+    _animationController.reset();
+  }
 
+  void _showAbout() {
+    showDialog(
+      context: context,
+      builder: (context) => _AboutDialog(),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          'Loaded 3D volume: ${volume.width}x${volume.height}x${volume.depth} pixels',
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.green[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        action: SnackBarAction(
+          label: 'Dismiss',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
+}
+
+/// Enhanced settings dialog with better UX
+class _SettingsDialog extends StatefulWidget {
+  const _SettingsDialog({
+    required this.interactionController,
+  });
+
+  final ImageInteractionController interactionController;
+
+  @override
+  State<_SettingsDialog> createState() => _SettingsDialogState();
+}
+
+class _SettingsDialogState extends State<_SettingsDialog> {
+  late bool _enableScrollNavigation;
+  late bool _enableKeyboardNavigation;
+  late bool _enableBrightnessContrast;
+  late bool _enableZoom;
+  late bool _enableMeasurements;
+
+  @override
+  void initState() {
+    super.initState();
+    _enableScrollNavigation = widget.interactionController.enableScrollNavigation;
+    _enableKeyboardNavigation = widget.interactionController.enableKeyboardNavigation;
+    _enableBrightnessContrast = widget.interactionController.enableBrightnessContrast;
+    _enableZoom = widget.interactionController.enableZoom;
+    _enableMeasurements = widget.interactionController.enableMeasurements;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.grey[900],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.cyan.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.settings_rounded,
+                    color: Colors.cyan,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Text(
+                  'Interaction Settings',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+            const Divider(color: Colors.cyan),
+            const SizedBox(height: 24),
+
+            // Settings
+            _buildSettingCard(
+              Icons.mouse_rounded,
+              'Mouse Navigation',
+              'Navigate slices with mouse wheel',
+              _enableScrollNavigation,
+              (value) => setState(() => _enableScrollNavigation = value),
+            ),
+            
+            _buildSettingCard(
+              Icons.keyboard_rounded,
+              'Keyboard Navigation',
+              'Navigate slices with arrow keys',
+              _enableKeyboardNavigation,
+              (value) => setState(() => _enableKeyboardNavigation = value),
+            ),
+            
+            _buildSettingCard(
+              Icons.tune_rounded,
+              'Image Adjustments',
+              'Adjust brightness/contrast with right-click drag',
+              _enableBrightnessContrast,
+              (value) => setState(() => _enableBrightnessContrast = value),
+            ),
+            
+            _buildSettingCard(
+              Icons.zoom_in_rounded,
+              'Zoom Controls',
+              'Enable pinch-to-zoom gestures',
+              _enableZoom,
+              (value) => setState(() => _enableZoom = value),
+            ),
+            
+            _buildSettingCard(
+              Icons.straighten_rounded,
+              'Measurement Tools',
+              'Enable distance, angle, and area measurements',
+              _enableMeasurements,
+              (value) => setState(() => _enableMeasurements = value),
+            ),
+
+            const SizedBox(height: 24),
+            
+            // Actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[400],
+                  ),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    // Apply settings would be implemented here
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.cyan,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Apply'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _processDirectoryResult(
-    List<DicomDirectoryEntry> entries,
-  ) async {
-    if (entries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No DICOM files found in the selected directory'),
+  Widget _buildSettingCard(
+    IconData icon,
+    String title,
+    String description,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[800]?.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: value ? Colors.cyan.withValues(alpha: 0.3) : Colors.grey[700]!,
         ),
-      );
-      return;
-    }
-
-    setState(() {
-      _dicomFiles = entries;
-      _currentSliceIndex = 0;
-    });
-
-    // Load all images for the image viewer
-    _imageBytesList = List.filled(entries.length, null);
-
-    // Load the first image immediately
-    _imageBytesList[0] = await _dicomService.getImageBytes(entries[0].path);
-    final metadata = await _dicomService.getMetadata(path: entries[0].path);
-    final allMetadata = await _dicomService.getAllMetadata(
-      path: entries[0].path,
-    );
-
-    setState(() {
-      _currentMetadata = metadata;
-      _currentAllMetadata = allMetadata;
-
-      // Create the image viewer
-      _currentViewer = DicomImageViewer(
-        key: _viewerKey,
-        imageBytesList: _imageBytesList,
-        pixelSpacing: _currentMetadata?.pixelSpacing,
-        onSliceChanged: _onSliceChanged,
-      );
-    });
-
-    // Initialize lazy loading for this method as well
-    if (entries.length > 1) {
-      final dicomEntries = entries.map((entry) => DicomDirectoryEntry(
-        path: entry.path,
-        metadata: entry.metadata,
-        isValid: true,
-      )).toList();
-      
-      _lazyImageService.initialize(dicomEntries);
-      await _lazyImageService.updateCurrentIndex(0);
-    }
-  }
-
-  // Update the study result processing to use the unified viewer
-  Future<void> _processStudyResult(DicomStudy study) async {
-    // Create patient wrapper for the UI
-    final patient = DicomPatient(
-      patientId: await _dicomService.extractPatientIdFromStudy(study),
-      patientName: await _dicomService.extractPatientNameFromStudy(study),
-      studies: [study],
-    );
-
-    setState(() {
-      // Single patient with the complete study
-      _patients = [patient];
-      _selectedPatient = patient;
-      _selectedStudy = study;
-
-      if (study.series.isNotEmpty) {
-        _selectedSeries = study.series.first;
-        _updateDicomFiles();
-      }
-    });
-  }
-
-  // Update for the unified viewer approach
-  void _updateDicomFiles() async {
-    if (_selectedSeries == null) return;
-
-    final List<DicomDirectoryEntry> dicomEntries = [];
-
-    for (final instance in _selectedSeries!.instances) {
-      if (instance.isValid) {
-        dicomEntries.add(
-          DicomDirectoryEntry(
-            path: instance.path,
-            metadata: DicomMetadata(
-              // Study-level information shared across slices
-              patientName: _selectedPatient?.patientName,
-              patientId: _selectedPatient?.patientId,
-              studyDate: _selectedStudy?.studyDate,
-              studyDescription: _selectedStudy?.studyDescription,
-              studyInstanceUid: _selectedStudy?.studyInstanceUid,
-
-              // Series-level information
-              seriesDescription: _selectedSeries?.seriesDescription,
-              modality: _selectedSeries?.modality,
-              seriesNumber: _selectedSeries?.seriesNumber,
-              seriesInstanceUid: _selectedSeries?.seriesInstanceUid,
-
-              // Instance-specific information
-              instanceNumber: instance.instanceNumber,
-              sopInstanceUid: instance.sopInstanceUid,
-
-              // Spatial information
-              imagePosition: instance.imagePosition,
-              sliceLocation: instance.sliceLocation,
-            ),
-            isValid: instance.isValid,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: value ? Colors.cyan : Colors.grey[400],
+            size: 24,
           ),
-        );
-      }
-    }
-
-    setState(() {
-      _dicomFiles = dicomEntries;
-      _imageBytesList = List.filled(dicomEntries.length, null);
-      _currentSliceIndex = 0;
-    });
-
-    if (_dicomFiles.isNotEmpty) {
-      // Initialize lazy loading service
-      _lazyImageService.initialize(_dicomFiles);
-      
-      // Load first image and create viewer
-      final firstBytes = await _lazyImageService.getImageAt(0);
-      final metadata = await _dicomService.getMetadata(
-        path: _dicomFiles[0].path,
-      );
-      final allMetadata = await _dicomService.getAllMetadata(
-        path: _dicomFiles[0].path,
-      );
-
-      setState(() {
-        _imageBytesList[0] = firstBytes;
-        _currentMetadata = metadata;
-        _currentAllMetadata = allMetadata;
-
-        // Create image viewer with lazy loading support
-        _currentViewer = DicomImageViewer(
-          key: _viewerKey,
-          imageBytesList: _imageBytesList,
-          pixelSpacing: _currentMetadata?.pixelSpacing,
-          onSliceChanged: _onSliceChanged,
-        );
-      });
-
-      // Preload surrounding images
-      await _lazyImageService.updateCurrentIndex(0);
-    }
-  }
-
-  // Handle slice changes for lazy loading
-  void _onSliceChanged(int newIndex) async {
-    _currentSliceIndex = newIndex;
-    
-    // Update lazy loading service
-    await _lazyImageService.updateCurrentIndex(newIndex);
-    
-    // Load the image if not already loaded
-    final imageBytes = await _lazyImageService.getImageAt(newIndex);
-    
-    if (mounted && imageBytes != null) {
-      setState(() {
-        _imageBytesList[newIndex] = imageBytes;
-      });
-    }
-  }
-
-  // Reset the viewer state
-  void _resetViewer() {
-    setState(() {
-      _directoryPath = null;
-      _patients = [];
-      _selectedPatient = null;
-      _selectedStudy = null;
-      _selectedSeries = null;
-      _dicomFiles = [];
-      _imageBytesList = [];
-      _currentSliceIndex = 0;
-      _currentMetadata = null;
-      _currentAllMetadata = null;
-      _loadedVolume = null;
-      _currentViewer = null;
-      _viewerKey = GlobalKey();
-      _isMetadataPanelCollapsed = false;
-    });
-  }
-
-  // Show full metadata dialog
-  void _showFullMetadata() {
-    if (_currentAllMetadata == null) return;
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              'DICOM Metadata - Slice ${(_viewerKey.currentState?.getCurrentSliceIndex() ?? 0) + 1}/' +
-                  '${_viewerKey.currentState?.getTotalSlices() ?? (_loadedVolume?.depth ?? _imageBytesList.length)}',
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: MediaQuery.of(context).size.height * 0.8,
-              child: MetadataViewer(metadata: _currentAllMetadata!),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Colors.cyan,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Help dialog with comprehensive usage instructions
+class _HelpDialog extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.grey[900],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 600,
+        height: 500,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.cyan.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.help_outline_rounded,
+                    color: Colors.cyan,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Text(
+                  'DICOM Viewer Help',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
+            
+            const SizedBox(height: 24),
+            const Divider(color: Colors.cyan),
+            const SizedBox(height: 16),
+            
+            // Help content (scrollable)
+            const Expanded(
+              child: SingleChildScrollView(
+                child: Text(
+                  'Navigation:\n'
+                  '• Use arrow keys (←→) or mouse wheel to navigate between slices\n'
+                  '• Click the image counter to jump to a specific slice\n'
+                  '• Use fast forward/rewind buttons for quick navigation\n\n'
+                  'Image Adjustments:\n'
+                  '• Right-click and drag to adjust brightness and contrast\n'
+                  '• Use the reset button to restore original settings\n\n'
+                  'Measurements:\n'
+                  '• Select a measurement tool from the toolbar\n'
+                  '• Click points on the image to create measurements\n'
+                  '• Toggle visibility or clear all measurements as needed\n\n'
+                  'Zoom & Pan:\n'
+                  '• Use pinch gestures on touch devices to zoom\n'
+                  '• Multi-touch gestures for pan and zoom\n\n'
+                  'Keyboard Shortcuts:\n'
+                  '• ← → Navigate slices\n'
+                  '• R Reset image adjustments\n'
+                  '• H Toggle help\n'
+                  '• M Toggle measurements\n'
+                  '• F11 Fullscreen mode',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    height: 1.6,
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Close button
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.cyan,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Got it!'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Examples dialog with sample workflows
+class _ExamplesDialog extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.grey[900],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 500,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.cyan.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.play_circle_outline_rounded,
+                    color: Colors.cyan,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Text(
+                  'Usage Examples',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+            const Divider(color: Colors.cyan),
+            const SizedBox(height: 16),
+            
+            // Examples
+            const Text(
+              'Common Workflows:\n\n'
+              '1. Basic Viewing:\n'
+              '   • Open DICOM directory\n'
+              '   • Navigate through slices\n'
+              '   • Adjust image settings\n\n'
+              '2. Taking Measurements:\n'
+              '   • Select measurement tool\n'
+              '   • Click points on image\n'
+              '   • View calculated values\n\n'
+              '3. Comparing Images:\n'
+              '   • Use fast navigation\n'
+              '   • Consistent window/level\n'
+              '   • Save measurements',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Close button
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.cyan,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 child: const Text('Close'),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// About dialog with app information
+class _AboutDialog extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.grey[900],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // App icon
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.cyan.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.medical_information_rounded,
+                color: Colors.cyan,
+                size: 48,
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // App info
+            const Text(
+              'DICOM Viewer',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            Text(
+              'Version 2.0.0',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 16,
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            Text(
+              'Advanced medical image viewer built with Flutter and Rust. '
+              'Features clean architecture, modern UI, and powerful '
+              'measurement tools for medical professionals.',
+              style: TextStyle(
+                color: Colors.grey[300],
+                fontSize: 14,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Close button
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.cyan,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Metadata dialog displaying DICOM information
+class _MetadataDialog extends StatelessWidget {
+  const _MetadataDialog({
+    required this.metadata,
+    required this.imagePath,
+    required this.imageIndex,
+    required this.totalImages,
+  });
+
+  final DicomMetadataEntity? metadata;
+  final String imagePath;
+  final int imageIndex;
+  final int totalImages;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.grey[900],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 600,
+        height: 700,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.info_rounded,
+                    color: Colors.blue,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'DICOM Metadata',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Image $imageIndex of $totalImages',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            const Divider(color: Colors.blue),
+            const SizedBox(height: 16),
+            
+            // File path
+            _buildInfoRow('File Path', imagePath, isPath: true),
+            
+            const SizedBox(height: 16),
+            
+            // Metadata content
+            Expanded(
+              child: metadata != null
+                  ? SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSection('Patient Information', [
+                            _buildMetadataRow('Patient Name', metadata!.patientName),
+                            _buildMetadataRow('Patient ID', metadata!.patientId),
+                          ]),
+                          
+                          const SizedBox(height: 24),
+                          
+                          _buildSection('Study Information', [
+                            _buildMetadataRow('Study Date', metadata!.studyDate),
+                            _buildMetadataRow('Study Description', metadata!.studyDescription),
+                            _buildMetadataRow('Study Instance UID', metadata!.studyInstanceUid),
+                          ]),
+                          
+                          const SizedBox(height: 24),
+                          
+                          _buildSection('Series Information', [
+                            _buildMetadataRow('Series Number', metadata!.seriesNumber?.toString()),
+                            _buildMetadataRow('Series Description', metadata!.seriesDescription),
+                            _buildMetadataRow('Series Instance UID', metadata!.seriesInstanceUid),
+                            _buildMetadataRow('Modality', metadata!.modality),
+                          ]),
+                          
+                          const SizedBox(height: 24),
+                          
+                          _buildSection('Image Information', [
+                            _buildMetadataRow('Instance Number', metadata!.instanceNumber?.toString()),
+                            _buildMetadataRow('SOP Instance UID', metadata!.sopInstanceUid),
+                            _buildMetadataRow('Image Position', _formatList(metadata!.imagePosition)),
+                            _buildMetadataRow('Pixel Spacing', _formatList(metadata!.pixelSpacing)),
+                            _buildMetadataRow('Slice Location', metadata!.sliceLocation?.toString()),
+                            _buildMetadataRow('Slice Thickness', metadata!.sliceThickness?.toString()),
+                          ]),
+                        ],
+                      ),
+                    )
+                  : const Center(
+                      child: Text(
+                        'No metadata available',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Close button
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // Keep other methods as they are
-  // ... existing code ...
+  Widget _buildInfoRow(String label, String value, {bool isPath = false}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[800]?.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.blue,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontFamily: isPath ? 'monospace' : null,
+              ),
+              maxLines: isPath ? 3 : 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.blue,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+
+  Widget _buildMetadataRow(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 150,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value ?? 'N/A',
+              style: TextStyle(
+                color: value != null ? Colors.white : Colors.grey[600],
+                fontSize: 12,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String? _formatList(List<double>? list) {
+    if (list == null || list.isEmpty) return null;
+    return list.map((e) => e.toStringAsFixed(3)).join(', ');
+  }
 }
