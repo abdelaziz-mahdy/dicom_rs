@@ -8,22 +8,114 @@ class MeasurementOverlayWidget extends StatelessWidget {
     required this.measurements,
     required this.currentPoints,
     this.selectedTool,
+    this.scale = 1.0,
+    this.onPointDrag,
   });
 
   final List<MeasurementEntity> measurements;
   final List<MeasurementPoint> currentPoints;
   final MeasurementType? selectedTool;
+  final double scale;
+  final Function(MeasurementEntity measurement, int pointIndex, Offset newPosition)? onPointDrag;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: MeasurementPainter(
-        measurements: measurements,
-        currentPoints: currentPoints,
-        selectedTool: selectedTool,
-      ),
-      child: Container(),
+    return Stack(
+      children: [
+        // Draw lines, shapes, and labels
+        CustomPaint(
+          painter: MeasurementPainter(
+            measurements: measurements,
+            currentPoints: currentPoints,
+            selectedTool: selectedTool,
+          ),
+          child: Container(),
+        ),
+        
+        // Interactive points overlay
+        ...measurements.map((measurement) => 
+          _buildMeasurementPoints(measurement)),
+        
+        // Current measurement points
+        ..._buildCurrentPoints(),
+      ],
     );
+  }
+
+  Widget _buildMeasurementPoints(MeasurementEntity measurement) {
+    return Stack(
+      children: measurement.points.asMap().entries.map((entry) {
+        final index = entry.key;
+        final point = entry.value;
+        
+        return Positioned(
+          left: point.x - (12 / scale), // Compensate for scale
+          top: point.y - (12 / scale),
+          child: GestureDetector(
+            onPanUpdate: (details) {
+              if (onPointDrag != null) {
+                final newPosition = Offset(
+                  point.x + (details.delta.dx / scale), // Scale compensation
+                  point.y + (details.delta.dy / scale),
+                );
+                onPointDrag!(measurement, index, newPosition);
+              }
+            },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.move,
+              child: Container(
+                width: 24 / scale, // Scale-adjusted size
+                height: 24 / scale,
+                decoration: BoxDecoration(
+                  color: Colors.cyan.withValues(alpha: 0.8),
+                  border: Border.all(color: Colors.white, width: 2 / scale),
+                  borderRadius: BorderRadius.circular(12 / scale),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 4 / scale,
+                      offset: Offset(0, 2 / scale),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.drag_indicator,
+                  size: 12 / scale,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  List<Widget> _buildCurrentPoints() {
+    return currentPoints.asMap().entries.map((entry) {
+      final point = entry.value;
+      
+      return Positioned(
+        left: point.x - (10 / scale),
+        top: point.y - (10 / scale),
+        child: Container(
+          width: 20 / scale,
+          height: 20 / scale,
+          decoration: BoxDecoration(
+            color: Colors.yellow.withValues(alpha: 0.8),
+            border: Border.all(color: Colors.white, width: 2 / scale),
+            borderRadius: BorderRadius.circular(10 / scale),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 4 / scale,
+                offset: Offset(0, 2 / scale),
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
   }
 }
 

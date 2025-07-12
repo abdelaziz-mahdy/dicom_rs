@@ -88,6 +88,8 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
                       measurements: widget.measurements,
                       currentPoints: widget.currentMeasurementPoints,
                       selectedTool: widget.selectedTool,
+                      scale: widget.scale,
+                      onPointDrag: widget.interactionController.onPointDrag,
                     ),
                   ),
 

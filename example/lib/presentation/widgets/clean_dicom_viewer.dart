@@ -33,14 +33,14 @@ class CleanDicomViewer extends StatefulWidget {
 class _CleanDicomViewerState extends State<CleanDicomViewer> {
   late final DicomViewerController _controller;
   late final ImageInteractionController _interactionController;
-  
+
   // Focus management
   final FocusNode _mainFocusNode = FocusNode(
     debugLabel: 'DicomViewer',
     skipTraversal: false,
     canRequestFocus: true,
   );
-  
+
   // Current image data
   Uint8List? _currentImageData;
 
@@ -53,16 +53,17 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   @override
   void initState() {
     super.initState();
-    
+
     _controller = widget.controller ?? DicomViewerController();
-    _interactionController = widget.interactionController ?? ImageInteractionController();
-    
+    _interactionController =
+        widget.interactionController ?? ImageInteractionController();
+
     // Setup interaction callbacks
     _setupInteractionCallbacks();
-    
+
     // Listen to controller changes
     _controller.addListener(_onControllerChanged);
-    
+
     // Request focus on first frame to ensure keyboard events work
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -92,7 +93,8 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       }
       ..onScaleChanged = _controller.updateScale
       ..onImageTapped = _handleImageTap
-      ..onMeasurementPointDragged = _handleMeasurementPointDrag;
+      ..onMeasurementPointDragged = _handleMeasurementPointDrag
+      ..onPointDrag = _handlePointDrag;
   }
 
   void _onControllerChanged() {
@@ -102,7 +104,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
         _controller.state.brightness,
         _controller.state.contrast,
       );
-      
+
       setState(() {});
       _loadCurrentImage();
     }
@@ -110,7 +112,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   Future<void> _loadCurrentImage() async {
     final imageData = await _controller.getCurrentImageData();
-    
+
     if (mounted) {
       setState(() {
         _currentImageData = imageData;
@@ -130,77 +132,77 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       child: Scaffold(
         backgroundColor: Colors.black,
         body: Stack(
-        children: [
-          // Main content
-          Column(
-            children: [
-              // Measurement toolbar
-              if (widget.showMeasurementToolbar)
-                MeasurementToolbarWidget(
-                  selectedTool: _selectedMeasurementTool,
-                  onToolSelected: _handleToolSelected,
-                  onClearMeasurements: _clearAllMeasurements,
-                  onToggleVisibility: _toggleMeasurementsVisibility,
-                  measurementsVisible: _measurementsVisible,
-                  measurementCount: _measurements.length,
-                ),
+          children: [
+            // Main content
+            Column(
+              children: [
+                // Measurement toolbar
+                if (widget.showMeasurementToolbar)
+                  MeasurementToolbarWidget(
+                    selectedTool: _selectedMeasurementTool,
+                    onToolSelected: _handleToolSelected,
+                    onClearMeasurements: _clearAllMeasurements,
+                    onToggleVisibility: _toggleMeasurementsVisibility,
+                    measurementsVisible: _measurementsVisible,
+                    measurementCount: _measurements.length,
+                  ),
 
-              // Main image area
-              Expanded(
-                child: Stack(
-                  children: [
-                    // Image display
-                    Center(
-                      child: ImageDisplayWidget(
-                        imageData: _currentImageData,
-                        scale: _controller.state.scale,
-                        measurements: _measurements,
-                        currentMeasurementPoints: _currentMeasurementPoints,
-                        selectedTool: _selectedMeasurementTool,
-                        measurementsVisible: _measurementsVisible,
-                        interactionController: _interactionController,
+                // Main image area
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // Image display
+                      Center(
+                        child: ImageDisplayWidget(
+                          imageData: _currentImageData,
+                          scale: _controller.state.scale,
+                          measurements: _measurements,
+                          currentMeasurementPoints: _currentMeasurementPoints,
+                          selectedTool: _selectedMeasurementTool,
+                          measurementsVisible: _measurementsVisible,
+                          interactionController: _interactionController,
+                        ),
                       ),
-                    ),
 
-                    // UI overlays
-                    _buildUIOverlays(),
-                  ],
+                      // UI overlays
+                      _buildUIOverlays(),
+                    ],
+                  ),
                 ),
-              ),
 
-              // Bottom controls
-              if (widget.showControls && _controller.state.hasImages)
-                ViewerControlsWidget(
-                  currentIndex: _controller.state.currentIndex + 1,
-                  totalImages: _controller.state.totalImages,
-                  onPrevious: _controller.previousImage,
-                  onNext: _controller.nextImage,
-                  onGoToImage: (index) => _controller.goToImage(index - 1),
-                ),
-            ],
-          ),
-          
-          // Loading overlay
-          if (_controller.state.isLoading)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(color: Colors.cyan),
-                    SizedBox(height: 16),
-                    Text(
-                      'Loading DICOM files...',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
+                // Bottom controls
+                if (widget.showControls && _controller.state.hasImages)
+                  ViewerControlsWidget(
+                    currentIndex: _controller.state.currentIndex + 1,
+                    totalImages: _controller.state.totalImages,
+                    onPrevious: _controller.previousImage,
+                    onNext: _controller.nextImage,
+                    onGoToImage: (index) => _controller.goToImage(index - 1),
+                  ),
+              ],
             ),
-        ],
+
+            // Loading overlay
+            if (_controller.state.isLoading)
+              Container(
+                color: Colors.black54,
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(color: Colors.cyan),
+                      SizedBox(height: 16),
+                      Text(
+                        'Loading DICOM files...',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -311,10 +313,9 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     if (_selectedMeasurementTool == null) return;
 
     setState(() {
-      _currentMeasurementPoints.add(MeasurementPoint(
-        x: position.dx,
-        y: position.dy,
-      ));
+      _currentMeasurementPoints.add(
+        MeasurementPoint(x: position.dx, y: position.dy),
+      );
 
       // Complete measurement if we have enough points
       final requiredPoints = _selectedMeasurementTool!.requiredPoints;
@@ -325,11 +326,52 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   }
 
   void _handleMeasurementPointDrag(Offset position) {
-    // TODO: Implement measurement point dragging
+    // Legacy method for backward compatibility
+  }
+
+  void _handlePointDrag(
+    dynamic measurement,
+    int pointIndex,
+    Offset newPosition,
+  ) {
+    if (measurement is! MeasurementEntity) return;
+
+    setState(() {
+      // Find the measurement in our list and update the specific point
+      final measurementIndex = _measurements.indexWhere(
+        (m) => m.id == measurement.id,
+      );
+      if (measurementIndex != -1) {
+        final currentMeasurement = _measurements[measurementIndex];
+        final updatedPoints = List<MeasurementPoint>.from(
+          currentMeasurement.points,
+        );
+
+        // Update the specific point if it exists
+        if (pointIndex < updatedPoints.length) {
+          updatedPoints[pointIndex] = MeasurementPoint(
+            x: newPosition.dx,
+            y: newPosition.dy,
+          );
+
+          // Create a new measurement with updated points
+          final updatedMeasurement = MeasurementEntity(
+            id: currentMeasurement.id,
+            type: currentMeasurement.type,
+            points: updatedPoints,
+            pixelSpacing: currentMeasurement.pixelSpacing,
+            imageScale: currentMeasurement.imageScale,
+          );
+
+          _measurements[measurementIndex] = updatedMeasurement;
+        }
+      }
+    });
   }
 
   void _completeMeasurement() {
-    if (_selectedMeasurementTool == null || _currentMeasurementPoints.isEmpty) return;
+    if (_selectedMeasurementTool == null || _currentMeasurementPoints.isEmpty)
+      return;
 
     // Get pixel spacing from current DICOM image metadata
     final pixelSpacing = _controller.state.currentImage?.metadata.pixelSpacing;

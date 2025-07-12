@@ -39,6 +39,7 @@ class ImageInteractionController extends ChangeNotifier {
   void Function(double scale)? onScaleChanged;
   void Function(Offset position, Size imageSize)? onImageTapped;
   void Function(Offset position)? onMeasurementPointDragged;
+  void Function(dynamic measurement, int pointIndex, Offset newPosition)? onPointDrag;
 
   // Brightness/contrast state
   double _currentBrightness = 0.0;
