@@ -30,7 +30,7 @@ jobs:
         run: cargo install flutter_rust_bridge_codegen
 
       - name: Cache Flutter dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
@@ -40,7 +40,7 @@ jobs:
             flutter-${{ runner.os }}-
 
       - name: Cache Cargo dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
