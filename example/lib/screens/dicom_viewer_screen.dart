@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../presentation/widgets/clean_dicom_viewer.dart';
 import '../presentation/controllers/dicom_viewer_controller.dart';
@@ -136,7 +137,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
           IconButton(
             icon: const Icon(Icons.description_rounded),
             onPressed: _selectSingleFile,
-            tooltip: 'Select single DICOM file',
+            tooltip: kIsWeb 
+                ? 'Select single file (DICOM validation after selection)'
+                : 'Select single DICOM file',
           ),
         ],
         // Show back and new directory buttons when images are loaded
@@ -328,6 +331,33 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
                   }(),
                 ),
 
+                // Secondary button for native platforms
+                () {
+                  final config = FileSelectorService.getUIConfig();
+                  if (config.hasSecondaryOption) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _selectFilesAlternative,
+                          icon: Icon(config.secondaryIcon),
+                          label: Text(config.secondaryLabel!),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.cyan,
+                            side: const BorderSide(color: Colors.cyan),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }(),
+
                 const SizedBox(height: 16),
 
                 Row(
@@ -385,14 +415,18 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   }
 
   Future<void> _selectFiles() async {
+    final result = await FileSelectorService.selectDicomContent();
+
+    if (result != null && result.hasContent && mounted) {
+      await _loadMultipleFiles(result.files);
+    }
+  }
+
+  Future<void> _selectFilesAlternative() async {
     final result = await FileSelectorService.selectDicomFiles();
 
     if (result != null && result.hasContent && mounted) {
-      if (result.files != null && result.files!.isNotEmpty) {
-        await _loadMultipleFiles(result.files!);
-      } else {
-        _showErrorSnackBar('No valid DICOM files were selected');
-      }
+      await _loadMultipleFiles(result.files);
     }
   }
 
@@ -400,7 +434,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     final result = await FileSelectorService.selectSingleDicomFile();
 
     if (result != null && result.hasContent && mounted) {
-      final fileData = result.files!.first;
+      final fileData = result.files.first;
       await _loadSingleFileFromData(fileData);
     }
   }
