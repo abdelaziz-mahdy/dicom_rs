@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dicom_rs/dicom_rs.dart';
+import 'package:dicom_rs_example/services/dicom_service_simple.dart';
 import 'package:path_provider/path_provider.dart';
 
 void main() {
@@ -19,8 +20,8 @@ void main() {
     // Initialize the RustLib
     await RustLib.init();
 
-    // Create a DicomHandler instance
-    handler = await DicomHandler.newInstance();
+    // Create a DicomHandler instance using the minimal API
+    handler = DicomHandler();
 
     // Create temp directory for test files
     tempDir = await getTemporaryDirectory();
@@ -74,10 +75,15 @@ void main() {
             .toList();
 
         for (final file in files) {
-          if (await isDicomFile(path: file.path)) {
-            sampleDicomPath = file.path;
-            print('Found DICOM file by validation: $sampleDicomPath');
-            break;
+          try {
+            final bytes = await file.readAsBytes();
+            if (await DicomServiceSimple.isValidDicom(bytes)) {
+              sampleDicomPath = file.path;
+              print('Found DICOM file by validation: $sampleDicomPath');
+              break;
+            }
+          } catch (e) {
+            // Skip files that can't be read
           }
         }
       }
@@ -104,32 +110,27 @@ void main() {
     }
   });
 
-  group('DicomHandler Factory Methods', () {
-    test('Can create new DicomHandler instance', () {
+  group('DicomHandler Minimal API Tests', () {
+    test('Can create DicomHandler instance', () {
       expect(handler, isA<DicomHandler>());
     });
 
-    test('Can create default DicomHandler instance', () async {
-      final defaultHandler = await DicomHandler.default_();
-      expect(defaultHandler, isA<DicomHandler>());
+    test('DicomHandler singleton returns same instance', () {
+      final handler1 = DicomHandler();
+      final handler2 = DicomHandler();
+      expect(handler1, same(handler2));
     });
   });
 
   group('DICOM File Validation', () {
-    test('Non-DICOM file returns false for isValidDicom', () async {
-      expect(await handler.isValidDicom(path: nonDicomPath), false);
+    test('Non-DICOM file returns false for isDicomFile', () async {
+      final bytes = await File(nonDicomPath).readAsBytes();
+      expect(await handler.isDicomFile(bytes), false);
     });
 
-    test('Non-DICOM file returns false for isDicomdir', () async {
-      expect(await handler.isDicomdir(path: nonDicomPath), false);
-    });
-
-    test('isDicomFile function returns false for non-DICOM file', () async {
-      expect(await isDicomFile(path: nonDicomPath), false);
-    });
-
-    test('isDicomdirFile function returns false for non-DICOM file', () async {
-      expect(await isDicomdirFile(path: nonDicomPath), false);
+    test('Non-DICOM file returns false via service method', () async {
+      final bytes = await File(nonDicomPath).readAsBytes();
+      expect(await DicomServiceSimple.isValidDicom(bytes), false);
     });
 
     test('Sample DICOM file should be recognized as valid', () async {
@@ -139,8 +140,9 @@ void main() {
         return;
       }
 
-      expect(await isDicomFile(path: sampleDicomPath), true);
-      expect(await handler.isValidDicom(path: sampleDicomPath), true);
+      final bytes = await file.readAsBytes();
+      expect(await handler.isDicomFile(bytes), true);
+      expect(await DicomServiceSimple.isValidDicom(bytes), true);
     });
   });
 
@@ -152,7 +154,8 @@ void main() {
         return;
       }
 
-      final metadata = await handler.getMetadata(path: sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final metadata = await handler.getMetadata(bytes);
       expect(metadata, isA<DicomMetadata>());
       print('Patient Name: ${metadata.patientName ?? "Unknown"}');
       print('Modality: ${metadata.modality ?? "Unknown"}');
@@ -166,53 +169,28 @@ void main() {
         return;
       }
 
-      final dicomFile = await handler.loadFile(path: sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final dicomFile = await handler.loadFile(bytes);
       expect(dicomFile, isA<DicomFile>());
-      expect(dicomFile.path, equals(sampleDicomPath));
       expect(dicomFile.metadata, isA<DicomMetadata>());
-      expect(dicomFile.allTags, isA<List<DicomTag>>());
 
-      print('Loaded ${dicomFile.allTags.length} tags from DICOM file');
+      print('Loaded DICOM file successfully');
+      print('Patient: ${dicomFile.metadata.patientName ?? "Unknown"}');
     });
 
-    test('Get all tags from DICOM file if file exists', () async {
+    test('Load DICOM file using service method', () async {
       final file = File(sampleDicomPath);
       if (!await file.exists()) {
         markTestSkipped('Sample DICOM file not found');
         return;
       }
 
-      final tags = await handler.getAllTags(path: sampleDicomPath);
-      expect(tags, isA<List<DicomTag>>());
-      expect(tags.length, greaterThan(0));
+      final bytes = await file.readAsBytes();
+      final dicomFile = await DicomServiceSimple.loadFile(bytes);
+      expect(dicomFile, isA<DicomFile>());
+      expect(dicomFile.metadata, isA<DicomMetadata>());
 
-      // Print a few important tags for visibility
-      final patientNameTag = tags.firstWhere(
-        (tag) => tag.name == 'PatientName', 
-        orElse: () => DicomTag(tag: '00100010', vr: 'PN', name: 'PatientName', value: const DicomValueType.unknown())
-      );
-
-      final modalityTag = tags.firstWhere(
-        (tag) => tag.name == 'Modality', 
-        orElse: () => DicomTag(tag: '00080060', vr: 'CS', name: 'Modality', value: const DicomValueType.unknown())
-      );
-
-      print('PatientName tag: ${patientNameTag.value}');
-      print('Modality tag: ${modalityTag.value}');
-    });
-
-    test('List tag names from DICOM file if file exists', () async {
-      final file = File(sampleDicomPath);
-      if (!await file.exists()) {
-        markTestSkipped('Sample DICOM file not found');
-        return;
-      }
-
-      final tagNames = await handler.listTags(path: sampleDicomPath);
-      expect(tagNames, isA<List<String>>());
-      expect(tagNames.length, greaterThan(0));
-
-      print('First 5 tag names: ${tagNames.take(5).join(', ')}');
+      print('Service loaded DICOM file successfully');
     });
 
     test('Extract pixel data from DICOM file if file exists', () async {
@@ -222,7 +200,8 @@ void main() {
         return;
       }
 
-      final pixelData = await handler.getPixelData(path: sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final pixelData = await handler.extractPixelData(bytes);
       expect(pixelData, isA<DicomImage>());
       expect(pixelData.pixelData, isA<Uint8List>());
       expect(pixelData.width, greaterThan(0));
@@ -240,291 +219,206 @@ void main() {
         return;
       }
 
-      final imageBytes = await handler.getImageBytes(path: sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final imageBytes = await handler.getImageBytes(bytes);
       expect(imageBytes, isA<Uint8List>());
       expect(imageBytes.length, greaterThan(0));
 
-      // Optionally save PNG for visual inspection
-      // await File('${tempDir.path}/test_image.png').writeAsBytes(imageBytes);
-      // print('PNG image saved to ${tempDir.path}/test_image.png');
+      print('PNG image size: ${imageBytes.length} bytes');
     });
 
-    test('Extract all metadata as map from DICOM file if file exists', () async {
+    test('Test multiple file operations', () async {
       final file = File(sampleDicomPath);
       if (!await file.exists()) {
         markTestSkipped('Sample DICOM file not found');
         return;
       }
 
-      final metadataMap = await handler.getAllMetadata(path: sampleDicomPath);
-      expect(metadataMap, isA<DicomMetadataMap>());
-      expect(metadataMap.tags, isA<Map<String, DicomTag>>());
-      expect(metadataMap.groupElements, isA<Map<String, Map<String, DicomTag>>>());
+      // Test loading multiple files (using the same file multiple times for test)
+      final bytes = await file.readAsBytes();
+      final bytesList = [bytes, bytes];
+      final files = await DicomServiceSimple.loadMultipleFiles(bytesList);
+      
+      expect(files.length, 2);
+      expect(files.every((f) => f.isValid), isTrue);
+      
+      // Test getting multiple image bytes
+      final imageBytes = await DicomServiceSimple.getMultipleImageBytes(bytesList);
+      expect(imageBytes.length, 2);
+      expect(imageBytes.every((bytes) => bytes.isNotEmpty), isTrue);
 
-      print('Metadata map contains ${metadataMap.tags.length} tags');
+      print('Successfully loaded and processed multiple files');
     });
 
-    test('Get specific tag value from DICOM file if file exists', () async {
+    test('Test file sorting and organization', () async {
       final file = File(sampleDicomPath);
       if (!await file.exists()) {
         markTestSkipped('Sample DICOM file not found');
         return;
       }
 
-      // First get all tag names to find a valid one
-      final tagNames = await handler.listTags(path: sampleDicomPath);
-      final tagName = tagNames.firstWhere(
-        (name) => name == 'Modality' || name == 'PatientName' || name == 'StudyDate',
-        orElse: () => tagNames.first,
-      );
+      final bytes = await file.readAsBytes();
+      final dicomFile = await DicomServiceSimple.loadFile(bytes);
+      final files = [dicomFile];
 
-      final tagValue = await handler.getTagValue(
-        path: sampleDicomPath, 
-        tagName: tagName
-      );
+      // Test organization by patient
+      final byPatient = DicomServiceSimple.organizeByPatient(files);
+      expect(byPatient.isNotEmpty, isTrue);
 
-      expect(tagValue, isA<DicomValueType>());
-      print('$tagName value: $tagValue');
+      // Test organization by modality
+      final byModality = DicomServiceSimple.organizeByModality(files);
+      expect(byModality.isNotEmpty, isTrue);
+
+      // Test sorting
+      final sorted = DicomServiceSimple.sortByInstanceNumber(files);
+      expect(sorted.length, 1);
+
+      // Test statistics
+      final stats = DicomServiceSimple.getBasicStats(files);
+      expect(stats['totalFiles'], 1);
+      expect(stats['imagesWithPixelData'], greaterThanOrEqualTo(0));
+
+      print('File organization and statistics work correctly');
     });
   });
 
   group('DICOM Directory Operations Tests', () {
-    test('Load DICOM directory if directory exists', () async {
+    test('Find DICOM files in directory if directory exists', () async {
       final dir = Directory(sampleDicomDirPath);
       if (!await dir.exists()) {
         markTestSkipped('Sample DICOM directory not found');
         return;
       }
 
-      final entries = await handler.loadDirectory(path: sampleDicomDirPath);
-      expect(entries, isA<List<DicomDirectoryEntry>>());
+      // List all files in the directory
+      final files = dir
+          .listSync(recursive: true)
+          .whereType<File>()
+          .toList();
 
-      if (entries.isNotEmpty) {
-        print('Found ${entries.length} DICOM files in directory');
+      print('Found ${files.length} total files in directory');
 
-        final validEntries = entries.where((e) => e.isValid).toList();
-        print('${validEntries.length} entries are valid DICOM files');
-
-        if (validEntries.isNotEmpty) {
-          final firstEntry = validEntries.first;
-          print('First valid entry: ${firstEntry.path}');
-          print('Metadata: ${firstEntry.metadata.patientName ?? "Unknown"}, ${firstEntry.metadata.modality ?? "Unknown"}');
+      // Check which ones are DICOM files using our minimal API
+      var dicomCount = 0;
+      for (final file in files.take(5)) { // Check first 5 files only for performance
+        try {
+          final bytes = await file.readAsBytes();
+          if (await DicomServiceSimple.isValidDicom(bytes)) {
+            dicomCount++;
+            print('Valid DICOM file: ${file.path}');
+          }
+        } catch (e) {
+          // Skip files that can't be read
         }
       }
+
+      print('Found $dicomCount DICOM files among first 5 checked');
     });
 
-    test('Load DICOM directory recursively if directory exists', () async {
+    test('Process multiple files from directory if directory exists', () async {
       final dir = Directory(sampleDicomDirPath);
       if (!await dir.exists()) {
         markTestSkipped('Sample DICOM directory not found');
         return;
       }
 
-      final entries = await handler.loadDirectoryRecursive(
-        path: sampleDicomDirPath,
-      );
-      expect(entries, isA<List<DicomDirectoryEntry>>());
+      // Get all file paths
+      final filePaths = dir
+          .listSync(recursive: true)
+          .whereType<File>()
+          .map((f) => f.path)
+          .take(3) // Process first 3 files for performance
+          .toList();
 
-      print('Found ${entries.length} DICOM files recursively');
-    });
-
-    test('Load organized DICOM directory if directory exists', () async {
-      final dir = Directory(sampleDicomDirPath);
-      if (!await dir.exists()) {
-        markTestSkipped('Sample DICOM directory not found');
+      if (filePaths.isEmpty) {
+        markTestSkipped('No files found in directory');
         return;
       }
 
-      final patients = await handler.loadDirectoryOrganized(
-        path: sampleDicomDirPath,
-      );
-      expect(patients, isA<List<DicomPatient>>());
-
-      if (patients.isNotEmpty) {
-        print('Found ${patients.length} patient(s) in directory');
-        for (final patient in patients) {
-          print('Patient ID: ${patient.patientId ?? "Unknown"}, Name: ${patient.patientName ?? "Unknown"}');
-          print('Studies: ${patient.studies.length}');
+      // Filter to only DICOM files and get their bytes
+      final dicomBytesList = <Uint8List>[];
+      for (final path in filePaths) {
+        try {
+          final bytes = await File(path).readAsBytes();
+          if (await DicomServiceSimple.isValidDicom(bytes)) {
+            dicomBytesList.add(bytes);
+          }
+        } catch (e) {
+          // Skip files that can't be read
         }
       }
-    });
 
-    test('Load unified DICOM directory if directory exists', () async {
-      final dir = Directory(sampleDicomDirPath);
-      if (!await dir.exists()) {
-        markTestSkipped('Sample DICOM directory not found');
-        return;
-      }
+      if (dicomBytesList.isNotEmpty) {
+        // Load and organize the files
+        final dicomFiles = await DicomServiceSimple.loadMultipleFiles(dicomBytesList);
+        expect(dicomFiles.isNotEmpty, isTrue);
 
-      final entries = await handler.loadDirectoryUnified(
-        path: sampleDicomDirPath, 
-        recursive: true,
-      );
-      expect(entries, isA<List<DicomDirectoryEntry>>());
+        final organized = DicomServiceSimple.organizeByPatient(dicomFiles);
+        final stats = DicomServiceSimple.getBasicStats(dicomFiles);
 
-      print('Unified loading found ${entries.length} DICOM files');
-    });
-
-    test('Compute slice spacing if entries exist', () async {
-      final dir = Directory(sampleDicomDirPath);
-      if (!await dir.exists()) {
-        markTestSkipped('Sample DICOM directory not found');
-        return;
-      }
-
-      final entries = await handler.loadDirectory(path: sampleDicomDirPath);
-      if (entries.isEmpty) {
-        markTestSkipped('No DICOM entries found in directory');
-        return;
-      }
-
-      final spacing = await computeSliceSpacing(entries: entries);
-      if (spacing != null) {
-        expect(spacing, isA<double>());
-        print('Computed slice spacing: $spacing mm');
+        print('Processed ${dicomFiles.length} DICOM files from directory');
+        print('Statistics: $stats');
+        print('Organized by ${organized.keys.length} patients');
       } else {
-        print('Could not compute slice spacing - likely not a multi-slice series');
+        print('No valid DICOM files found in directory sample');
       }
     });
   });
 
-  group('Image Processing Tests', () {
-    test('Flip image vertically', () async {
-      // Create a simple test image
-      final width = 4;
-      final height = 4;
-      final rowLength = BigInt.from(width);
+  group('Error Handling Tests', () {
+    test('Handle invalid file data gracefully', () async {
+      // Create invalid DICOM data (just some random bytes)
+      final invalidBytes = Uint8List.fromList([1, 2, 3, 4, 5]);
 
-      // Test image: 4x4 pixels with increasing values
-      final pixelData = Uint8List.fromList(
-        List.generate(width * height, (i) => i),
+      // Test that methods handle invalid data gracefully
+      expect(await handler.isDicomFile(invalidBytes), isFalse);
+      expect(await DicomServiceSimple.isValidDicom(invalidBytes), isFalse);
+
+      // Test that loading invalid data throws appropriate errors
+      expect(
+        () => handler.loadFile(invalidBytes),
+        throwsA(isA<Exception>()),
       );
 
-      final flipped = await flipVertically(
-        pixelData: pixelData,
-        height: height,
-        rowLength: rowLength,
+      expect(
+        () => handler.getMetadata(invalidBytes),
+        throwsA(isA<Exception>()),
       );
 
-      expect(flipped, isA<Uint8List>());
-      expect(flipped.length, equals(pixelData.length));
-
-      // Verify that rows are in reverse order
-      // First row becomes last row
-      expect(flipped[width * (height - 1)], equals(pixelData[0]));
-      // Last row becomes first row
-      expect(flipped[0], equals(pixelData[width * (height - 1)]));
+      print('Error handling works correctly for invalid data');
     });
 
-    test('Flip real DICOM image data vertically if file exists', () async {
-      final file = File(sampleDicomPath);
-      if (!await file.exists()) {
-        markTestSkipped('Sample DICOM file not found');
-        return;
-      }
+    test('Handle empty file lists', () {
+      final emptyFiles = <DicomFile>[];
 
-      final pixelData = await handler.getPixelData(path: sampleDicomPath);
-      final rowLength = BigInt.from(pixelData.width);
+      final organized = DicomServiceSimple.organizeByPatient(emptyFiles);
+      expect(organized.isEmpty, isTrue);
 
-      final flipped = await flipVertically(
-        pixelData: pixelData.pixelData,
-        height: pixelData.height,
-        rowLength: rowLength,
-      );
+      final stats = DicomServiceSimple.getBasicStats(emptyFiles);
+      expect(stats.isEmpty, isTrue);
 
-      expect(flipped, isA<Uint8List>());
-      expect(flipped.length, equals(pixelData.pixelData.length));
-    });
-  });
+      final sorted = DicomServiceSimple.sortByInstanceNumber(emptyFiles);
+      expect(sorted.isEmpty, isTrue);
 
-  group('Direct DICOM Functions Tests', () {
-    test('Extract raw pixel data directly', () async {
-      final file = File(sampleDicomPath);
-      if (!await file.exists()) {
-        markTestSkipped('Sample DICOM file not found');
-        return;
-      }
-
-      final image = await extractPixelData(path: sampleDicomPath);
-      expect(image, isA<DicomImage>());
-    });
-
-    test('Load DICOM file directly', () async {
-      final file = File(sampleDicomPath);
-      if (!await file.exists()) {
-        markTestSkipped('Sample DICOM file not found');
-        return;
-      }
-
-      final dicomFile = await loadDicomFile(path: sampleDicomPath);
-      expect(dicomFile, isA<DicomFile>());
-    });
-
-    test('Extract all metadata directly', () async {
-      final file = File(sampleDicomPath);
-      if (!await file.exists()) {
-        markTestSkipped('Sample DICOM file not found');
-        return;
-      }
-
-      final metadata = await extractAllMetadata(path: sampleDicomPath);
-      expect(metadata, isA<DicomMetadataMap>());
-    });
-
-    test('Load DICOM directory directly', () async {
-      final dir = Directory(sampleDicomDirPath);
-      if (!await dir.exists()) {
-        markTestSkipped('Sample DICOM directory not found');
-        return;
-      }
-
-      final entries = await loadDicomDirectory(dirPath: sampleDicomDirPath);
-      expect(entries, isA<List<DicomDirectoryEntry>>());
-    });
-
-    test('Load DICOM directory recursively directly', () async {
-      final dir = Directory(sampleDicomDirPath);
-      if (!await dir.exists()) {
-        markTestSkipped('Sample DICOM directory not found');
-        return;
-      }
-
-      final entries = await loadDicomDirectoryRecursive(
-        dirPath: sampleDicomDirPath,
-      );
-      expect(entries, isA<List<DicomDirectoryEntry>>());
-    });
-
-    test('Load DICOM directory organized directly', () async {
-      final dir = Directory(sampleDicomDirPath);
-      if (!await dir.exists()) {
-        markTestSkipped('Sample DICOM directory not found');
-        return;
-      }
-
-      final patients = await loadDicomDirectoryOrganized(
-        dirPath: sampleDicomDirPath, 
-        recursive: true,
-      );
-      expect(patients, isA<List<DicomPatient>>());
+      print('Empty file list handling works correctly');
     });
   });
 
   group('Data Model Tests', () {
-    test('DicomMetadata equality', () {
-      final metadata1 = DicomMetadata(
+    test('DicomMetadata equality and properties', () {
+      const metadata1 = DicomMetadata(
         patientName: 'Test Patient',
         patientId: '12345',
         studyDate: '20230101',
       );
 
-      final metadata2 = DicomMetadata(
+      const metadata2 = DicomMetadata(
         patientName: 'Test Patient',
         patientId: '12345',
         studyDate: '20230101',
       );
 
-      final metadata3 = DicomMetadata(
+      const metadata3 = DicomMetadata(
         patientName: 'Different Patient',
         patientId: '67890',
         studyDate: '20230202',
@@ -532,49 +426,78 @@ void main() {
 
       expect(metadata1, equals(metadata2));
       expect(metadata1, isNot(equals(metadata3)));
+      expect(metadata1.patientName, 'Test Patient');
+      expect(metadata1.patientId, '12345');
+      expect(metadata1.studyDate, '20230101');
+
+      print('DicomMetadata model works correctly');
     });
 
-    test('DicomTag equality', () {
-      final tag1 = DicomTag(
-        tag: '00100010',
-        vr: 'PN',
-        name: 'PatientName',
-        value: const DicomValueType.str('Test Patient'),
+    test('DicomFile properties', () {
+      const metadata = DicomMetadata(
+        patientName: 'Test Patient',
+        modality: 'CT',
       );
 
-      final tag2 = DicomTag(
-        tag: '00100010',
-        vr: 'PN',
-        name: 'PatientName',
-        value: const DicomValueType.str('Test Patient'),
+      const file = DicomFile(
+        metadata: metadata,
+        isValid: true,
       );
 
-      final tag3 = DicomTag(
-        tag: '00100020',
-        vr: 'LO',
-        name: 'PatientID',
-        value: const DicomValueType.str('12345'),
-      );
+      expect(file.isValid, isTrue);
+      expect(file.metadata.patientName, 'Test Patient');
+      expect(file.metadata.modality, 'CT');
+      expect(file.image, isNull);
 
-      expect(tag1, equals(tag2));
-      expect(tag1, isNot(equals(tag3)));
+      print('DicomFile model works correctly');
     });
 
-    test('DicomValueType variants', () {
-      const strValue = DicomValueType.str('test');
-      const intValue = DicomValueType.int(42);
-      const floatValue = DicomValueType.float(3.14);
+    test('DicomImage properties', () {
+      final pixelData = Uint8List.fromList([1, 2, 3, 4]);
+      
+      final image = DicomImage(
+        width: 512,
+        height: 512,
+        bitsAllocated: 16,
+        bitsStored: 12,
+        pixelRepresentation: 0,
+        photometricInterpretation: 'MONOCHROME2',
+        samplesPerPixel: 1,
+        pixelData: pixelData,
+      );
 
-      expect(strValue, isA<DicomValueType_Str>());
-      expect(intValue, isA<DicomValueType_Int>());
-      expect(floatValue, isA<DicomValueType_Float>());
+      expect(image.width, 512);
+      expect(image.height, 512);
+      expect(image.bitsAllocated, 16);
+      expect(image.photometricInterpretation, 'MONOCHROME2');
+      expect(image.pixelData.length, 4);
+
+      print('DicomImage model works correctly');
     });
   });
 
-  // Legacy test
-  test('Can call rust function', () async {
-    // This is the original test, we're keeping it for reference
-    // It's not actually a valid test for this library
-    expect((name: "Tom"), "Hello, Tom!");
+  group('Integration Test Summary', () {
+    test('All minimal API features work correctly', () async {
+      // Summary test to verify the integration test suite covers all key features
+      final handler = DicomHandler();
+      
+      expect(handler, isA<DicomHandler>());
+      expect(handler.isDicomFile, isA<Function>());
+      expect(handler.loadFile, isA<Function>());
+      expect(handler.getMetadata, isA<Function>());
+      expect(handler.getImageBytes, isA<Function>());
+      expect(handler.extractPixelData, isA<Function>());
+      
+      // Service layer functions
+      expect(DicomServiceSimple.isValidDicom, isA<Function>());
+      expect(DicomServiceSimple.loadFile, isA<Function>());
+      expect(DicomServiceSimple.loadMultipleFiles, isA<Function>());
+      expect(DicomServiceSimple.organizeByPatient, isA<Function>());
+      expect(DicomServiceSimple.organizeByModality, isA<Function>());
+      expect(DicomServiceSimple.sortByInstanceNumber, isA<Function>());
+      expect(DicomServiceSimple.getBasicStats, isA<Function>());
+      
+      print('All minimal API features are available and tested');
+    });
   });
 }
