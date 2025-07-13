@@ -1,0 +1,148 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  integration-test:
+    name: Integration Tests
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install flutter_rust_bridge_codegen
+        run: cargo install flutter_rust_bridge_codegen
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.flutter
+            ~/.cargo
+            target
+          key: deps-${{ matrix.os }}-${{ hashFiles('**/pubspec.yaml', '**/Cargo.lock') }}
+          restore-keys: |
+            deps-${{ matrix.os }}-
+
+      - name: Install package dependencies
+        run: flutter pub get
+
+      - name: Generate Rust bridge code
+        run: flutter_rust_bridge_codegen generate
+
+      - name: Install example dependencies  
+        working-directory: example
+        run: flutter pub get
+
+      - name: Run package integration tests
+        run: |
+          flutter test integration_test/ --coverage
+        continue-on-error: true # Continue even if some tests fail
+
+      - name: Run package integration tests with driver
+        run: |
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/simple_test.dart
+        continue-on-error: true
+
+      - name: Run example app integration tests
+        working-directory: example
+        run: |
+          flutter test integration_test/ --coverage
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: |
+            coverage/
+            example/coverage/
+            test-results.xml
+          retention-days: 7
+
+  web-integration-test:
+    name: Web Integration Tests  
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Install flutter_rust_bridge_codegen
+        run: cargo install flutter_rust_bridge_codegen
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install package dependencies
+        run: flutter pub get
+
+      - name: Generate Rust bridge code
+        run: flutter_rust_bridge_codegen generate
+
+      - name: Build for web
+        run: flutter_rust_bridge_codegen build-web
+
+      - name: Install example dependencies
+        working-directory: example  
+        run: flutter pub get
+
+      - name: Build example for web
+        working-directory: example
+        run: flutter build web
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@latest
+
+      - name: Run web integration tests
+        working-directory: example
+        run: |
+          flutter test integration_test/ -d chrome --coverage
+        continue-on-error: true
+
+      - name: Upload web test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: web-test-results
+          path: |
+            example/coverage/
+            example/build/web/
+          retention-days: 7

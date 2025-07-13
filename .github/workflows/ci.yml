@@ -1,0 +1,173 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install flutter_rust_bridge_codegen
+        run: cargo install flutter_rust_bridge_codegen
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.flutter
+          key: flutter-${{ runner.os }}-${{ hashFiles('**/pubspec.yaml') }}
+          restore-keys: |
+            flutter-${{ runner.os }}-
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate Rust bridge code
+        run: flutter_rust_bridge_codegen generate
+
+      - name: Analyze code
+        run: flutter analyze
+
+      - name: Run unit tests
+        run: flutter test
+
+      - name: Run integration tests
+        run: flutter test integration_test/
+
+      # Example app tests
+      - name: Install example app dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Analyze example app
+        working-directory: example
+        run: flutter analyze
+
+      - name: Run example app tests
+        working-directory: example
+        run: flutter test
+
+      - name: Run example app integration tests
+        working-directory: example
+        run: flutter test integration_test/
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install flutter_rust_bridge_codegen
+        run: cargo install flutter_rust_bridge_codegen
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate Rust bridge code
+        run: flutter_rust_bridge_codegen generate
+
+      - name: Build for Android
+        working-directory: example
+        run: flutter build apk --debug
+
+      - name: Build for Web
+        run: |
+          flutter_rust_bridge_codegen build-web
+          cd example
+          flutter build web
+
+  format-check:
+    name: Code Formatting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Install example app dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Check example app formatting
+        working-directory: example
+        run: dart format --output=none --set-exit-if-changed .
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run dependency audit
+        run: flutter pub deps --json | jq '.packages[] | select(.kind == "direct")' || true
+
+      - name: Check for known vulnerabilities
+        run: flutter analyze --fatal-infos

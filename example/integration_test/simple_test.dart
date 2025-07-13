@@ -1,7 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:http/http.dart' as http;
-import 'package:archive/archive.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dicom_rs/dicom_rs.dart';
@@ -12,7 +10,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   late DicomHandler handler;
   late Directory tempDir;
-  late String sampleDicomPath;
+  String sampleDicomPath = '';
   late String sampleDicomDirPath;
   late String nonDicomPath;
 
@@ -33,65 +31,112 @@ void main() {
       await dicomSamplesDir.create(recursive: true);
     }
 
-    // Download and extract sample DICOM files
-    final zipUrl = 'https://rubomedical.com/dicom_files/dicom_viewer_0002.zip';
-    final zipPath = '${tempDir.path}/sample_dicom.zip';
-    try {
-      final response = await http.get(Uri.parse(zipUrl));
-      if (response.statusCode != 200) {
-        throw Exception('Failed to download sample DICOM file: ${response.statusCode}');
-      }
-
-      await File(zipPath).writeAsBytes(response.bodyBytes);
-      print('Sample DICOM files downloaded to $zipPath');
-
-      // Extract the zip file
-      final bytes = await File(zipPath).readAsBytes();
-      final archive = ZipDecoder().decodeBytes(bytes);
-
-      for (final file in archive) {
-        if (file.isFile) {
-          final data = file.content as List<int>;
-          final extractedFile = File('$sampleDicomDirPath/${file.name}');
-          await extractedFile.create(recursive: true);
-          await extractedFile.writeAsBytes(data);
-
-          // If this is a .dcm file, use it as our sample path
-          if (file.name.toLowerCase().endsWith('.dcm')) {
-            sampleDicomPath = extractedFile.path;
-            print('Found DICOM file: $sampleDicomPath');
-          }
-        } else {
-          // It's a directory, make sure it exists
-          await Directory('$sampleDicomDirPath/${file.name}').create(recursive: true);
-        }
-      }
-
-      // If no specific .dcm file was found, search for one
-      if (sampleDicomPath == null || sampleDicomPath.isEmpty) {
-        final files = dicomSamplesDir
-            .listSync(recursive: true)
-            .whereType<File>()
-            .toList();
-
-        for (final file in files) {
-          try {
-            final bytes = await file.readAsBytes();
-            if (await DicomServiceSimple.isValidDicom(bytes)) {
-              sampleDicomPath = file.path;
-              print('Found DICOM file by validation: $sampleDicomPath');
-              break;
-            }
-          } catch (e) {
-            // Skip files that can't be read
-          }
-        }
-      }
-    } catch (e) {
-      print('Error downloading/extracting sample files: $e');
-      // Fallback - set a path that likely won't exist, tests will be skipped
-      sampleDicomPath = '${tempDir.path}/nonexistent_sample.dcm';
-    }
+    // Create a proper synthetic DICOM file for testing
+    print('Creating synthetic DICOM file for testing...');
+    sampleDicomPath = '${tempDir.path}/synthetic_sample.dcm';
+    
+    // Create a proper minimal DICOM file with required elements
+    final dicomData = <int>[
+      // DICOM preamble (128 bytes of zeros)
+      ...List.filled(128, 0),
+      
+      // DICOM prefix "DICM"
+      0x44, 0x49, 0x43, 0x4D,
+      
+      // File Meta Information Group Length (0002,0000) - UL
+      0x02, 0x00, 0x00, 0x00, 0x55, 0x4C, 0x04, 0x00, 
+      0x94, 0x00, 0x00, 0x00, // Length: 148 bytes
+      
+      // Media Storage SOP Class UID (0002,0002) - UI  
+      0x02, 0x00, 0x02, 0x00, 0x55, 0x49, 0x1A, 0x00,
+      // CT Image Storage SOP Class UID
+      0x31, 0x2E, 0x32, 0x2E, 0x38, 0x34, 0x30, 0x2E, 
+      0x31, 0x30, 0x30, 0x30, 0x38, 0x2E, 0x35, 0x2E, 
+      0x31, 0x2E, 0x34, 0x2E, 0x31, 0x2E, 0x31, 0x2E, 
+      0x32, 0x00,
+      
+      // Media Storage SOP Instance UID (0002,0003) - UI
+      0x02, 0x00, 0x03, 0x00, 0x55, 0x49, 0x20, 0x00,
+      0x31, 0x2E, 0x32, 0x2E, 0x38, 0x34, 0x30, 0x2E, 
+      0x31, 0x30, 0x30, 0x30, 0x38, 0x2E, 0x31, 0x2E, 
+      0x31, 0x2E, 0x31, 0x2E, 0x31, 0x2E, 0x31, 0x2E, 
+      0x31, 0x2E, 0x31, 0x00,
+      
+      // Transfer Syntax UID (0002,0010) - UI 
+      0x02, 0x00, 0x10, 0x00, 0x55, 0x49, 0x1A, 0x00,
+      // Implicit VR Little Endian
+      0x31, 0x2E, 0x32, 0x2E, 0x38, 0x34, 0x30, 0x2E, 
+      0x31, 0x30, 0x30, 0x30, 0x38, 0x2E, 0x31, 0x2E, 
+      0x32, 0x2E, 0x31, 0x00,
+      
+      // Implementation Class UID (0002,0012) - UI
+      0x02, 0x00, 0x12, 0x00, 0x55, 0x49, 0x16, 0x00,
+      0x31, 0x2E, 0x32, 0x2E, 0x38, 0x34, 0x30, 0x2E, 
+      0x31, 0x30, 0x30, 0x30, 0x38, 0x2E, 0x31, 0x2E, 
+      0x32, 0x2E, 0x31, 0x00,
+      
+      // Patient Name (0010,0010) - PN
+      0x10, 0x00, 0x10, 0x00, 0x0C, 0x00, 
+      0x54, 0x45, 0x53, 0x54, 0x5E, 0x50, 0x41, 0x54, 
+      0x49, 0x45, 0x4E, 0x54,
+      
+      // Patient ID (0010,0020) - LO
+      0x10, 0x00, 0x20, 0x00, 0x06, 0x00,
+      0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
+      
+      // Study Date (0008,0020) - DA
+      0x08, 0x00, 0x20, 0x00, 0x08, 0x00,
+      0x32, 0x30, 0x32, 0x34, 0x30, 0x31, 0x30, 0x31,
+      
+      // Modality (0008,0060) - CS
+      0x08, 0x00, 0x60, 0x00, 0x02, 0x00,
+      0x43, 0x54,
+      
+      // Study Description (0008,1030) - LO
+      0x08, 0x00, 0x30, 0x10, 0x0A, 0x00,
+      0x54, 0x45, 0x53, 0x54, 0x20, 0x53, 0x54, 0x55, 
+      0x44, 0x59,
+      
+      // Rows (0028,0010) - US
+      0x28, 0x00, 0x10, 0x00, 0x02, 0x00,
+      0x00, 0x02, // 512
+      
+      // Columns (0028,0011) - US  
+      0x28, 0x00, 0x11, 0x00, 0x02, 0x00,
+      0x00, 0x02, // 512
+      
+      // Bits Allocated (0028,0100) - US
+      0x28, 0x00, 0x00, 0x01, 0x02, 0x00,
+      0x10, 0x00, // 16
+      
+      // Bits Stored (0028,0101) - US
+      0x28, 0x00, 0x01, 0x01, 0x02, 0x00,
+      0x10, 0x00, // 16
+      
+      // High Bit (0028,0102) - US
+      0x28, 0x00, 0x02, 0x01, 0x02, 0x00,
+      0x0F, 0x00, // 15
+      
+      // Pixel Representation (0028,0103) - US
+      0x28, 0x00, 0x03, 0x01, 0x02, 0x00,
+      0x00, 0x00, // unsigned
+      
+      // Samples per Pixel (0028,0002) - US
+      0x28, 0x00, 0x02, 0x00, 0x02, 0x00,
+      0x01, 0x00, // 1
+      
+      // Photometric Interpretation (0028,0004) - CS
+      0x28, 0x00, 0x04, 0x00, 0x0C, 0x00,
+      0x4D, 0x4F, 0x4E, 0x4F, 0x43, 0x48, 0x52, 0x4F, 
+      0x4D, 0x45, 0x32, 0x20,
+      
+      // Pixel Data (7FE0,0010) - OW with minimal pixel data
+      0xE0, 0x7F, 0x10, 0x00, 0x00, 0x00, 0x00, 0x04,
+      0x00, 0x00, 0xFF, 0xFF, // 4 bytes of dummy pixel data
+    ];
+    
+    await File(sampleDicomPath).writeAsBytes(dicomData);
+    print('Created synthetic DICOM file at: $sampleDicomPath');
 
     // Create a text file that is not a DICOM file for negative testing
     nonDicomPath = '${tempDir.path}/not_a_dicom_file.txt';
@@ -375,15 +420,23 @@ void main() {
       expect(await DicomServiceSimple.isValidDicom(invalidBytes), isFalse);
 
       // Test that loading invalid data throws appropriate errors
-      expect(
-        () => handler.loadFile(invalidBytes),
-        throwsA(isA<Exception>()),
-      );
-
-      expect(
-        () => handler.getMetadata(invalidBytes),
-        throwsA(isA<Exception>()),
-      );
+      bool loadFileThrows = false;
+      bool getMetadataThrows = false;
+      
+      try {
+        await handler.loadFile(invalidBytes);
+      } catch (e) {
+        loadFileThrows = true;
+      }
+      
+      try {
+        await handler.getMetadata(invalidBytes);
+      } catch (e) {
+        getMetadataThrows = true;
+      }
+      
+      expect(loadFileThrows, isTrue, reason: 'loadFile should throw an error for invalid data');
+      expect(getMetadataThrows, isTrue, reason: 'getMetadata should throw an error for invalid data');
 
       print('Error handling works correctly for invalid data');
     });

@@ -1,9 +1,18 @@
 name: dicom_rs
-description: "A minimal, efficient Flutter package for DICOM file handling using Rust backend."
+description: "A high-performance Flutter package for DICOM file handling using Rust backend. Fast, memory-efficient, and cross-platform DICOM operations optimized for production medical applications."
 version: 0.1.0
-homepage: https://github.com/yourusername/dicom_rs
-repository: https://github.com/yourusername/dicom_rs
-issue_tracker: https://github.com/yourusername/dicom_rs/issues
+homepage: https://github.com/abdelaziz-mahdy/dicom_rs
+repository: https://github.com/abdelaziz-mahdy/dicom_rs
+issue_tracker: https://github.com/abdelaziz-mahdy/dicom_rs/issues
+documentation: https://github.com/abdelaziz-mahdy/dicom_rs/blob/main/README.md
+
+topics:
+  - dicom
+  - medical-imaging
+  - healthcare
+  - rust
+  - cross-platform
+  - image-processing
 
 environment:
   sdk: ^3.7.0
