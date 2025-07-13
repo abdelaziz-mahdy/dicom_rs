@@ -1,33 +1,43 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
 /// Service to handle platform-specific file selection
 class FileSelectorService {
-  /// Select DICOM files or directory based on platform capabilities
-  /// Returns a FileSelectorResult with either directory path or file list
+  /// Select multiple DICOM files using the universal file picker
+  /// Returns a FileSelectorResult with file data for cross-platform compatibility
   static Future<FileSelectorResult?> selectDicomFiles() async {
-    if (kIsWeb) {
-      // Web: Select multiple files
-      final result = await FilePicker.platform.pickFiles(
-        dialogTitle: 'Select DICOM Files',
-        type: FileType.custom,
-        allowedExtensions: ['dcm', 'dicom', 'ima', 'DICOM'],
-        allowMultiple: true,
-      );
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Select DICOM Files',
+      type: FileType.custom,
+      allowedExtensions: ['dcm', 'dicom', 'ima', 'DICOM'],
+      allowMultiple: true,
+      withReadStream: false, // Use bytes instead of streams for better performance
+      withData: true,
+    );
 
-      if (result != null && result.files.isNotEmpty) {
-        return FileSelectorResult.files(result.files);
+    if (result != null && result.files.isNotEmpty) {
+      // Convert PlatformFiles to DicomFileData with bytes
+      final dicomFiles = <DicomFileData>[];
+      for (final file in result.files) {
+        Uint8List bytes;
+        if (file.bytes != null) {
+          bytes = file.bytes!;
+        } else if (file.path != null) {
+          // Read file bytes on native platforms
+          bytes = await File(file.path!).readAsBytes();
+        } else {
+          continue; // Skip if no bytes or path
+        }
+        
+        dicomFiles.add(DicomFileData(
+          name: file.name,
+          bytes: bytes,
+        ));
       }
-    } else {
-      // Native: Select directory
-      final result = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: 'Select DICOM Directory',
-      );
-
-      if (result != null) {
-        return FileSelectorResult.directory(result);
-      }
+      return FileSelectorResult.files(dicomFiles);
     }
     return null;
   }
@@ -35,69 +45,83 @@ class FileSelectorService {
   /// Select a single DICOM file (works on all platforms)
   static Future<FileSelectorResult?> selectSingleDicomFile() async {
     final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Select DICOM File',
+      dialogTitle: 'Select Single DICOM File',
       type: FileType.custom,
       allowedExtensions: ['dcm', 'dicom', 'ima', 'DICOM'],
       allowMultiple: false,
+      withReadStream: false, // Use bytes instead of streams
+      withData: true,
     );
 
     if (result != null && result.files.isNotEmpty) {
-      return FileSelectorResult.files(result.files);
+      // Convert PlatformFiles to DicomFileData
+      final dicomFiles = <DicomFileData>[];
+      for (final file in result.files) {
+        Uint8List bytes;
+        if (file.bytes != null) {
+          bytes = file.bytes!;
+        } else if (file.path != null) {
+          // Read file bytes on native platforms
+          bytes = await File(file.path!).readAsBytes();
+        } else {
+          continue; // Skip if no bytes or path
+        }
+        dicomFiles.add(DicomFileData(
+          name: file.name,
+          bytes: bytes,
+        ));
+      }
+      return FileSelectorResult.files(dicomFiles);
     }
     return null;
   }
 
-  /// Get platform-specific UI configuration
+  /// Get universal file selection UI configuration
+  /// Now consistent across all platforms for better UX
   static FileSelectorUIConfig getUIConfig() {
-    if (kIsWeb) {
-      return const FileSelectorUIConfig(
-        primaryIcon: Icons.file_open_rounded,
-        primaryLabel: 'Select DICOM Files',
-        primaryTooltip: 'Select DICOM files',
-        helpText: 'Select DICOM files',
-        actionDescription: 'selecting multiple files',
-      );
-    } else {
-      return const FileSelectorUIConfig(
-        primaryIcon: Icons.folder_open_rounded,
-        primaryLabel: 'Open DICOM Directory',
-        primaryTooltip: 'Open DICOM directory',
-        helpText: 'Open DICOM directory',
-        actionDescription: 'opening a directory',
-      );
-    }
+    return const FileSelectorUIConfig(
+      primaryIcon: Icons.file_open_rounded,
+      primaryLabel: 'Select DICOM Files',
+      primaryTooltip: 'Select one or more DICOM files to view',
+      helpText: 'Select DICOM files to get started',
+      actionDescription: 'selecting DICOM files',
+    );
   }
 }
 
-/// Result of file selection operation
+/// DICOM file data with bytes
+class DicomFileData {
+  final String name;
+  final Uint8List bytes;
+
+  const DicomFileData({
+    required this.name,
+    required this.bytes,
+  });
+}
+
+/// Result of file selection operation (file-only)
 class FileSelectorResult {
-  final String? directoryPath;
-  final List<PlatformFile>? files;
-  final bool isDirectory;
+  final List<DicomFileData> files;
 
   const FileSelectorResult._({
-    this.directoryPath,
-    this.files,
-    required this.isDirectory,
+    required this.files,
   });
 
-  /// Create result for directory selection
-  factory FileSelectorResult.directory(String path) {
-    return FileSelectorResult._(directoryPath: path, isDirectory: true);
-  }
-
   /// Create result for file selection
-  factory FileSelectorResult.files(List<PlatformFile> files) {
-    return FileSelectorResult._(files: files, isDirectory: false);
+  factory FileSelectorResult.files(List<DicomFileData> files) {
+    return FileSelectorResult._(files: files);
   }
 
   /// Check if result has valid content
-  bool get hasContent =>
-      (isDirectory && directoryPath != null) ||
-      (!isDirectory && files != null && files!.isNotEmpty);
+  bool get hasContent => files.isNotEmpty;
+
+  /// For backward compatibility - always false now
+  bool get isDirectory => false;
 }
 
-/// UI configuration for platform-specific file selection
+/// UI configuration for universal file selection
+/// Provides consistent messaging across all platforms
 class FileSelectorUIConfig {
   final IconData primaryIcon;
   final String primaryLabel;

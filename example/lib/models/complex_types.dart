@@ -1,29 +1,47 @@
 import 'dart:typed_data';
 import 'package:dicom_rs/dicom_rs.dart';
+import '../services/file_selector_service.dart';
 
 /// Complex types that build on top of the minimal API
 /// These provide the rich functionality needed for the complex example app
 
 /// Enhanced directory entry that includes validation and metadata
 class DicomDirectoryEntry {
-  final String path;
+  final Uint8List bytes; // Required - the actual DICOM data
+  final String name; // Required - filename for display
   final DicomMetadata metadata;
   final bool isValid;
   final DicomImage? image;
 
   const DicomDirectoryEntry({
-    required this.path,
+    required this.bytes,
+    required this.name,
     required this.metadata,
     required this.isValid,
     this.image,
   });
 
-  factory DicomDirectoryEntry.fromDicomFile(DicomFile file) {
+  factory DicomDirectoryEntry.fromDicomFile(DicomFile file, {
+    required Uint8List bytes,
+    required String name,
+  }) {
     return DicomDirectoryEntry(
-      path: file.path,
+      bytes: bytes,
+      name: name,
       metadata: file.metadata,
       isValid: file.isValid,
       image: file.image,
+    );
+  }
+
+  /// Create from DicomFileData (preferred constructor)
+  factory DicomDirectoryEntry.fromDicomFileData(DicomFileData fileData, DicomFile dicomFile) {
+    return DicomDirectoryEntry(
+      bytes: fileData.bytes,
+      name: fileData.name,
+      metadata: dicomFile.metadata,
+      isValid: dicomFile.isValid,
+      image: dicomFile.image,
     );
   }
 
@@ -35,6 +53,10 @@ class DicomDirectoryEntry {
   
   // For volume viewer compatibility - simulated pixel data
   Uint8List? get data => image?.pixelData;
+  
+  // For sorting and display compatibility
+  String get displayName => name;
+  String get sortKey => name; // Use name instead of path for sorting
 }
 
 /// Enhanced metadata map with grouped elements and tag access

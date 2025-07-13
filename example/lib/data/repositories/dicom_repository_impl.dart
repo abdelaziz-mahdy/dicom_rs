@@ -7,6 +7,7 @@ import '../../core/result.dart';
 import '../../domain/entities/dicom_image_entity.dart';
 import '../../domain/repositories/dicom_repository.dart';
 import '../../services/enhanced_dicom_service.dart';
+import '../../services/file_selector_service.dart';
 import '../mappers/dicom_mapper.dart';
 
 /// Implementation of DicomRepository using dicom_rs package
@@ -16,16 +17,17 @@ class DicomRepositoryImpl implements DicomRepository {
 
   final DicomHandler _handler;
 
+  /// Load DICOM files from DicomFileData list (bytes-based)
   @override
-  Future<Result<List<DicomImageEntity>>> loadDirectory({
-    required String path,
-    bool recursive = false,
+  Future<Result<List<DicomImageEntity>>> loadFromFileDataList({
+    required List<DicomFileData> fileDataList,
+    bool recursive = false, // Ignored - file data already contains all files
   }) async {
     try {
-      // Use the optimized enhanced service for fast directory loading
+      // Use the optimized enhanced service for fast loading
       final service = EnhancedDicomService();
-      final entries = await service.loadDirectoryUnified(
-        path: path,
+      final entries = await service.loadUnifiedFromFileData(
+        fileDataList: fileDataList,
         recursive: recursive,
       );
 
@@ -34,40 +36,46 @@ class DicomRepositoryImpl implements DicomRepository {
 
       return Success(entities);
     } catch (e) {
-      return Failure('Failed to load directory: $e');
+      return Failure('Failed to load files: $e');
     }
   }
 
+  /// Get metadata from bytes directly (preferred method)
   @override
-  Future<Result<DicomMetadataEntity>> getMetadata(String path) async {
+  Future<Result<DicomMetadataEntity>> getMetadataFromBytes(Uint8List bytes) async {
     try {
-      final metadata = await _handler.getMetadata(path);
+      final metadata = await _handler.getMetadata(bytes);
       final entity = DicomMapper.fromMetadata(metadata);
       return Success(entity);
     } catch (e) {
       return Failure('Failed to get metadata: $e');
     }
   }
+  
 
+  /// Get image data from bytes directly (preferred method)
   @override
-  Future<Result<Uint8List>> getImageData(String path) async {
+  Future<Result<Uint8List>> getImageDataFromBytes(Uint8List dicomBytes) async {
     try {
-      final imageBytes = await _handler.getImageBytes(path);
+      final imageBytes = await _handler.getImageBytes(dicomBytes);
       return Success(imageBytes);
     } catch (e) {
       return Failure('Failed to get image data: $e');
     }
   }
+  
 
+  /// Validate DICOM from bytes directly (preferred method)
   @override
-  Future<Result<bool>> isValidDicom(String path) async {
+  Future<Result<bool>> isValidDicomFromBytes(Uint8List bytes) async {
     try {
-      final isValid = await _handler.isDicomFile(path);
+      final isValid = await _handler.isDicomFile(bytes);
       return Success(isValid);
     } catch (e) {
       return Failure('Failed to validate DICOM file: $e');
     }
   }
+  
 
   @override
   Future<Result<Uint8List>> getProcessedImage({

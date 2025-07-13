@@ -5,61 +5,61 @@ import 'dart:typed_data';
 class DicomServiceSimple {
   static final DicomHandler _handler = DicomHandler();
 
-  /// Check if a file is a valid DICOM file
-  static Future<bool> isValidDicom(String path) async {
-    return await _handler.isDicomFile(path);
+  /// Check if bytes represent a valid DICOM file
+  static Future<bool> isValidDicom(Uint8List bytes) async {
+    return await _handler.isDicomFile(bytes);
   }
 
   /// Load DICOM metadata only (faster than full load)
-  static Future<DicomMetadata> loadMetadata(String path) async {
-    return await _handler.getMetadata(path);
+  static Future<DicomMetadata> loadMetadata(Uint8List bytes) async {
+    return await _handler.getMetadata(bytes);
   }
 
   /// Load complete DICOM file with metadata and image
-  static Future<DicomFile> loadFile(String path) async {
-    return await _handler.loadFile(path);
+  static Future<DicomFile> loadFile(Uint8List bytes) async {
+    return await _handler.loadFile(bytes);
   }
 
   /// Get image bytes ready for display (PNG format)
-  static Future<Uint8List> getImageBytes(String path) async {
-    return await _handler.getImageBytes(path);
+  static Future<Uint8List> getImageBytes(Uint8List dicomBytes) async {
+    return await _handler.getImageBytes(dicomBytes);
   }
 
   /// Get raw pixel data for custom processing
-  static Future<DicomImage> getPixelData(String path) async {
-    return await _handler.extractPixelData(path);
+  static Future<DicomImage> getPixelData(Uint8List bytes) async {
+    return await _handler.extractPixelData(bytes);
   }
 
-  /// Load multiple DICOM files from a list of paths
-  static Future<List<DicomFile>> loadMultipleFiles(List<String> paths) async {
+  /// Load multiple DICOM files from bytes
+  static Future<List<DicomFile>> loadMultipleFiles(List<Uint8List> dicomBytesLit) async {
     final List<DicomFile> files = [];
     
-    for (final path in paths) {
+    for (final bytes in dicomBytesLit) {
       try {
-        if (await isValidDicom(path)) {
-          final file = await loadFile(path);
+        if (await isValidDicom(bytes)) {
+          final file = await loadFile(bytes);
           files.add(file);
         }
       } catch (e) {
-        print('Failed to load DICOM file $path: $e');
+        // Skip invalid files
       }
     }
     
     return files;
   }
 
-  /// Get image bytes for multiple files
-  static Future<List<Uint8List>> getMultipleImageBytes(List<String> paths) async {
+  /// Get image bytes for multiple DICOM files
+  static Future<List<Uint8List>> getMultipleImageBytes(List<Uint8List> dicomBytesLit) async {
     final List<Uint8List> images = [];
     
-    for (final path in paths) {
+    for (final dicomBytes in dicomBytesLit) {
       try {
-        if (await isValidDicom(path)) {
-          final imageBytes = await getImageBytes(path);
+        if (await isValidDicom(dicomBytes)) {
+          final imageBytes = await getImageBytes(dicomBytes);
           images.add(imageBytes);
         }
       } catch (e) {
-        print('Failed to get image bytes for $path: $e');
+        // Skip invalid files
       }
     }
     
@@ -108,8 +108,10 @@ class DicomServiceSimple {
         return aLocation.compareTo(bLocation);
       }
 
-      // Finally by filename as fallback
-      return a.path.compareTo(b.path);
+      // Finally by SOP Instance UID as fallback
+      final aUid = a.metadata.sopInstanceUid ?? '';
+      final bUid = b.metadata.sopInstanceUid ?? '';
+      return aUid.compareTo(bUid);
     });
     return sortedFiles;
   }

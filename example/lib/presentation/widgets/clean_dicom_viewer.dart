@@ -546,10 +546,6 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     );
   }
 
-  // Public API for external control
-  Future<void> loadDirectory(String path, {bool recursive = false}) async {
-    await _controller.loadDirectory(path, recursive: recursive);
-  }
 
   void reset() {
     _controller.reset();

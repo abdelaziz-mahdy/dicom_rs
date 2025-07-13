@@ -85,13 +85,11 @@ class DicomImage {
 
 /// Complete DICOM file representation
 class DicomFile {
-  final String path;
   final DicomMetadata metadata;
   final DicomImage? image;
   final bool isValid;
 
   const DicomFile({
-    required this.path,
     required this.metadata,
     this.image,
     required this.isValid,
@@ -104,37 +102,47 @@ class DicomFile {
 
   @override
   String toString() {
-    return 'DicomFile(path: $path, isValid: $isValid, hasImage: ${image != null})';
+    return 'DicomFile(isValid: $isValid, hasImage: ${image != null})';
   }
 }
 
 /// Main interface for DICOM operations (minimal package API)
 class DicomHandler {
   static const DicomHandler _instance = DicomHandler._internal();
+  static rust.DicomHandler? _rustHandler;
   
   const DicomHandler._internal();
   
   /// Get the singleton instance
   factory DicomHandler() => _instance;
+  
+  /// Initialize the Rust handler (called automatically)
+  static Future<rust.DicomHandler> _getRustHandler() async {
+    _rustHandler ??= await rust.DicomHandler.newInstance();
+    return _rustHandler!;
+  }
 
-  /// Check if a file is a valid DICOM file
+  /// Check if bytes represent a valid DICOM file
   /// 
-  /// This is the fastest way to validate DICOM files without parsing the entire content.
+  /// This is the fastest way to validate DICOM data without parsing the entire content.
   /// 
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
-  /// bool isValid = await handler.isDicomFile('/path/to/file.dcm');
+  /// final bytes = await File('/path/to/file.dcm').readAsBytes();
+  /// bool isValid = await handler.isDicomFile(bytes);
   /// ```
-  Future<bool> isDicomFile(String path) async {
+  Future<bool> isDicomFile(List<int> bytes) async {
     try {
-      return await rust.isDicomFile(path: path);
+      final rustHandler = await _getRustHandler();
+      return await rustHandler.isDicomFile(bytes: bytes);
     } catch (e) {
       return false;
     }
   }
+  
 
-  /// Load a complete DICOM file with metadata and image data
+  /// Load a complete DICOM from bytes with metadata and image data
   /// 
   /// This loads both the metadata and pixel data (if available).
   /// Use [getMetadata] if you only need metadata for better performance.
@@ -142,8 +150,9 @@ class DicomHandler {
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
+  /// final bytes = await File('/path/to/file.dcm').readAsBytes();
   /// try {
-  ///   DicomFile file = await handler.loadFile('/path/to/file.dcm');
+  ///   DicomFile file = await handler.loadFile(bytes);
   ///   print('Patient: ${file.metadata.patientName}');
   ///   if (file.image != null) {
   ///     print('Image size: ${file.image!.width}x${file.image!.height}');
@@ -152,18 +161,19 @@ class DicomHandler {
   ///   print('Failed to load DICOM file: $e');
   /// }
   /// ```
-  Future<DicomFile> loadFile(String path) async {
-    final rustFile = await rust.loadDicomFile(path: path);
+  Future<DicomFile> loadFile(List<int> bytes) async {
+    final rustHandler = await _getRustHandler();
+    final rustFile = await rustHandler.loadFileWithImage(bytes: bytes);
     
     return DicomFile(
-      path: rustFile.path,
       metadata: _convertMetadata(rustFile.metadata),
       image: rustFile.image != null ? _convertImage(rustFile.image!) : null,
       isValid: rustFile.isValid,
     );
   }
+  
 
-  /// Extract only metadata from a DICOM file (faster than full load)
+  /// Extract only metadata from DICOM bytes (faster than full load)
   /// 
   /// This is more efficient than [loadFile] when you only need metadata
   /// and don't need the pixel data.
@@ -171,18 +181,21 @@ class DicomHandler {
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
+  /// final bytes = await File('/path/to/file.dcm').readAsBytes();
   /// try {
-  ///   DicomMetadata metadata = await handler.getMetadata('/path/to/file.dcm');
+  ///   DicomMetadata metadata = await handler.getMetadata(bytes);
   ///   print('Study: ${metadata.studyDescription}');
   ///   print('Series: ${metadata.seriesDescription}');
   /// } catch (e) {
   ///   print('Failed to extract metadata: $e');
   /// }
   /// ```
-  Future<DicomMetadata> getMetadata(String path) async {
-    final rustFile = await rust.loadDicomFile(path: path);
-    return _convertMetadata(rustFile.metadata);
+  Future<DicomMetadata> getMetadata(List<int> bytes) async {
+    final rustHandler = await _getRustHandler();
+    final rustMetadata = await rustHandler.getMetadata(bytes: bytes);
+    return _convertMetadata(rustMetadata);
   }
+  
 
   /// Get encoded image bytes (PNG format) ready for display
   /// 
@@ -192,17 +205,20 @@ class DicomHandler {
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
+  /// final bytes = await File('/path/to/file.dcm').readAsBytes();
   /// try {
-  ///   Uint8List imageBytes = await handler.getImageBytes('/path/to/file.dcm');
+  ///   Uint8List imageBytes = await handler.getImageBytes(bytes);
   ///   // Display in Flutter
   ///   Image.memory(imageBytes)
   /// } catch (e) {
   ///   print('Failed to get image bytes: $e');
   /// }
   /// ```
-  Future<Uint8List> getImageBytes(String path) async {
-    return await rust.getEncodedImage(path: path);
+  Future<Uint8List> getImageBytes(List<int> bytes) async {
+    final rustHandler = await _getRustHandler();
+    return await rustHandler.getImageBytes(bytes: bytes);
   }
+  
 
   /// Extract raw pixel data and image parameters
   /// 
@@ -212,8 +228,9 @@ class DicomHandler {
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
+  /// final bytes = await File('/path/to/file.dcm').readAsBytes();
   /// try {
-  ///   DicomImage image = await handler.extractPixelData('/path/to/file.dcm');
+  ///   DicomImage image = await handler.extractPixelData(bytes);
   ///   print('Bits allocated: ${image.bitsAllocated}');
   ///   print('Photometric interpretation: ${image.photometricInterpretation}');
   ///   // Access raw pixel data: image.pixelData
@@ -221,10 +238,12 @@ class DicomHandler {
   ///   print('Failed to extract pixel data: $e');
   /// }
   /// ```
-  Future<DicomImage> extractPixelData(String path) async {
-    final rustImage = await rust.extractPixelData(path: path);
+  Future<DicomImage> extractPixelData(List<int> bytes) async {
+    final rustHandler = await _getRustHandler();
+    final rustImage = await rustHandler.extractPixelData(bytes: bytes);
     return _convertImage(rustImage);
   }
+  
 
   // Helper methods to convert from Rust types to our simplified types
   DicomMetadata _convertMetadata(rust.DicomMetadata rustMeta) {
@@ -240,8 +259,8 @@ class DicomHandler {
       studyInstanceUid: rustMeta.studyInstanceUid,
       seriesInstanceUid: rustMeta.seriesInstanceUid,
       sopInstanceUid: rustMeta.sopInstanceUid,
-      imagePosition: rustMeta.imagePosition?.cast<double>(),
-      pixelSpacing: rustMeta.pixelSpacing?.cast<double>(),
+      imagePosition: rustMeta.imagePosition?.toList(),
+      pixelSpacing: rustMeta.pixelSpacing?.toList(),
       sliceLocation: rustMeta.sliceLocation,
       sliceThickness: rustMeta.sliceThickness,
     );

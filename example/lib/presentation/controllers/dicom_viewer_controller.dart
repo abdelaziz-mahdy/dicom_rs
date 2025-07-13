@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import '../../core/result.dart';
 import '../../domain/entities/dicom_image_entity.dart';
 import '../../domain/usecases/load_dicom_directory_usecase.dart';
 import '../../data/repositories/dicom_repository_impl.dart';
+import '../../services/file_selector_service.dart';
 
 /// Main controller for DICOM viewer with clean state management
 class DicomViewerController extends ChangeNotifier {
@@ -40,12 +42,12 @@ class DicomViewerController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Load DICOM directory
-  Future<void> loadDirectory(String path, {bool recursive = false}) async {
+  /// Load DICOM files from file data list (bytes-based)
+  Future<void> loadFromFileDataList(List<DicomFileData> fileDataList, {bool recursive = false}) async {
     _updateState(_state.copyWith(isLoading: true, error: null));
 
-    final result = await _loadDirectoryUseCase(
-      path: path,
+    final result = await _loadDirectoryUseCase.loadFromFileDataList(
+      fileDataList: fileDataList,
       recursive: recursive,
     );
 
@@ -56,7 +58,6 @@ class DicomViewerController extends ChangeNotifier {
             isLoading: false,
             images: images,
             currentIndex: 0,
-            directoryPath: path,
           ),
         );
         _preloadBuffer(0);
@@ -67,13 +68,13 @@ class DicomViewerController extends ChangeNotifier {
     );
   }
 
-  /// Load single DICOM file
-  Future<void> loadSingleFile(String filePath) async {
+  /// Load single DICOM file from DicomFileData (bytes-based)
+  Future<void> loadSingleFileFromData(DicomFileData fileData) async {
     _updateState(_state.copyWith(isLoading: true, error: null));
 
     try {
       // Check if it's a valid DICOM file
-      final validationResult = await _repository.isValidDicom(filePath);
+      final validationResult = await _repository.isValidDicomFromBytes(fileData.bytes);
       final isValid = validationResult.fold((valid) => valid, (error) => false);
 
       if (!isValid) {
@@ -87,14 +88,16 @@ class DicomViewerController extends ChangeNotifier {
       }
 
       // Get metadata for the file
-      final metadataResult = await _repository.getMetadata(filePath);
+      final metadataResult = await _repository.getMetadataFromBytes(fileData.bytes);
 
       metadataResult.fold(
         (metadata) {
           // Create a single image entity
           final image = DicomImageEntity(
-            id: filePath.hashCode.toString(),
-            path: filePath,
+            id: fileData.name.hashCode.toString(),
+            name: fileData.name,
+            bytes: fileData.bytes,
+     // Optional for compatibility
             metadata: metadata,
           );
 
@@ -103,7 +106,6 @@ class DicomViewerController extends ChangeNotifier {
               images: [image],
               currentIndex: 0,
               isLoading: false,
-              directoryPath: filePath,
             ),
           );
 
@@ -219,7 +221,7 @@ class DicomViewerController extends ChangeNotifier {
     if (index < 0 || index >= _state.images.length) return;
 
     final image = _state.images[index];
-    final cacheKey = image.path;
+    final cacheKey = image.name; // Use name instead of path
 
     try {
       // Check persistent cache first - never reload if already cached
@@ -227,7 +229,7 @@ class DicomViewerController extends ChangeNotifier {
 
       if (imageData == null) {
         // Load from repository only if not in persistent cache
-        final result = await _repository.getImageData(image.path);
+        final result = await _repository.getImageDataFromBytes(image.bytes);
         imageData = result.fold(
           (data) {
             // Store in persistent cache - never cleared

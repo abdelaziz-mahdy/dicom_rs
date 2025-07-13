@@ -2,10 +2,10 @@ use anyhow::Result;
 use dicom::{
     core::DataDictionary,
     dictionary_std::{tags, StandardDataDictionary},
-    object::{mem::InMemElement, open_file, FileDicomObject, InMemDicomObject, Tag},
+    object::{mem::InMemElement, from_reader, FileDicomObject, InMemDicomObject, Tag},
 };
 use dicom_pixeldata::{image, PixelDecoder, ConvertOptions, VoiLutOption, BitDepthOption};
-use std::{io::Cursor, path::Path, collections::HashMap};
+use std::{io::Cursor, collections::HashMap};
 
 // -----------------------------------------------------------------------------
 // Minimal Data Types for Package
@@ -56,7 +56,6 @@ pub struct DicomImage {
 /// Complete DICOM file representation
 #[derive(Clone, Debug)]
 pub struct DicomFile {
-    pub path: String,
     pub metadata: DicomMetadata,
     pub image: Option<DicomImage>,
     pub is_valid: bool,
@@ -180,161 +179,124 @@ impl DicomHandler {
         Self {}
     }
 
-    /// Check if a file is a valid DICOM file
-    pub fn is_dicom_file(&self, path: String) -> bool {
-        is_dicom_file(path)
+    /// Check if bytes represent a valid DICOM file
+    pub fn is_dicom_file(&self, bytes: Vec<u8>) -> bool {
+        let cursor = Cursor::new(bytes);
+        from_reader(cursor).is_ok()
     }
 
-    /// Load a DICOM file with metadata only (fast for directory scanning)
-    pub fn load_file(&self, path: String) -> Result<DicomFile, String> {
-        load_dicom_file(path)
+    /// Load DICOM from bytes with metadata only (fast for scanning)
+    pub fn load_file(&self, bytes: Vec<u8>) -> Result<DicomFile, String> {
+        let cursor = Cursor::new(bytes);
+        let obj = from_reader(cursor).map_err(|e| format!("Failed to parse DICOM bytes: {}", e))?;
+        let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
+        
+        Ok(DicomFile {
+            metadata,
+            image: None,
+            is_valid: true,
+        })
     }
 
-    /// Load a complete DICOM file with both metadata and image data
-    pub fn load_file_with_image(&self, path: String) -> Result<DicomFile, String> {
-        load_dicom_file_with_image(path)
+    /// Load complete DICOM from bytes with metadata and image data
+    pub fn load_file_with_image(&self, bytes: Vec<u8>) -> Result<DicomFile, String> {
+        let cursor = Cursor::new(&bytes);
+        let obj = from_reader(cursor).map_err(|e| format!("Failed to parse DICOM bytes: {}", e))?;
+        let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
+        
+        let image = match self.extract_pixel_data(bytes) {
+            Ok(img) => Some(img),
+            Err(_) => None,
+        };
+
+        Ok(DicomFile {
+            metadata,
+            image,
+            is_valid: true,
+        })
     }
 
-    /// Extract only metadata from a DICOM file (faster than full load)
-    pub fn get_metadata(&self, path: String) -> Result<DicomMetadata, String> {
-        let file_path = Path::new(&path);
-        let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
+    /// Extract only metadata from DICOM bytes
+    pub fn get_metadata(&self, bytes: Vec<u8>) -> Result<DicomMetadata, String> {
+        let cursor = Cursor::new(bytes);
+        let obj = from_reader(cursor).map_err(|e| format!("Failed to parse DICOM bytes: {}", e))?;
         extract_metadata(&obj).map_err(|e| e.to_string())
     }
 
-    /// Get encoded image bytes (PNG format) for display
-    pub fn get_image_bytes(&self, path: String) -> Result<Vec<u8>, String> {
-        get_encoded_image(path)
+    /// Get encoded image bytes (PNG format) from DICOM bytes
+    pub fn get_image_bytes(&self, bytes: Vec<u8>) -> Result<Vec<u8>, String> {
+        let cursor = Cursor::new(bytes);
+        let obj = from_reader(cursor).map_err(|e| format!("Failed to parse DICOM bytes: {}", e))?;
+        
+        let decoded = obj.decode_pixel_data().map_err(|e| format!("Failed to decode pixel data: {}", e))?;
+        
+        let options = ConvertOptions::new()
+            .with_voi_lut(VoiLutOption::Default)
+            .with_bit_depth(BitDepthOption::Auto);
+        
+        let dynamic_image = decoded.to_dynamic_image_with_options(0, &options)
+            .map_err(|e| format!("Failed to convert to image: {}", e))?;
+        
+        let mut encoded_bytes: Vec<u8> = Vec::new();
+        let mut cursor = Cursor::new(&mut encoded_bytes);
+        dynamic_image.write_to(&mut cursor, image::ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode image: {}", e))?;
+        
+        Ok(encoded_bytes)
     }
 
-    /// Extract raw pixel data and image parameters
-    pub fn extract_pixel_data(&self, path: String) -> Result<DicomImage, String> {
-        extract_pixel_data(path)
+    /// Extract raw pixel data and image parameters from DICOM bytes
+    pub fn extract_pixel_data(&self, bytes: Vec<u8>) -> Result<DicomImage, String> {
+        let cursor = Cursor::new(bytes);
+        let obj = from_reader(cursor).map_err(|e| format!("Failed to parse DICOM bytes: {}", e))?;
+
+        let decoded = obj.decode_pixel_data().map_err(|e| format!("Failed to decode pixel data: {}", e))?;
+        let height = decoded.rows() as u32;
+        let width = decoded.columns() as u32;
+
+        // Extract image parameters
+        let bits_allocated = obj.element(tags::BITS_ALLOCATED)
+            .map_err(|e| format!("Failed to get bits allocated: {}", e))?
+            .value().to_str().ok().and_then(|s| s.parse::<u16>().ok())
+            .ok_or_else(|| "Invalid bits allocated format".to_string())?;
+
+        let bits_stored = obj.element(tags::BITS_STORED)
+            .map_err(|e| format!("Failed to get bits stored: {}", e))?
+            .value().to_str().ok().and_then(|s| s.parse::<u16>().ok())
+            .ok_or_else(|| "Invalid bits stored format".to_string())?;
+
+        let pixel_representation = obj.element(tags::PIXEL_REPRESENTATION)
+            .map_err(|e| format!("Failed to get pixel representation: {}", e))?
+            .value().to_str().ok().and_then(|s| s.parse::<u16>().ok())
+            .ok_or_else(|| "Invalid pixel representation format".to_string())?;
+
+        let photometric_interpretation = obj.element(tags::PHOTOMETRIC_INTERPRETATION)
+            .map_err(|e| format!("Failed to get photometric interpretation: {}", e))?
+            .value().to_str().unwrap_or(std::borrow::Cow::Borrowed("MONOCHROME2")).to_string();
+
+        let samples_per_pixel = obj.element(tags::SAMPLES_PER_PIXEL)
+            .map_err(|e| format!("Failed to get samples per pixel: {}", e))?
+            .value().to_str().ok().and_then(|s| s.parse::<u16>().ok())
+            .ok_or_else(|| "Invalid samples per pixel format".to_string())?;
+
+        let options = ConvertOptions::new()
+            .with_voi_lut(VoiLutOption::Default)
+            .with_bit_depth(BitDepthOption::Auto);
+        
+        let dynamic_image = decoded.to_dynamic_image_with_options(0, &options)
+            .map_err(|e| format!("Failed to convert to image: {}", e))?;
+
+        Ok(DicomImage {
+            width,
+            height,
+            bits_allocated,
+            bits_stored,
+            pixel_representation,
+            photometric_interpretation,
+            samples_per_pixel,
+            pixel_data: dynamic_image.as_bytes().to_vec(),
+        })
     }
 }
 
-// -----------------------------------------------------------------------------
-// Implementation Functions
-// -----------------------------------------------------------------------------
 
-/// Check if a file is a valid DICOM file
-pub fn is_dicom_file(path: String) -> bool {
-    let file_path = Path::new(&path);
-    open_file(file_path).is_ok()
-}
-
-/// Load a DICOM file with metadata only (fast for directory scanning)
-pub fn load_dicom_file(path: String) -> Result<DicomFile, String> {
-    let file_path = Path::new(&path);
-    let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
-
-    let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
-    
-    // OPTIMIZED: Don't extract image data automatically - load separately when needed
-    // This makes directory scanning much faster
-    let image = None;
-
-    Ok(DicomFile {
-        path,
-        metadata,
-        image,
-        is_valid: true,
-    })
-}
-
-/// Load a complete DICOM file with both metadata and image data
-pub fn load_dicom_file_with_image(path: String) -> Result<DicomFile, String> {
-    let file_path = Path::new(&path);
-    let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
-
-    let metadata = extract_metadata(&obj).map_err(|e| e.to_string())?;
-    
-    // Extract image data when explicitly requested
-    let image = match extract_pixel_data(path.clone()) {
-        Ok(img) => Some(img),
-        Err(_) => None, // Some DICOM files may not have pixel data
-    };
-
-    Ok(DicomFile {
-        path,
-        metadata,
-        image,
-        is_valid: true,
-    })
-}
-
-/// Extract pixel data from a DICOM file
-pub fn extract_pixel_data(path: String) -> Result<DicomImage, String> {
-    let file_path = Path::new(&path);
-    let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
-
-    let decoded = obj.decode_pixel_data().map_err(|e| format!("Failed to decode pixel data: {}", e))?;
-    let height = decoded.rows() as u32;
-    let width = decoded.columns() as u32;
-
-    // Extract image parameters
-    let bits_allocated = obj.element(tags::BITS_ALLOCATED)
-        .map_err(|e| format!("Failed to get bits allocated: {}", e))?
-        .value().to_str().ok().and_then(|s| s.parse::<u16>().ok())
-        .ok_or_else(|| "Invalid bits allocated format".to_string())?;
-
-    let bits_stored = obj.element(tags::BITS_STORED)
-        .map_err(|e| format!("Failed to get bits stored: {}", e))?
-        .value().to_str().ok().and_then(|s| s.parse::<u16>().ok())
-        .ok_or_else(|| "Invalid bits stored format".to_string())?;
-
-    let pixel_representation = obj.element(tags::PIXEL_REPRESENTATION)
-        .map_err(|e| format!("Failed to get pixel representation: {}", e))?
-        .value().to_str().ok().and_then(|s| s.parse::<u16>().ok())
-        .ok_or_else(|| "Invalid pixel representation format".to_string())?;
-
-    let photometric_interpretation = obj.element(tags::PHOTOMETRIC_INTERPRETATION)
-        .map_err(|e| format!("Failed to get photometric interpretation: {}", e))?
-        .value().to_str().unwrap_or(std::borrow::Cow::Borrowed("MONOCHROME2")).to_string();
-
-    let samples_per_pixel = obj.element(tags::SAMPLES_PER_PIXEL)
-        .map_err(|e| format!("Failed to get samples per pixel: {}", e))?
-        .value().to_str().ok().and_then(|s| s.parse::<u16>().ok())
-        .ok_or_else(|| "Invalid samples per pixel format".to_string())?;
-
-    // Convert to image with default options
-    let options = ConvertOptions::new()
-        .with_voi_lut(VoiLutOption::Default)
-        .with_bit_depth(BitDepthOption::Auto);
-    
-    let dynamic_image = decoded.to_dynamic_image_with_options(0, &options)
-        .map_err(|e| format!("Failed to convert to image: {}", e))?;
-
-    Ok(DicomImage {
-        width,
-        height,
-        bits_allocated,
-        bits_stored,
-        pixel_representation,
-        photometric_interpretation,
-        samples_per_pixel,
-        pixel_data: dynamic_image.as_bytes().to_vec(),
-    })
-}
-
-/// Get encoded image bytes (PNG format) for display
-pub fn get_encoded_image(path: String) -> Result<Vec<u8>, String> {
-    let file_path = Path::new(&path);
-    let obj = open_file(file_path).map_err(|e| format!("Failed to open DICOM file: {}", e))?;
-    
-    let decoded = obj.decode_pixel_data().map_err(|e| format!("Failed to decode pixel data: {}", e))?;
-    
-    let options = ConvertOptions::new()
-        .with_voi_lut(VoiLutOption::Default)
-        .with_bit_depth(BitDepthOption::Auto);
-    
-    let dynamic_image = decoded.to_dynamic_image_with_options(0, &options)
-        .map_err(|e| format!("Failed to convert to image: {}", e))?;
-    
-    let mut encoded_bytes: Vec<u8> = Vec::new();
-    let mut cursor = Cursor::new(&mut encoded_bytes);
-    dynamic_image.write_to(&mut cursor, image::ImageFormat::Png)
-        .map_err(|e| format!("Failed to encode image: {}", e))?;
-    
-    Ok(encoded_bytes)
-}

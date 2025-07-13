@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:dicom_rs/dicom_rs.dart';
 import '../models/complex_types.dart';
+import 'file_selector_service.dart';
 
 /// Enhanced DICOM service that provides complex functionality
 /// while using the minimal API underneath
@@ -27,39 +27,38 @@ class EnhancedDicomService {
       }
 
       // Finally by filename as fallback
-      return a.path.compareTo(b.path);
+      return a.name.compareTo(b.name);
     });
     return sortedEntries;
   }
 
-  /// Check if a file is a valid DICOM file
-  Future<bool> isValidDicom({required String path}) async {
+  /// Check if bytes represent a valid DICOM file
+  Future<bool> isValidDicom({required Uint8List bytes}) async {
     try {
-      return await _handler.isDicomFile(path);
+      return await _handler.isDicomFile(bytes);
     } catch (e) {
       return false;
     }
   }
 
-  /// Check if a file is a DICOMDIR file
-  Future<bool> isDicomdir({required String path}) async {
+  /// Check if bytes represent a DICOMDIR file
+  Future<bool> isDicomdir({required Uint8List bytes, String? filename}) async {
     try {
-      final file = await _handler.loadFile(path);
       // Simple heuristic: check if filename contains DICOMDIR
-      return path.toLowerCase().contains('dicomdir');
+      return filename?.toLowerCase().contains('dicomdir') ?? false;
     } catch (e) {
       return false;
     }
   }
 
-  /// Get basic metadata from a DICOM file
-  Future<DicomMetadata> getMetadata({required String path}) async {
-    return await _handler.getMetadata(path);
+  /// Get basic metadata from DICOM bytes
+  Future<DicomMetadata> getMetadata({required Uint8List bytes}) async {
+    return await _handler.getMetadata(bytes);
   }
 
   /// Get enhanced metadata map (simulated from basic metadata)
-  Future<DicomMetadataMap> getAllMetadata({required String path}) async {
-    final metadata = await _handler.getMetadata(path);
+  Future<DicomMetadataMap> getAllMetadata({required Uint8List bytes}) async {
+    final metadata = await _handler.getMetadata(bytes);
     
     // Create mock tags from metadata
     final tags = <String, DicomTag>{};
@@ -95,53 +94,43 @@ class EnhancedDicomService {
     return DicomMetadataMap(tags: tags, groupElements: groupElements);
   }
 
-  /// Get ONLY metadata from a DICOM file (fast directory scanning)
-  Future<DicomMetadata> getMetadataOnly({required String path}) async {
-    return await _handler.getMetadata(path);
+  /// Get ONLY metadata from DICOM bytes (fast processing)
+  Future<DicomMetadata> getMetadataOnly({required Uint8List bytes}) async {
+    return await _handler.getMetadata(bytes);
   }
 
-  /// Get ONLY image data from a DICOM file (separate from metadata)
-  Future<Uint8List> getImageDataOnly({required String path}) async {
-    return await _handler.getImageBytes(path);
+  /// Get ONLY image data from DICOM bytes (separate from metadata)
+  Future<Uint8List> getImageDataOnly({required Uint8List dicomBytes}) async {
+    return await _handler.getImageBytes(dicomBytes);
   }
 
-  /// Load a DICOM file
-  Future<DicomFile> loadFile({required String path}) async {
-    return await _handler.loadFile(path);
+  /// Load a DICOM file from bytes
+  Future<DicomFile> loadFile({required Uint8List bytes}) async {
+    return await _handler.loadFile(bytes);
   }
 
-  /// Get pixel data from a DICOM file
-  Future<DicomImage> getPixelData({required String path}) async {
-    return await _handler.extractPixelData(path);
+  /// Get pixel data from DICOM bytes
+  Future<DicomImage> getPixelData({required Uint8List bytes}) async {
+    return await _handler.extractPixelData(bytes);
   }
 
-  /// Get encoded image bytes (PNG)
-  Future<Uint8List> getImageBytes({required String path}) async {
-    return await _handler.getImageBytes(path);
+  /// Get encoded image bytes from DICOM bytes
+  Future<Uint8List> getImageBytes({required Uint8List dicomBytes}) async {
+    return await _handler.getImageBytes(dicomBytes);
   }
 
-  /// Load a directory and return directory entries (FAST - metadata only)
-  Future<List<DicomDirectoryEntry>> loadDirectory({required String path}) async {
-    final directory = Directory(path);
+  /// Load files from DicomFileData list (FAST - metadata only)
+  Future<List<DicomDirectoryEntry>> loadFromFileDataList(List<DicomFileData> fileDataList) async {
     final entries = <DicomDirectoryEntry>[];
 
-    if (!await directory.exists()) {
-      return _sortDicomEntries(entries);
-    }
-
-    final files = directory
-        .listSync()
-        .whereType<File>()
-        .where((file) => !file.path.toLowerCase().endsWith('.ds_store'))
-        .toList();
-
-    for (final file in files) {
+    for (final fileData in fileDataList) {
       try {
-        if (await _handler.isDicomFile(file.path)) {
-          // OPTIMIZED: Use metadata-only function for fast directory scanning
-          final metadata = await getMetadataOnly(path: file.path);
+        if (await _handler.isDicomFile(fileData.bytes)) {
+          // OPTIMIZED: Use metadata-only function for fast scanning
+          final metadata = await getMetadataOnly(bytes: fileData.bytes);
           entries.add(DicomDirectoryEntry(
-            path: file.path,
+            bytes: fileData.bytes,
+            name: fileData.name,
             metadata: metadata,
             isValid: true,
             // Image data will be loaded separately when needed
@@ -156,58 +145,25 @@ class EnhancedDicomService {
     return _sortDicomEntries(entries);
   }
 
-  /// Load a directory recursively (FAST - metadata only)
-  Future<List<DicomDirectoryEntry>> loadDirectoryRecursive({required String path}) async {
-    final directory = Directory(path);
-    final entries = <DicomDirectoryEntry>[];
-
-    if (!await directory.exists()) {
-      return _sortDicomEntries(entries);
-    }
-
-    final files = directory
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((file) => !file.path.toLowerCase().endsWith('.ds_store'))
-        .toList();
-
-    for (final file in files) {
-      try {
-        if (await _handler.isDicomFile(file.path)) {
-          // OPTIMIZED: Use metadata-only function for fast recursive scanning
-          final metadata = await getMetadataOnly(path: file.path);
-          entries.add(DicomDirectoryEntry(
-            path: file.path,
-            metadata: metadata,
-            isValid: true,
-            // Image data will be loaded separately when needed
-            image: null,
-          ));
-        }
-      } catch (e) {
-        // Skip invalid files
-      }
-    }
-
-    return _sortDicomEntries(entries);
+  /// Load files from DicomFileData list recursively (FAST - metadata only)
+  /// This method is now a wrapper around loadFromFileDataList for API compatibility
+  Future<List<DicomDirectoryEntry>> loadFromFileDataListRecursive(List<DicomFileData> fileDataList) async {
+    // Since we already have all files in the list, recursive behavior is handled by FileSelectorService
+    return await loadFromFileDataList(fileDataList);
   }
 
-  /// Load directory organized by patients
-  Future<List<DicomPatient>> loadDirectoryOrganized({required String path}) async {
-    final entries = await loadDirectoryRecursive(path: path);
+  /// Load directory organized by patients from file data
+  Future<List<DicomPatient>> loadOrganizedFromFileData(List<DicomFileData> fileDataList) async {
+    final entries = await loadFromFileDataList(fileDataList);
     return _organizeEntriesByPatient(entries);
   }
 
-  /// Load directory with unified structure
-  Future<List<DicomDirectoryEntry>> loadDirectoryUnified({
-    required String path,
-    bool recursive = false,
+  /// Load with unified structure from file data
+  Future<List<DicomDirectoryEntry>> loadUnifiedFromFileData({
+    required List<DicomFileData> fileDataList,
+    bool recursive = false, // Ignored - file data list already contains all files
   }) async {
-    if (recursive) {
-      return await loadDirectoryRecursive(path: path);
-    } else {
-      return await loadDirectory(path: path);
-    }
+    return await loadFromFileDataList(fileDataList);
   }
 
   /// Extract patient ID from study
@@ -353,49 +309,34 @@ Future<double?> computeSliceSpacing({required List<DicomDirectoryEntry> entries}
   return count > 0 ? totalSpacing / count : null;
 }
 
-/// Legacy function compatibility
-Future<bool> isDicomFile({required String path}) async {
+/// Bytes-only API functions
+Future<bool> isDicomFile({required Uint8List bytes}) async {
   final handler = DicomHandler();
-  return await handler.isDicomFile(path);
+  return await handler.isDicomFile(bytes);
 }
 
-Future<bool> isDicomdirFile({required String path}) async {
+Future<bool> isDicomdirFile({required Uint8List bytes, String? filename}) async {
   try {
-    return path.toLowerCase().contains('dicomdir');
+    return filename?.toLowerCase().contains('dicomdir') ?? false;
   } catch (e) {
     return false;
   }
 }
 
-Future<DicomImage> extractPixelData({required String path}) async {
+Future<DicomImage> extractPixelData({required Uint8List bytes}) async {
   final handler = DicomHandler();
-  return await handler.extractPixelData(path);
+  return await handler.extractPixelData(bytes);
 }
 
-Future<DicomFile> loadDicomFile({required String path}) async {
+Future<DicomFile> loadDicomFile({required Uint8List bytes}) async {
   final handler = DicomHandler();
-  return await handler.loadFile(path);
+  return await handler.loadFile(bytes);
 }
 
-Future<DicomMetadataMap> extractAllMetadata({required String path}) async {
+Future<DicomMetadataMap> extractAllMetadata({required Uint8List bytes}) async {
   final service = EnhancedDicomService();
-  return await service.getAllMetadata(path: path);
+  return await service.getAllMetadata(bytes: bytes);
 }
 
-Future<List<DicomDirectoryEntry>> loadDicomDirectory({required String dirPath}) async {
-  final service = EnhancedDicomService();
-  return await service.loadDirectory(path: dirPath);
-}
-
-Future<List<DicomDirectoryEntry>> loadDicomDirectoryRecursive({required String dirPath}) async {
-  final service = EnhancedDicomService();
-  return await service.loadDirectoryRecursive(path: dirPath);
-}
-
-Future<List<DicomPatient>> loadDicomDirectoryOrganized({
-  required String dirPath,
-  bool recursive = false,
-}) async {
-  final service = EnhancedDicomService();
-  return await service.loadDirectoryOrganized(path: dirPath);
-}
+// Directory operations moved to file selector service
+// Use DicomFileData with bytes for cleaner API

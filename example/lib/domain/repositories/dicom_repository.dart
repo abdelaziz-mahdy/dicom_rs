@@ -1,23 +1,24 @@
 import 'dart:typed_data';
 import '../../core/result.dart';
 import '../entities/dicom_image_entity.dart';
+import '../../services/file_selector_service.dart';
 
-/// Repository interface for DICOM operations
+/// Repository interface for DICOM operations (bytes-based only)
 abstract interface class DicomRepository {
-  /// Load DICOM files from directory (metadata only for fast scanning)
-  Future<Result<List<DicomImageEntity>>> loadDirectory({
-    required String path,
+  /// Load DICOM files from DicomFileData list (metadata only for fast scanning)
+  Future<Result<List<DicomImageEntity>>> loadFromFileDataList({
+    required List<DicomFileData> fileDataList,
     bool recursive = false,
   });
 
-  /// Load single DICOM file metadata
-  Future<Result<DicomMetadataEntity>> getMetadata(String path);
+  /// Load single DICOM file metadata from bytes
+  Future<Result<DicomMetadataEntity>> getMetadataFromBytes(Uint8List bytes);
 
-  /// Load image data for specific DICOM file
-  Future<Result<Uint8List>> getImageData(String path);
+  /// Load image data from DICOM bytes
+  Future<Result<Uint8List>> getImageDataFromBytes(Uint8List dicomBytes);
 
-  /// Check if file is valid DICOM
-  Future<Result<bool>> isValidDicom(String path);
+  /// Check if bytes represent valid DICOM
+  Future<Result<bool>> isValidDicomFromBytes(Uint8List bytes);
 
   /// Get processed image with brightness/contrast adjustments
   Future<Result<Uint8List>> getProcessedImage({

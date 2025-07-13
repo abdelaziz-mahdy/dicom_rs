@@ -1,10 +1,11 @@
 import 'dart:typed_data';
 
-/// Clean domain entity for DICOM image data
+/// Clean domain entity for DICOM image data (bytes-based)
 class DicomImageEntity {
   const DicomImageEntity({
     required this.id,
-    required this.path,
+    required this.name,
+    required this.bytes,
     required this.metadata,
     this.imageData,
     this.isLoaded = false,
@@ -12,7 +13,8 @@ class DicomImageEntity {
   });
 
   final String id;
-  final String path;
+  final String name; // Required - filename for display
+  final Uint8List bytes; // Required - actual DICOM data
   final DicomMetadataEntity metadata;
   final Uint8List? imageData;
   final bool isLoaded;
@@ -20,7 +22,8 @@ class DicomImageEntity {
 
   DicomImageEntity copyWith({
     String? id,
-    String? path,
+    String? name,
+    Uint8List? bytes,
     DicomMetadataEntity? metadata,
     Uint8List? imageData,
     bool? isLoaded,
@@ -28,7 +31,8 @@ class DicomImageEntity {
   }) {
     return DicomImageEntity(
       id: id ?? this.id,
-      path: path ?? this.path,
+      name: name ?? this.name,
+      bytes: bytes ?? this.bytes,
       metadata: metadata ?? this.metadata,
       imageData: imageData ?? this.imageData,
       isLoaded: isLoaded ?? this.isLoaded,
@@ -41,10 +45,10 @@ class DicomImageEntity {
       identical(this, other) ||
       other is DicomImageEntity && 
       other.id == id && 
-      other.path == path;
+      other.name == name;
 
   @override
-  int get hashCode => Object.hash(id, path);
+  int get hashCode => Object.hash(id, name);
 }
 
 /// Clean domain entity for DICOM metadata

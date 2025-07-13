@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 
 import '../presentation/widgets/clean_dicom_viewer.dart';
 import '../presentation/controllers/dicom_viewer_controller.dart';
@@ -293,8 +292,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
             const SizedBox(height: 16),
 
             Text(
-              'Advanced medical image viewing with measurement tools, '
-              'brightness/contrast controls, and intuitive navigation.',
+              'Professional medical image viewer with advanced measurement tools, '
+              'brightness/contrast controls, and intuitive navigation. '
+              'Select one or more DICOM files to get started.',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
@@ -388,10 +388,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     final result = await FileSelectorService.selectDicomFiles();
 
     if (result != null && result.hasContent && mounted) {
-      if (result.isDirectory) {
-        await _loadDirectory(result.directoryPath!);
-      } else {
+      if (result.files != null && result.files!.isNotEmpty) {
         await _loadMultipleFiles(result.files!);
+      } else {
+        _showErrorSnackBar('No valid DICOM files were selected');
       }
     }
   }
@@ -400,16 +400,14 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     final result = await FileSelectorService.selectSingleDicomFile();
 
     if (result != null && result.hasContent && mounted) {
-      final filePath = result.files!.first.path;
-      if (filePath != null) {
-        await _loadSingleFile(filePath);
-      }
+      final fileData = result.files!.first;
+      await _loadSingleFileFromData(fileData);
     }
   }
 
-  Future<void> _loadSingleFile(String filePath) async {
+  Future<void> _loadSingleFileFromData(DicomFileData fileData) async {
     try {
-      await _controller.loadSingleFile(filePath);
+      await _controller.loadSingleFileFromData(fileData);
 
       if (mounted && _controller.state.hasImages) {
         _showSuccessSnackBar('DICOM file loaded successfully');
@@ -423,19 +421,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     }
   }
 
-  Future<void> _loadMultipleFiles(List<PlatformFile> files) async {
+  Future<void> _loadMultipleFiles(List<DicomFileData> files) async {
     try {
-      // Load each file individually
-      for (final file in files) {
-        if (file.path != null) {
-          await _controller.loadSingleFile(file.path!);
-        } else if (file.bytes != null) {
-          // For web, we need to handle bytes directly
-          // This would require modifications to the controller to accept bytes
-          // For now, we'll skip files without paths
-          continue;
-        }
-      }
+      // Load files from DicomFileData list (bytes-based)
+      await _controller.loadFromFileDataList(files);
 
       if (mounted && _controller.state.hasImages) {
         _showSuccessSnackBar('${files.length} DICOM files loaded successfully');
@@ -447,21 +436,8 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     }
   }
 
-  Future<void> _loadDirectory(String path) async {
-    try {
-      await _controller.loadDirectory(path, recursive: true);
-
-      if (mounted && _controller.state.hasImages) {
-        _showSuccessSnackBar(
-          '${_controller.state.totalImages} DICOM images loaded successfully',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        _showErrorSnackBar('Failed to load directory: $e');
-      }
-    }
-  }
+  /// Legacy directory loading - deprecated
+  /// Use FileSelectorService.selectDicomFiles() instead
 
   void _showSettings() {
     showDialog(
@@ -488,7 +464,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
       builder:
           (context) => _MetadataDialog(
             metadata: _controller.state.currentImage?.metadata,
-            imagePath: _controller.state.currentImage?.path ?? '',
+            imageName: _controller.state.currentImage?.name ?? '',
             imageIndex: _controller.state.currentIndex + 1,
             totalImages: _controller.state.totalImages,
           ),
@@ -896,17 +872,17 @@ class _ExamplesDialog extends StatelessWidget {
             Text(
               'Common Workflows:\n\n'
               '1. Basic Viewing:\n'
-              '   • ${FileSelectorService.getUIConfig().helpText}\n'
-              '   • Navigate through slices\n'
-              '   • Adjust image settings\n\n'
+              '   • Select one or more DICOM files\n'
+              '   • Navigate through slices with arrow keys or mouse\n'
+              '   • Adjust brightness/contrast with right-click drag\n\n'
               '2. Taking Measurements:\n'
-              '   • Select measurement tool\n'
-              '   • Click points on image\n'
-              '   • View calculated values\n\n'
-              '3. Comparing Images:\n'
-              '   • Use fast navigation\n'
-              '   • Consistent window/level\n'
-              '   • Save measurements',
+              '   • Select measurement tool from toolbar\n'
+              '   • Click points on image to measure\n'
+              '   • View calculated distances and angles\n\n'
+              '3. Multi-File Analysis:\n'
+              '   • Select multiple DICOM files at once\n'
+              '   • Use fast navigation between images\n'
+              '   • Maintain consistent window/level settings',
               style: TextStyle(color: Colors.white, fontSize: 14, height: 1.6),
             ),
 
@@ -1019,13 +995,13 @@ class _AboutDialog extends StatelessWidget {
 class _MetadataDialog extends StatelessWidget {
   const _MetadataDialog({
     required this.metadata,
-    required this.imagePath,
+    required this.imageName,
     required this.imageIndex,
     required this.totalImages,
   });
 
   final DicomMetadataEntity? metadata;
-  final String imagePath;
+  final String imageName;
   final int imageIndex;
   final int totalImages;
 
@@ -1088,7 +1064,7 @@ class _MetadataDialog extends StatelessWidget {
             const SizedBox(height: 16),
 
             // File path
-            _buildInfoRow('File Path', imagePath, isPath: true),
+            _buildInfoRow('File Name', imageName),
 
             const SizedBox(height: 16),
 
@@ -1298,3 +1274,5 @@ class _MetadataDialog extends StatelessWidget {
     return list.map((e) => e.toStringAsFixed(3)).join(', ');
   }
 }
+
+

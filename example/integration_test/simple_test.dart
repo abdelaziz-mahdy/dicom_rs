@@ -75,10 +75,15 @@ void main() {
             .toList();
 
         for (final file in files) {
-          if (await DicomServiceSimple.isValidDicom(file.path)) {
-            sampleDicomPath = file.path;
-            print('Found DICOM file by validation: $sampleDicomPath');
-            break;
+          try {
+            final bytes = await file.readAsBytes();
+            if (await DicomServiceSimple.isValidDicom(bytes)) {
+              sampleDicomPath = file.path;
+              print('Found DICOM file by validation: $sampleDicomPath');
+              break;
+            }
+          } catch (e) {
+            // Skip files that can't be read
           }
         }
       }
@@ -119,11 +124,13 @@ void main() {
 
   group('DICOM File Validation', () {
     test('Non-DICOM file returns false for isDicomFile', () async {
-      expect(await handler.isDicomFile(nonDicomPath), false);
+      final bytes = await File(nonDicomPath).readAsBytes();
+      expect(await handler.isDicomFile(bytes), false);
     });
 
     test('Non-DICOM file returns false via service method', () async {
-      expect(await DicomServiceSimple.isValidDicom(nonDicomPath), false);
+      final bytes = await File(nonDicomPath).readAsBytes();
+      expect(await DicomServiceSimple.isValidDicom(bytes), false);
     });
 
     test('Sample DICOM file should be recognized as valid', () async {
@@ -133,8 +140,9 @@ void main() {
         return;
       }
 
-      expect(await handler.isDicomFile(sampleDicomPath), true);
-      expect(await DicomServiceSimple.isValidDicom(sampleDicomPath), true);
+      final bytes = await file.readAsBytes();
+      expect(await handler.isDicomFile(bytes), true);
+      expect(await DicomServiceSimple.isValidDicom(bytes), true);
     });
   });
 
@@ -146,7 +154,8 @@ void main() {
         return;
       }
 
-      final metadata = await handler.getMetadata(sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final metadata = await handler.getMetadata(bytes);
       expect(metadata, isA<DicomMetadata>());
       print('Patient Name: ${metadata.patientName ?? "Unknown"}');
       print('Modality: ${metadata.modality ?? "Unknown"}');
@@ -160,12 +169,12 @@ void main() {
         return;
       }
 
-      final dicomFile = await handler.loadFile(sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final dicomFile = await handler.loadFile(bytes);
       expect(dicomFile, isA<DicomFile>());
-      expect(dicomFile.path, equals(sampleDicomPath));
       expect(dicomFile.metadata, isA<DicomMetadata>());
 
-      print('Loaded DICOM file: ${dicomFile.path}');
+      print('Loaded DICOM file successfully');
       print('Patient: ${dicomFile.metadata.patientName ?? "Unknown"}');
     });
 
@@ -176,9 +185,9 @@ void main() {
         return;
       }
 
-      final dicomFile = await DicomServiceSimple.loadFile(sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final dicomFile = await DicomServiceSimple.loadFile(bytes);
       expect(dicomFile, isA<DicomFile>());
-      expect(dicomFile.path, equals(sampleDicomPath));
       expect(dicomFile.metadata, isA<DicomMetadata>());
 
       print('Service loaded DICOM file successfully');
@@ -191,7 +200,8 @@ void main() {
         return;
       }
 
-      final pixelData = await handler.extractPixelData(sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final pixelData = await handler.extractPixelData(bytes);
       expect(pixelData, isA<DicomImage>());
       expect(pixelData.pixelData, isA<Uint8List>());
       expect(pixelData.width, greaterThan(0));
@@ -209,7 +219,8 @@ void main() {
         return;
       }
 
-      final imageBytes = await handler.getImageBytes(sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final imageBytes = await handler.getImageBytes(bytes);
       expect(imageBytes, isA<Uint8List>());
       expect(imageBytes.length, greaterThan(0));
 
@@ -224,14 +235,15 @@ void main() {
       }
 
       // Test loading multiple files (using the same file multiple times for test)
-      final paths = [sampleDicomPath, sampleDicomPath];
-      final files = await DicomServiceSimple.loadMultipleFiles(paths);
+      final bytes = await file.readAsBytes();
+      final bytesList = [bytes, bytes];
+      final files = await DicomServiceSimple.loadMultipleFiles(bytesList);
       
       expect(files.length, 2);
       expect(files.every((f) => f.isValid), isTrue);
       
       // Test getting multiple image bytes
-      final imageBytes = await DicomServiceSimple.getMultipleImageBytes(paths);
+      final imageBytes = await DicomServiceSimple.getMultipleImageBytes(bytesList);
       expect(imageBytes.length, 2);
       expect(imageBytes.every((bytes) => bytes.isNotEmpty), isTrue);
 
@@ -245,7 +257,8 @@ void main() {
         return;
       }
 
-      final dicomFile = await DicomServiceSimple.loadFile(sampleDicomPath);
+      final bytes = await file.readAsBytes();
+      final dicomFile = await DicomServiceSimple.loadFile(bytes);
       final files = [dicomFile];
 
       // Test organization by patient
@@ -288,9 +301,14 @@ void main() {
       // Check which ones are DICOM files using our minimal API
       var dicomCount = 0;
       for (final file in files.take(5)) { // Check first 5 files only for performance
-        if (await DicomServiceSimple.isValidDicom(file.path)) {
-          dicomCount++;
-          print('Valid DICOM file: ${file.path}');
+        try {
+          final bytes = await file.readAsBytes();
+          if (await DicomServiceSimple.isValidDicom(bytes)) {
+            dicomCount++;
+            print('Valid DICOM file: ${file.path}');
+          }
+        } catch (e) {
+          // Skip files that can't be read
         }
       }
 
@@ -317,17 +335,22 @@ void main() {
         return;
       }
 
-      // Filter to only DICOM files
-      final dicomPaths = <String>[];
+      // Filter to only DICOM files and get their bytes
+      final dicomBytesList = <Uint8List>[];
       for (final path in filePaths) {
-        if (await DicomServiceSimple.isValidDicom(path)) {
-          dicomPaths.add(path);
+        try {
+          final bytes = await File(path).readAsBytes();
+          if (await DicomServiceSimple.isValidDicom(bytes)) {
+            dicomBytesList.add(bytes);
+          }
+        } catch (e) {
+          // Skip files that can't be read
         }
       }
 
-      if (dicomPaths.isNotEmpty) {
+      if (dicomBytesList.isNotEmpty) {
         // Load and organize the files
-        final dicomFiles = await DicomServiceSimple.loadMultipleFiles(dicomPaths);
+        final dicomFiles = await DicomServiceSimple.loadMultipleFiles(dicomBytesList);
         expect(dicomFiles.isNotEmpty, isTrue);
 
         final organized = DicomServiceSimple.organizeByPatient(dicomFiles);
@@ -343,25 +366,26 @@ void main() {
   });
 
   group('Error Handling Tests', () {
-    test('Handle invalid file paths gracefully', () async {
-      const invalidPath = '/invalid/path/file.dcm';
+    test('Handle invalid file data gracefully', () async {
+      // Create invalid DICOM data (just some random bytes)
+      final invalidBytes = Uint8List.fromList([1, 2, 3, 4, 5]);
 
-      // Test that methods handle invalid paths gracefully
-      expect(await handler.isDicomFile(invalidPath), isFalse);
-      expect(await DicomServiceSimple.isValidDicom(invalidPath), isFalse);
+      // Test that methods handle invalid data gracefully
+      expect(await handler.isDicomFile(invalidBytes), isFalse);
+      expect(await DicomServiceSimple.isValidDicom(invalidBytes), isFalse);
 
-      // Test that loading invalid files throws appropriate errors
+      // Test that loading invalid data throws appropriate errors
       expect(
-        () => handler.loadFile(invalidPath),
+        () => handler.loadFile(invalidBytes),
         throwsA(isA<Exception>()),
       );
 
       expect(
-        () => handler.getMetadata(invalidPath),
+        () => handler.getMetadata(invalidBytes),
         throwsA(isA<Exception>()),
       );
 
-      print('Error handling works correctly for invalid paths');
+      print('Error handling works correctly for invalid data');
     });
 
     test('Handle empty file lists', () {
@@ -416,12 +440,10 @@ void main() {
       );
 
       const file = DicomFile(
-        path: '/test/sample.dcm',
         metadata: metadata,
         isValid: true,
       );
 
-      expect(file.path, '/test/sample.dcm');
       expect(file.isValid, isTrue);
       expect(file.metadata.patientName, 'Test Patient');
       expect(file.metadata.modality, 'CT');

@@ -1,31 +1,33 @@
 import '../../core/result.dart';
 import '../entities/dicom_image_entity.dart';
 import '../repositories/dicom_repository.dart';
+import '../../services/file_selector_service.dart';
 
-/// Use case for loading DICOM directory with proper error handling
+/// Use case for loading DICOM files with proper error handling (bytes-based)
 class LoadDicomDirectoryUseCase {
   const LoadDicomDirectoryUseCase(this._repository);
 
   final DicomRepository _repository;
 
-  Future<Result<List<DicomImageEntity>>> call({
-    required String path,
+  /// Load DICOM files from DicomFileData list (preferred method)
+  Future<Result<List<DicomImageEntity>>> loadFromFileDataList({
+    required List<DicomFileData> fileDataList,
     bool recursive = false,
   }) async {
     try {
-      if (path.trim().isEmpty) {
-        return const Failure('Directory path cannot be empty');
+      if (fileDataList.isEmpty) {
+        return const Failure('No files provided');
       }
 
-      final result = await _repository.loadDirectory(
-        path: path,
+      final result = await _repository.loadFromFileDataList(
+        fileDataList: fileDataList,
         recursive: recursive,
       );
 
       return result.fold(
         (images) {
           if (images.isEmpty) {
-            return const Failure('No valid DICOM files found in directory');
+            return const Failure('No valid DICOM files found');
           }
           
           // Sort by instance number and slice location for proper ordering
@@ -34,7 +36,7 @@ class LoadDicomDirectoryUseCase {
           
           return Success(sortedImages);
         },
-        (error) => Failure('Failed to load directory: $error'),
+        (error) => Failure('Failed to load files: $error'),
       );
     } catch (e, stackTrace) {
       return Failure('Unexpected error: $e', stackTrace);
@@ -57,7 +59,7 @@ class LoadDicomDirectoryUseCase {
       return aLocation.compareTo(bLocation);
     }
 
-    // Finally by path
-    return a.path.compareTo(b.path);
+    // Finally by name (remove null-aware operators since name is required)
+    return a.name.compareTo(b.name);
   }
 }

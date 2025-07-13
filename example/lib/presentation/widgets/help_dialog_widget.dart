@@ -96,7 +96,7 @@ class HelpDialogWidget extends StatelessWidget {
                 _buildHelpItem('Keyboard Focus', 'Click image area for arrow keys'),
                 _buildHelpItem('Multi-touch Zoom', 'Pinch to zoom on touch devices'),
                 _buildHelpItem('Error Messages', 'Check top-left for any issues'),
-                _buildHelpItem('Performance', 'Use metadata-only mode for large directories'),
+                _buildHelpItem('File Selection', 'Select multiple DICOM files at once'),
               ],
             ),
 
