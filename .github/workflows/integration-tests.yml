@@ -2,9 +2,9 @@ name: Integration Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
       fail-fast: false
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,8 +23,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
+          channel: "stable"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -52,7 +51,7 @@ jobs:
       - name: Generate Rust bridge code
         run: flutter_rust_bridge_codegen generate
 
-      - name: Install example dependencies  
+      - name: Install example dependencies
         working-directory: example
         run: flutter pub get
 
@@ -86,9 +85,9 @@ jobs:
           retention-days: 7
 
   web-integration-test:
-    name: Web Integration Tests  
+    name: Web Integration Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -96,8 +95,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
+          channel: "stable"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -121,7 +119,7 @@ jobs:
         run: flutter_rust_bridge_codegen build-web
 
       - name: Install example dependencies
-        working-directory: example  
+        working-directory: example
         run: flutter pub get
 
       - name: Build example for web
