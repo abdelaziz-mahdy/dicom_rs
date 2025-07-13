@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import '../models/complex_types.dart';
 import 'file_selector_service.dart';
@@ -119,30 +120,46 @@ class EnhancedDicomService {
     return await _handler.getImageBytes(dicomBytes);
   }
 
-  /// Load files from DicomFileData list (FAST - metadata only)
+  /// ULTRA-OPTIMIZED: Use pre-extracted metadata (no processing needed!)
   Future<List<DicomDirectoryEntry>> loadFromFileDataList(List<DicomFileData> fileDataList) async {
+    debugPrint('🚀 ULTRA-OPTIMIZED: Using pre-extracted metadata for ${fileDataList.length} files (NO PROCESSING NEEDED!)...');
+    
+    // Since metadata is already extracted in FileSelectorService, just convert the data!
     final entries = <DicomDirectoryEntry>[];
-
+    
     for (final fileData in fileDataList) {
-      try {
-        if (await _handler.isDicomFile(fileData.bytes)) {
-          // OPTIMIZED: Use metadata-only function for fast scanning
-          final metadata = await getMetadataOnly(bytes: fileData.bytes);
-          entries.add(DicomDirectoryEntry(
-            bytes: fileData.bytes,
-            name: fileData.name,
-            metadata: metadata,
-            isValid: true,
-            // Image data will be loaded separately when needed
-            image: null,
-          ));
-        }
-      } catch (e) {
-        // Skip invalid files
+      final entry = await _processFileDataParallel(fileData);
+      if (entry != null) {
+        entries.add(entry);
       }
     }
-
+    
+    debugPrint('✅ ULTRA-OPTIMIZED: Metadata conversion complete: ${entries.length}/${fileDataList.length} files processed');
     return _sortDicomEntries(entries);
+  }
+  
+  /// Process a single file data - use pre-extracted metadata (ULTRA-OPTIMIZED)
+  Future<DicomDirectoryEntry?> _processFileDataParallel(DicomFileData fileData) async {
+    try {
+      // ULTRA-OPTIMIZATION: Use pre-extracted metadata from FileSelectorService!
+      // No need to extract metadata again - it was already done during validation
+      if (fileData.metadata == null) {
+        debugPrint('❌ No pre-extracted metadata for ${fileData.name}');
+        return null;
+      }
+      
+      return DicomDirectoryEntry(
+        bytes: fileData.bytes,
+        name: fileData.name,
+        metadata: fileData.metadata, // Use pre-extracted metadata!
+        isValid: true,
+        // Image data loaded separately for performance
+        image: null,
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to process ${fileData.name}: $e');
+      return null;
+    }
   }
 
   /// Load files from DicomFileData list recursively (FAST - metadata only)

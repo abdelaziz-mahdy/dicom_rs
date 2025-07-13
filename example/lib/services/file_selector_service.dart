@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import 'package:path/path.dart' as path;
+import '../screens/dicom_loading_screen.dart';
 
 /// Service to handle platform-specific file selection
 class FileSelectorService {
@@ -26,42 +27,55 @@ class FileSelectorService {
     }
   }
 
-  /// Validate if file bytes represent a valid DICOM file
-  static Future<bool> _isValidDicomContent(Uint8List bytes) async {
+  /// ULTRA-OPTIMIZED: Try to extract metadata directly - if successful, it's valid DICOM
+  static Future<DicomFileData?> _tryExtractDicomMetadata(PlatformFile file, int fileIndex, int totalFiles) async {
     try {
-      final handler = DicomHandler();
-      return await handler.isDicomFile(bytes);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Filter and validate DICOM files after selection
-  static Future<List<DicomFileData>> _validateAndFilterDicomFiles(
-    List<PlatformFile> platformFiles
-  ) async {
-    final validDicomFiles = <DicomFileData>[];
-    
-    for (final file in platformFiles) {
+      debugPrint('🚀 Processing file $fileIndex/$totalFiles: ${file.name}');
+      
       Uint8List bytes;
       if (file.bytes != null) {
         bytes = file.bytes!;
       } else if (file.path != null) {
-        // Read file bytes on native platforms
         bytes = await File(file.path!).readAsBytes();
       } else {
-        continue; // Skip if no bytes or path
+        debugPrint('❌ Skipping file ${file.name}: no bytes or path available');
+        return null;
       }
       
-      // Validate DICOM content
-      if (await _isValidDicomContent(bytes)) {
-        validDicomFiles.add(DicomFileData(
-          name: file.name,
-          bytes: bytes,
-        ));
-      }
+      // SINGLE PASS: Try to extract metadata directly - if this succeeds, it's valid DICOM!
+      final handler = DicomHandler();
+      final metadata = await handler.getMetadata(bytes); // This will throw if not valid DICOM
+      
+      debugPrint('✅ Valid DICOM file: ${file.name}');
+      return DicomFileData(
+        name: file.name,
+        bytes: bytes,
+        metadata: metadata, // Store the metadata we just extracted!
+      );
+    } catch (e) {
+      debugPrint('❌ Invalid/unreadable file ${file.name}: $e');
+      return null;
     }
+  }
+
+  /// ULTRA-OPTIMIZED: Single-pass metadata extraction for all files in parallel
+  static Future<List<DicomFileData>> _validateAndFilterDicomFiles(
+    List<PlatformFile> platformFiles
+  ) async {
+    debugPrint('🚀 ULTRA-OPTIMIZED: Single-pass metadata extraction for ${platformFiles.length} files in parallel...');
     
+    // NO BATCHING - Process ALL files in parallel for maximum speed!
+    final futures = platformFiles.asMap().entries.map(
+      (entry) => _tryExtractDicomMetadata(entry.value, entry.key + 1, platformFiles.length)
+    ).toList();
+    
+    // Wait for all files to process in parallel
+    final results = await Future.wait(futures, eagerError: false);
+    
+    // Collect valid results
+    final validDicomFiles = results.where((result) => result != null).cast<DicomFileData>().toList();
+    
+    debugPrint('✅ ULTRA-OPTIMIZED: Single-pass processing complete: ${validDicomFiles.length}/${platformFiles.length} valid DICOM files');
     return validDicomFiles;
   }
   /// Select multiple DICOM files using the universal file picker
@@ -136,61 +150,116 @@ class FileSelectorService {
       throw UnsupportedError('Directory selection is not supported on web platforms');
     }
 
-    final directoryPath = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: 'Select Directory Containing DICOM Files',
-    );
+    debugPrint('📂 Starting directory selection...');
 
-    if (directoryPath != null) {
-      final dicomFiles = await _scanDirectoryForDicomFiles(directoryPath);
-      if (dicomFiles.isNotEmpty) {
-        return FileSelectorResult.directory(
-          directoryPath: directoryPath,
-          files: dicomFiles,
-        );
+    try {
+      final directoryPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select Directory Containing DICOM Files',
+      );
+
+      if (directoryPath != null) {
+        debugPrint('📂 Selected directory: $directoryPath');
+        final dicomFiles = await _scanDirectoryForDicomFiles(directoryPath);
+        if (dicomFiles.isNotEmpty) {
+          debugPrint('✅ Directory scan complete: ${dicomFiles.length} DICOM files found');
+          return FileSelectorResult.directory(
+            directoryPath: directoryPath,
+            files: dicomFiles,
+          );
+        } else {
+          debugPrint('❌ No valid DICOM files found in directory: $directoryPath');
+        }
+      } else {
+        debugPrint('🚫 Directory selection cancelled by user');
       }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error selecting directory: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      rethrow;
     }
+    
     return null;
   }
 
-  /// Recursively scan directory for DICOM files with validation
+  /// ULTRA-OPTIMIZED: Single-pass directory scanning with full parallel processing
   static Future<List<DicomFileData>> _scanDirectoryForDicomFiles(String directoryPath) async {
-    final dicomFiles = <DicomFileData>[];
     final directory = Directory(directoryPath);
-    
-    // DICOM file extensions to check
-    const dicomExtensions = ['dcm', 'dicom', 'ima', 'DICOM'];
 
     try {
+      // Notify start of scanning
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.scanning(directory: directoryPath),
+      );
+
+      // Collect ALL files for processing
+      final allFiles = <File>[];
       await for (final entity in directory.list(recursive: true, followLinks: false)) {
         if (entity is File) {
-          final extension = path.extension(entity.path).toLowerCase().replaceAll('.', '');
-          
-          // First check extension for performance
-          if (dicomExtensions.map((e) => e.toLowerCase()).contains(extension)) {
-            try {
-              final bytes = await entity.readAsBytes();
-              
-              // Validate DICOM content
-              if (await _isValidDicomContent(bytes)) {
-                final fileName = path.basename(entity.path);
-                dicomFiles.add(DicomFileData(
-                  name: fileName,
-                  bytes: bytes,
-                  fullPath: entity.path,
-                ));
-              }
-            } catch (e) {
-              // Skip files that can't be read or validated
-              debugPrint('Skipping file ${entity.path}: $e');
-            }
-          }
+          allFiles.add(entity);
         }
       }
+      
+      debugPrint('🚀 ULTRA-OPTIMIZED: Found ${allFiles.length} files, processing ALL in parallel with single-pass metadata extraction...');
+      
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.processing(
+          fileName: 'Processing all ${allFiles.length} files in parallel...',
+          processed: 0,
+          total: allFiles.length,
+        ),
+      );
+      
+      // ULTRA-OPTIMIZED: Process ALL files in parallel - no batching!
+      final futures = allFiles.asMap().entries.map(
+        (entry) => _tryExtractDicomMetadataFromFile(entry.value, entry.key + 1, allFiles.length)
+      ).toList();
+      
+      // Wait for all files to process in parallel
+      final results = await Future.wait(futures, eagerError: false);
+      
+      // Collect valid results
+      final dicomFiles = results.where((result) => result != null).cast<DicomFileData>().toList();
+      
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.processing(
+          fileName: 'Parallel processing complete!',
+          processed: allFiles.length,
+          total: allFiles.length,
+        ),
+      );
+      
+      debugPrint('✅ ULTRA-OPTIMIZED: Single-pass directory scan complete: ${dicomFiles.length}/${allFiles.length} valid DICOM files');
+      return dicomFiles;
+      
     } catch (e) {
       debugPrint('Error scanning directory $directoryPath: $e');
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.error('Error scanning directory: $e'),
+      );
+      return [];
     }
-
-    return dicomFiles;
+  }
+  
+  /// ULTRA-OPTIMIZED: Try to extract metadata from directory file (single-pass validation)
+  static Future<DicomFileData?> _tryExtractDicomMetadataFromFile(File file, int fileIndex, int totalFiles) async {
+    try {
+      final fileName = path.basename(file.path);
+      final bytes = await file.readAsBytes();
+      
+      // SINGLE PASS: Try to extract metadata directly - if this succeeds, it's valid DICOM!
+      final handler = DicomHandler();
+      final metadata = await handler.getMetadata(bytes); // This will throw if not valid DICOM
+      
+      return DicomFileData(
+        name: fileName,
+        bytes: bytes,
+        fullPath: file.path,
+        metadata: metadata, // Store the metadata we just extracted!
+      );
+    } catch (e) {
+      // Skip files that can't be read or are not valid DICOM
+      return null;
+    }
   }
 
   /// Get platform-appropriate UI configuration
@@ -221,16 +290,18 @@ class FileSelectorService {
   }
 }
 
-/// DICOM file data with bytes and optional path
+/// DICOM file data with bytes, optional path, and pre-extracted metadata
 class DicomFileData {
   final String name;
   final Uint8List bytes;
   final String? fullPath;
+  final dynamic metadata; // Pre-extracted metadata to avoid duplicate processing
 
   const DicomFileData({
     required this.name,
     required this.bytes,
     this.fullPath,
+    this.metadata,
   });
 }
 

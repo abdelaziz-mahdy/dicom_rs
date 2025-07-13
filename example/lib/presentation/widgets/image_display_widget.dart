@@ -16,6 +16,7 @@ class ImageDisplayWidget extends StatefulWidget {
     this.selectedTool,
     this.measurementsVisible = true,
     required this.interactionController,
+    this.isLoading = false,
   });
 
   final Uint8List? imageData;
@@ -25,6 +26,7 @@ class ImageDisplayWidget extends StatefulWidget {
   final MeasurementType? selectedTool;
   final bool measurementsVisible;
   final ImageInteractionController interactionController;
+  final bool isLoading;
 
   @override
   State<ImageDisplayWidget> createState() => _ImageDisplayWidgetState();
@@ -122,7 +124,11 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
       );
     }
 
-    // Show placeholder only when no image data, not during loading
+    // OPTIMIZED: Show loading state during image processing, placeholder only when no images
+    if (widget.isLoading) {
+      return _buildLoadingIndicator();
+    }
+
     return _buildPlaceholder();
   }
 
@@ -143,6 +149,32 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
           Text(
             'Failed to load image',
             style: TextStyle(color: Colors.red, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return Container(
+      width: 300,
+      height: 300,
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
+      ),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.cyan),
+            strokeWidth: 3,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Loading image...',
+            style: TextStyle(color: Colors.cyan, fontSize: 14),
           ),
         ],
       ),

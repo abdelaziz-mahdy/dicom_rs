@@ -123,8 +123,17 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
         _controller.state.contrast,
       );
 
-      setState(() {});
-      _loadCurrentImage();
+      // OPTIMIZED: Try to get image synchronously first
+      final syncImageData = _controller.getCurrentImageDataSync();
+      if (syncImageData != null) {
+        setState(() {
+          _currentImageData = syncImageData;
+        });
+      } else {
+        // Only load async if sync data not available
+        setState(() {});
+        _loadCurrentImage();
+      }
     }
   }
 
@@ -177,6 +186,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
                           measurements: _measurements,
                           currentMeasurementPoints: _currentMeasurementPoints,
                           selectedTool: _selectedMeasurementTool,
+                          isLoading: _controller.state.hasImages && _currentImageData == null,
                           measurementsVisible: _measurementsVisible,
                           interactionController: _interactionController,
                         ),

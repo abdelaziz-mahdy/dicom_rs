@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
@@ -8,6 +9,7 @@ import '../domain/usecases/load_dicom_directory_usecase.dart';
 import '../domain/entities/dicom_image_entity.dart';
 import '../data/repositories/dicom_repository_impl.dart';
 import '../services/file_selector_service.dart';
+import 'dicom_loading_screen.dart';
 
 /// Modern DICOM viewer screen with clean architecture and enhanced UI/UX
 class DicomViewerScreen extends StatefulWidget {
@@ -201,55 +203,26 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   }
 
   Widget _buildBody() {
-    return Stack(
-      children: [
-        // Background gradient
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.grey[900]!, const Color(0xFF0A0A0A)],
-            ),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.grey[900]!, const Color(0xFF0A0A0A)],
         ),
-
-        // Main content
-        if (_controller.state.hasImages)
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: CleanDicomViewer(
-              controller: _controller,
-              interactionController: _interactionController,
-              showControls: true,
-              showMeasurementToolbar: true,
-              enableHelpButton: true,
-            ),
-          )
-        else
-          _buildWelcomeScreen(),
-        
-        // Loading overlay
-        if (_controller.state.isLoading)
-          Container(
-            color: Colors.black54,
-            child: const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.cyan),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Loading DICOM files...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
+      ),
+      child: _controller.state.hasImages
+          ? FadeTransition(
+              opacity: _fadeAnimation,
+              child: CleanDicomViewer(
+                controller: _controller,
+                interactionController: _interactionController,
+                showControls: true,
+                showMeasurementToolbar: true,
+                enableHelpButton: true,
               ),
-            ),
-          ),
-      ],
+            )
+          : _buildWelcomeScreen(),
     );
   }
 
@@ -415,58 +388,202 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   }
 
   Future<void> _selectFiles() async {
-    final result = await FileSelectorService.selectDicomContent();
-
-    if (result != null && result.hasContent && mounted) {
-      await _loadMultipleFiles(result.files);
+    try {
+      await _navigateToLoadingAndProcess(() async {
+        debugPrint('📂 Starting directory/file selection...');
+        
+        final result = await FileSelectorService.selectDicomContent();
+        debugPrint('📂 Selection result: ${result?.files.length ?? 0} files');
+        
+        if (result != null && result.hasContent) {
+          debugPrint('📂 Loading ${result.files.length} files...');
+          await _loadMultipleFiles(result.files);
+          debugPrint('📂 Files loaded successfully');
+        } else {
+          final error = 'No files selected or no valid DICOM content found';
+          debugPrint('❌ Selection failed: $error');
+          throw Exception(error);
+        }
+      });
+    } catch (e, stackTrace) {
+      debugPrint('❌ _selectFiles error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      if (mounted) {
+        _showErrorSnackBar('Failed to select files: $e');
+      }
     }
   }
 
   Future<void> _selectFilesAlternative() async {
-    final result = await FileSelectorService.selectDicomFiles();
-
-    if (result != null && result.hasContent && mounted) {
-      await _loadMultipleFiles(result.files);
+    try {
+      await _navigateToLoadingAndProcess(() async {
+        debugPrint('📄 Starting individual files selection...');
+        
+        final result = await FileSelectorService.selectDicomFiles();
+        debugPrint('📄 Selection result: ${result?.files.length ?? 0} files');
+        
+        if (result != null && result.hasContent) {
+          debugPrint('📄 Loading ${result.files.length} files...');
+          await _loadMultipleFiles(result.files);
+          debugPrint('📄 Files loaded successfully');
+        } else {
+          final error = 'No files selected or no valid DICOM files found';
+          debugPrint('❌ Selection failed: $error');
+          throw Exception(error);
+        }
+      });
+    } catch (e, stackTrace) {
+      debugPrint('❌ _selectFilesAlternative error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      if (mounted) {
+        _showErrorSnackBar('Failed to select files: $e');
+      }
     }
   }
 
   Future<void> _selectSingleFile() async {
-    final result = await FileSelectorService.selectSingleDicomFile();
+    try {
+      await _navigateToLoadingAndProcess(() async {
+        debugPrint('📄 Starting single file selection...');
+        
+        final result = await FileSelectorService.selectSingleDicomFile();
+        debugPrint('📄 Selection result: ${result?.files.length ?? 0} files');
+        
+        if (result != null && result.hasContent) {
+          final fileData = result.files.first;
+          debugPrint('📄 Loading single file: ${fileData.name}');
+          await _loadSingleFileFromData(fileData);
+          debugPrint('📄 Single file loaded successfully');
+        } else {
+          final error = 'No file selected or invalid DICOM file';
+          debugPrint('❌ Selection failed: $error');
+          throw Exception(error);
+        }
+      });
+    } catch (e, stackTrace) {
+      debugPrint('❌ _selectSingleFile error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      if (mounted) {
+        _showErrorSnackBar('Failed to select file: $e');
+      }
+    }
+  }
 
-    if (result != null && result.hasContent && mounted) {
-      final fileData = result.files.first;
-      await _loadSingleFileFromData(fileData);
+  /// Navigate to loading screen and process the loading task
+  Future<void> _navigateToLoadingAndProcess(Future<void> Function() loadingTask) async {
+    if (!mounted) return;
+
+    debugPrint('🚀 Starting navigation to loading screen...');
+
+    // Start loading task immediately after navigation
+    unawaited(Future.microtask(() async {
+      try {
+        debugPrint('🔄 Starting loading task...');
+        await loadingTask();
+        debugPrint('✅ Loading task completed successfully');
+      } catch (error, stackTrace) {
+        debugPrint('❌ Loading task failed: $error');
+        debugPrint('❌ Stack trace: $stackTrace');
+        if (mounted) {
+          DicomLoadingProgressNotifier.notify(
+            DicomLoadingProgressEvent.error('$error'),
+          );
+        }
+      }
+    }));
+
+    // Navigate to loading screen - this will block until loading is complete
+    debugPrint('🔄 Pushing loading screen...');
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => DicomLoadingScreen(
+          onLoadingComplete: () {
+            debugPrint('✅ Loading completed - popping screen with success');
+            // Pop the loading screen when complete
+            Navigator.of(context).pop(true);
+          },
+          onLoadingError: (error) {
+            debugPrint('❌ Loading error received: $error');
+            // Pop the loading screen with error
+            Navigator.of(context).pop(false);
+          },
+          initialMessage: 'Preparing to load DICOM files...',
+        ),
+      ),
+    );
+
+    debugPrint('🔄 Loading screen returned with result: $result');
+
+    // If loading was successful, trigger the UI update
+    if (result == true && mounted) {
+      debugPrint('✅ Loading successful - updating UI');
+      setState(() {
+        _isFirstLoad = false;
+      });
+      _animationController.forward();
+    } else if (result == false && mounted) {
+      debugPrint('❌ Loading failed - showing error');
+      // Show error message if loading failed
+      _showErrorSnackBar('Failed to load DICOM files. Check console for details.');
+    } else if (result == null && mounted) {
+      debugPrint('🚫 Loading cancelled by user');
+      // User cancelled the loading
     }
   }
 
   Future<void> _loadSingleFileFromData(DicomFileData fileData) async {
     try {
+      debugPrint('📄 Loading single file: ${fileData.name}');
+      debugPrint('📄 File size: ${fileData.bytes.length} bytes');
+      
       await _controller.loadSingleFileFromData(fileData);
 
       if (mounted && _controller.state.hasImages) {
+        debugPrint('✅ Single DICOM file loaded successfully');
         _showSuccessSnackBar('DICOM file loaded successfully');
       } else {
-        _showErrorSnackBar('No images found in the selected file');
+        final error = 'No images found in the selected file';
+        debugPrint('❌ $error');
+        _showErrorSnackBar(error);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ Failed to load single DICOM file: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
       if (mounted) {
         _showErrorSnackBar('Failed to load DICOM file: $e');
       }
+      rethrow; // Re-throw to be caught by the navigation handler
     }
   }
 
   Future<void> _loadMultipleFiles(List<DicomFileData> files) async {
     try {
+      debugPrint('📄 Loading ${files.length} files...');
+      for (int i = 0; i < files.length && i < 5; i++) {
+        debugPrint('📄 File $i: ${files[i].name} (${files[i].bytes.length} bytes)');
+      }
+      if (files.length > 5) {
+        debugPrint('📄 ... and ${files.length - 5} more files');
+      }
+      
       // Load files from DicomFileData list (bytes-based)
       await _controller.loadFromFileDataList(files);
 
       if (mounted && _controller.state.hasImages) {
-        _showSuccessSnackBar('${files.length} DICOM files loaded successfully');
+        debugPrint('✅ ${_controller.state.images.length} DICOM files loaded successfully from ${files.length} files');
+        _showSuccessSnackBar('${_controller.state.images.length} DICOM files loaded successfully');
+      } else {
+        final error = 'No valid DICOM images found in ${files.length} files';
+        debugPrint('❌ $error');
+        throw Exception(error);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ Failed to load multiple DICOM files: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
       if (mounted) {
         _showErrorSnackBar('Failed to load DICOM files: $e');
       }
+      rethrow; // Re-throw to be caught by the navigation handler
     }
   }
 

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import '../../core/result.dart';
@@ -7,23 +6,27 @@ import '../../domain/entities/dicom_image_entity.dart';
 import '../../domain/usecases/load_dicom_directory_usecase.dart';
 import '../../data/repositories/dicom_repository_impl.dart';
 import '../../services/file_selector_service.dart';
+import '../../services/enhanced_dicom_service.dart';
+import '../../screens/dicom_loading_screen.dart';
+import '../../data/mappers/dicom_mapper.dart';
 
 /// Main controller for DICOM viewer with clean state management
 class DicomViewerController extends ChangeNotifier {
   DicomViewerController({
     LoadDicomDirectoryUseCase? loadDirectoryUseCase,
     DicomRepositoryImpl? repository,
-  }) : _loadDirectoryUseCase =
-           loadDirectoryUseCase ??
-           LoadDicomDirectoryUseCase(repository ?? DicomRepositoryImpl()),
-       _repository = repository ?? DicomRepositoryImpl();
+  }) : _repository = repository ?? DicomRepositoryImpl();
 
-  final LoadDicomDirectoryUseCase _loadDirectoryUseCase;
   final DicomRepositoryImpl _repository;
+  final EnhancedDicomService _enhancedService = EnhancedDicomService();
 
   // State
   DicomViewerState _state = const DicomViewerState();
   DicomViewerState get state => _state;
+
+  // Duplicate loading prevention
+  bool _isCurrentlyLoading = false;
+  String? _lastLoadedDirectoryPath;
 
   // Image caching with buffer zone for smooth navigation
   final Map<String, Uint8List> _persistentImageCache =
@@ -42,48 +45,145 @@ class DicomViewerController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Load DICOM files from file data list (bytes-based)
+  /// ULTRA-OPTIMIZED: Immediate loading with parallel processing and instant first image
   Future<void> loadFromFileDataList(List<DicomFileData> fileDataList, {bool recursive = false}) async {
+    // Prevent duplicate loading
+    if (_isCurrentlyLoading) {
+      debugPrint('⚠️ Already loading files, ignoring duplicate request');
+      return;
+    }
+
+    // Check if loading the same directory path
+    final directoryPath = fileDataList.isNotEmpty ? fileDataList.first.fullPath?.split('/').take(5).join('/') : null;
+    if (directoryPath != null && directoryPath == _lastLoadedDirectoryPath && _state.hasImages) {
+      debugPrint('⚠️ Same directory already loaded, ignoring duplicate request: $directoryPath');
+      return;
+    }
+
+    _isCurrentlyLoading = true;
+    _lastLoadedDirectoryPath = directoryPath;
     _updateState(_state.copyWith(isLoading: true, error: null));
 
-    final result = await _loadDirectoryUseCase.loadFromFileDataList(
-      fileDataList: fileDataList,
-      recursive: recursive,
-    );
+    try {
+      // Notify start of loading
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.processing(
+          fileName: 'OPTIMIZED: Loading metadata in parallel...',
+          processed: 0,
+          total: fileDataList.length,
+        ),
+      );
 
-    result.fold(
-      (images) {
+      // STEP 1: ULTRA-FAST parallel metadata extraction 
+      debugPrint('🚀 ULTRA-OPTIMIZED: Starting parallel metadata extraction...');
+      
+      final entries = await _enhancedService.loadFromFileDataList(fileDataList);
+      final processedImages = entries.map((entry) => 
+        DicomImageEntity(
+          id: entry.name.hashCode.toString(),
+          name: entry.name,
+          bytes: entry.bytes,
+          metadata: DicomMapper.fromMetadata(entry.metadata),
+        )
+      ).toList();
+      
+      debugPrint('✅ ULTRA-OPTIMIZED: Parallel metadata extraction complete: ${processedImages.length} files');
+
+      if (processedImages.isNotEmpty) {
+        // Sort images properly
+        processedImages.sort(_compareImages);
+
+        // CRITICAL FIX: Update state with images first
         _updateState(
           _state.copyWith(
-            isLoading: false,
-            images: images,
+            images: processedImages,
             currentIndex: 0,
+            isLoading: false, // Loading complete after metadata
           ),
         );
-        _preloadBuffer(0);
-      },
-      (error) {
+        
+        // STEP 2: INSTANT first image loading - load immediately for display
+        debugPrint('⚡ INSTANT: Loading first image immediately for display...');
+        await _loadImageAtIndex(0); // Load first image synchronously
+        debugPrint('✅ INSTANT: First image loaded and ready for display');
+        
+        // CRITICAL: Notify listeners that first image is ready
+        notifyListeners();
+        
+        // STEP 3: Background buffer loading (non-blocking)
+        debugPrint('🔄 BACKGROUND: Starting buffer preload for smooth navigation...');
+        unawaited(_preloadBufferOptimizedAsync(0)); // Non-blocking background loading
+        
+        // Final completion notification
+        DicomLoadingProgressNotifier.notify(
+          DicomLoadingProgressEvent.completed(totalLoaded: processedImages.length),
+        );
+        
+      } else {
+        final error = 'No valid DICOM files found';
         _updateState(_state.copyWith(isLoading: false, error: error));
-      },
-    );
+        DicomLoadingProgressNotifier.notify(DicomLoadingProgressEvent.error(error));
+      }
+
+    } catch (e) {
+      final error = 'Failed to load DICOM files: $e';
+      _updateState(_state.copyWith(isLoading: false, error: error));
+      DicomLoadingProgressNotifier.notify(DicomLoadingProgressEvent.error(error));
+    } finally {
+      _isCurrentlyLoading = false;
+    }
   }
 
-  /// Load single DICOM file from DicomFileData (bytes-based)
+  /// Compare images for sorting (helper method extracted from use case)
+  int _compareImages(DicomImageEntity a, DicomImageEntity b) {
+    // First by instance number
+    final aInstance = a.metadata.instanceNumber ?? 0;
+    final bInstance = b.metadata.instanceNumber ?? 0;
+    if (aInstance != bInstance) {
+      return aInstance.compareTo(bInstance);
+    }
+
+    // Then by slice location
+    final aLocation = a.metadata.sliceLocation ?? 0.0;
+    final bLocation = b.metadata.sliceLocation ?? 0.0;
+    if (aLocation != bLocation) {
+      return aLocation.compareTo(bLocation);
+    }
+
+    // Finally by name
+    return a.name.compareTo(b.name);
+  }
+
+  /// Load single DICOM file from DicomFileData (bytes-based) with progress tracking
   Future<void> loadSingleFileFromData(DicomFileData fileData) async {
     _updateState(_state.copyWith(isLoading: true, error: null));
 
     try {
-      // Check if it's a valid DICOM file
+      // Notify start of single file loading
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.processing(
+          fileName: fileData.name,
+          processed: 0,
+          total: 1,
+        ),
+      );
+
+      // Validate DICOM content
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.validating(
+          fileName: fileData.name,
+          processed: 0,
+          total: 1,
+        ),
+      );
+
       final validationResult = await _repository.isValidDicomFromBytes(fileData.bytes);
       final isValid = validationResult.fold((valid) => valid, (error) => false);
 
       if (!isValid) {
-        _updateState(
-          _state.copyWith(
-            isLoading: false,
-            error: 'Selected file is not a valid DICOM file',
-          ),
-        );
+        final error = 'Selected file is not a valid DICOM file';
+        _updateState(_state.copyWith(isLoading: false, error: error));
+        DicomLoadingProgressNotifier.notify(DicomLoadingProgressEvent.error(error));
         return;
       }
 
@@ -97,7 +197,6 @@ class DicomViewerController extends ChangeNotifier {
             id: fileData.name.hashCode.toString(),
             name: fileData.name,
             bytes: fileData.bytes,
-     // Optional for compatibility
             metadata: metadata,
           );
 
@@ -109,25 +208,24 @@ class DicomViewerController extends ChangeNotifier {
             ),
           );
 
+          // Notify completion
+          DicomLoadingProgressNotifier.notify(
+            DicomLoadingProgressEvent.completed(totalLoaded: 1),
+          );
+
           // Preload the single image
           _preloadBuffer(0);
         },
         (error) {
-          _updateState(
-            _state.copyWith(
-              isLoading: false,
-              error: 'Failed to load DICOM file: $error',
-            ),
-          );
+          final errorMsg = 'Failed to load DICOM file: $error';
+          _updateState(_state.copyWith(isLoading: false, error: errorMsg));
+          DicomLoadingProgressNotifier.notify(DicomLoadingProgressEvent.error(errorMsg));
         },
       );
     } catch (e) {
-      _updateState(
-        _state.copyWith(
-          isLoading: false,
-          error: 'Error loading DICOM file: $e',
-        ),
-      );
+      final errorMsg = 'Error loading DICOM file: $e';
+      _updateState(_state.copyWith(isLoading: false, error: errorMsg));
+      DicomLoadingProgressNotifier.notify(DicomLoadingProgressEvent.error(errorMsg));
     }
   }
 
@@ -154,7 +252,7 @@ class DicomViewerController extends ChangeNotifier {
     goToImage(prevIndex);
   }
 
-  /// Get current image data with buffer caching and brightness/contrast processing
+  /// OPTIMIZED: Get current image data with immediate cache check
   Future<Uint8List?> getCurrentImageData() async {
     if (!_state.hasImages) return null;
 
@@ -192,6 +290,41 @@ class DicomViewerController extends ChangeNotifier {
 
     return rawImageData;
   }
+
+  /// OPTIMIZED: Check if current image is immediately available (no async loading)
+  bool get isCurrentImageReady {
+    if (!_state.hasImages) return false;
+    return _bufferCache.containsKey(_state.currentIndex);
+  }
+
+  /// OPTIMIZED: Get current image data synchronously if available
+  Uint8List? getCurrentImageDataSync() {
+    if (!_state.hasImages || !isCurrentImageReady) return null;
+    return _bufferCache[_state.currentIndex];
+  }
+
+  
+  /// OPTIMIZED: Async buffer preload for background loading (non-blocking)
+  Future<void> _preloadBufferOptimizedAsync(int startIndex) async {
+    try {
+      final totalImages = _state.images.length;
+      final endIndex = (startIndex + _bufferSize - 1).clamp(0, totalImages - 1);
+
+      debugPrint('🔄 BACKGROUND: Async buffer preload for indices $startIndex-$endIndex');
+      
+      // Load remaining images in parallel (skip index 0 as it's already loaded)
+      final futures = <Future<void>>[];
+      for (int i = startIndex + 1; i <= endIndex; i++) {
+        futures.add(_loadImageAtIndex(i));
+      }
+
+      await Future.wait(futures);
+      debugPrint('✅ BACKGROUND: Async buffer preload complete');
+    } catch (e) {
+      debugPrint('❌ BACKGROUND: Error in async buffer preload: $e');
+    }
+  }
+
 
   /// Preload images in buffer zone around current index
   Future<void> _preloadBuffer(int centerIndex) async {
