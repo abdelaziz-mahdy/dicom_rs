@@ -1,11 +1,10 @@
 import 'dart:io';
+import 'package:dicom_rs_example/screens/dicom_loading_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import 'package:path/path.dart' as path;
-import '../screens/dicom_loading_screen.dart';
-import 'dicom_isolate_validator.dart';
 
 /// Service to handle platform-specific file selection
 class FileSelectorService {
@@ -182,7 +181,7 @@ class FileSelectorService {
     return null;
   }
 
-  /// ISOLATE-OPTIMIZED: Directory scanning with CPU-core based validation
+  /// ULTRA-OPTIMIZED: Single-pass directory scanning with full parallel processing
   static Future<List<DicomFileData>> _scanDirectoryForDicomFiles(String directoryPath) async {
     final directory = Directory(directoryPath);
 
@@ -200,12 +199,36 @@ class FileSelectorService {
         }
       }
       
-      debugPrint('🚀 ISOLATE-OPTIMIZED: Found ${allFiles.length} files, using ${Platform.numberOfProcessors} CPU cores for validation...');
+      debugPrint('🚀 ULTRA-OPTIMIZED: Found ${allFiles.length} files, processing ALL in parallel with single-pass metadata extraction...');
       
-      // Use isolate-based validation with RustLib initialization
-      final dicomFiles = await DicomIsolateValidator.validateFilesWithIsolates(allFiles);
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.processing(
+          fileName: 'Processing all ${allFiles.length} files in parallel...',
+          processed: 0,
+          total: allFiles.length,
+        ),
+      );
       
-      debugPrint('✅ ISOLATE-OPTIMIZED: Directory scan complete: ${dicomFiles.length}/${allFiles.length} valid DICOM files');
+      // ULTRA-OPTIMIZED: Process ALL files in parallel - no batching!
+      final futures = allFiles.asMap().entries.map(
+        (entry) => _tryExtractDicomMetadataFromFile(entry.value, entry.key + 1, allFiles.length)
+      ).toList();
+      
+      // Wait for all files to process in parallel
+      final results = await Future.wait(futures, eagerError: false);
+      
+      // Collect valid results
+      final dicomFiles = results.where((result) => result != null).cast<DicomFileData>().toList();
+      
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.processing(
+          fileName: 'Parallel processing complete!',
+          processed: allFiles.length,
+          total: allFiles.length,
+        ),
+      );
+      
+      debugPrint('✅ ULTRA-OPTIMIZED: Single-pass directory scan complete: ${dicomFiles.length}/${allFiles.length} valid DICOM files');
       return dicomFiles;
       
     } catch (e) {

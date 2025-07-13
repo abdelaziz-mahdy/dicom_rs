@@ -158,7 +158,25 @@ class _ViewerControlsWidgetState extends State<ViewerControlsWidget> {
         onSubmitted: (value) {
           final index = int.tryParse(value);
           if (index != null && index >= 1 && index <= widget.totalImages) {
-            widget.onGoToImage(index);
+            try {
+              widget.onGoToImage(index);
+            } catch (e) {
+              debugPrint('❌ Error navigating to image $index: $e');
+              // Reset to current index on error
+              _indexController.text = widget.currentIndex.toString();
+            }
+          } else {
+            // Invalid input - reset to current index
+            _indexController.text = widget.currentIndex.toString();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Please enter a number between 1 and ${widget.totalImages}'),
+                  backgroundColor: Colors.orange[700],
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
           }
           setState(() {
             _showIndexInput = false;

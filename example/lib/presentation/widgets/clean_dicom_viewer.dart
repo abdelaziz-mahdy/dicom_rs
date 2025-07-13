@@ -87,13 +87,22 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   void _setupInteractionCallbacks() {
     _interactionController
-      ..onNextImage = _controller.nextImage
-      ..onPreviousImage = _controller.previousImage
+      ..onNextImage = () {
+        _controller.nextImage();
+        // Ensure brightness/contrast sync after navigation
+        _syncControllers();
+      }
+      ..onPreviousImage = () {
+        _controller.previousImage();
+        // Ensure brightness/contrast sync after navigation
+        _syncControllers();
+      }
       ..onBrightnessContrastChanged = (brightness, contrast) {
         _controller.updateImageAdjustments(
           brightness: brightness,
           contrast: contrast,
         );
+        // No need to reload image - the getCurrentImageData() will apply adjustments on-demand
       }
       ..onScaleChanged = (scale) {
         // Only allow scaling when not measuring
@@ -107,7 +116,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
     // Listen to interaction controller changes to clear drag state when needed
     _interactionController.addListener(() {
-      if (_interactionController.selectedMeasurement == null) {
+      if (mounted && _interactionController.selectedMeasurement == null) {
         setState(() {
           _clearDragState();
         });
@@ -115,9 +124,24 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     });
   }
 
+  /// Synchronize controllers after navigation
+  void _syncControllers() {
+    if (mounted) {
+      Future.microtask(() {
+        if (mounted) {
+          _interactionController.syncBrightnessContrast(
+            _controller.state.brightness,
+            _controller.state.contrast,
+          );
+        }
+      });
+    }
+  }
+
   void _onControllerChanged() {
     if (mounted) {
-      // Sync interaction controller with current brightness/contrast values
+      // Always sync interaction controller with current brightness/contrast values
+      // This ensures consistency when navigating between images
       _interactionController.syncBrightnessContrast(
         _controller.state.brightness,
         _controller.state.contrast,
@@ -132,19 +156,64 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       } else {
         // Only load async if sync data not available
         setState(() {});
-        _loadCurrentImage();
+        // Use microtask to avoid blocking UI updates
+        Future.microtask(() => _loadCurrentImage());
       }
     }
   }
 
   Future<void> _loadCurrentImage() async {
-    final imageData = await _controller.getCurrentImageData();
+    try {
+      final imageData = await _controller.getCurrentImageData();
 
-    if (mounted) {
-      setState(() {
-        _currentImageData = imageData;
-      });
+      if (mounted) {
+        setState(() {
+          _currentImageData = imageData;
+        });
+        
+        // Validate loaded image data
+        if (mounted && imageData == null && _controller.state.hasImages) {
+          debugPrint('⚠️ Failed to load current image data');
+          // Try to reload the current image
+          _retryImageLoad();
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading current image: $e');
+      if (mounted) {
+        setState(() {
+          _currentImageData = null;
+        });
+      }
     }
+  }
+
+  /// Retry loading current image with exponential backoff
+  void _retryImageLoad({int attempt = 1, int maxAttempts = 3}) {
+    if (attempt > maxAttempts || !mounted) return;
+    
+    final delay = Duration(milliseconds: 100 * attempt);
+    Future.delayed(delay, () async {
+      if (!mounted) return;
+      
+      try {
+        final imageData = await _controller.getCurrentImageData();
+        if (mounted) {
+          if (imageData != null) {
+            setState(() {
+              _currentImageData = imageData;
+            });
+          } else if (attempt < maxAttempts) {
+            _retryImageLoad(attempt: attempt + 1, maxAttempts: maxAttempts);
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ Retry $attempt failed: $e');
+        if (mounted && attempt < maxAttempts) {
+          _retryImageLoad(attempt: attempt + 1, maxAttempts: maxAttempts);
+        }
+      }
+    });
   }
 
   @override
@@ -237,26 +306,60 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   Widget _buildUIOverlays() {
     return Stack(
       children: [
-        // Image adjustments display
+        // Enhanced image adjustments display with status indicators
         Positioned(
           top: 16,
           right: 16,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
+              color: Colors.black.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.cyan.withValues(alpha: 0.4)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Text(
-              'B: ${_controller.state.brightness.toStringAsFixed(2)} '
-              'C: ${_controller.state.contrast.toStringAsFixed(2)} '
-              'Z: ${(_controller.state.scale * 100).toStringAsFixed(0)}%',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontFamily: 'monospace',
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.tune,
+                      color: Colors.cyan,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Adjustments',
+                      style: TextStyle(
+                        color: Colors.cyan,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'B: ${_controller.state.brightness.toStringAsFixed(2)}\n'
+                  'C: ${_controller.state.contrast.toStringAsFixed(2)}\n'
+                  'Z: ${(_controller.state.scale * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -343,18 +446,29 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   }
 
   void _handleImageTap(Offset position, Size imageSize) {
-    // Don't handle measurement point selection in tap - let scale events handle dragging
-    // This prevents the double-click issue by allowing scale events to handle everything
+    // Validate inputs
+    if (position.dx.isNaN || position.dy.isNaN || 
+        position.dx < 0 || position.dy < 0 ||
+        imageSize.width <= 0 || imageSize.height <= 0) {
+      debugPrint('⚠️ Invalid tap position or image size');
+      return;
+    }
 
     // Only add new measurement points if we have a selected tool
     if (_selectedMeasurementTool == null) return;
+
+    // Ensure position is within image bounds
+    final clampedPosition = Offset(
+      position.dx.clamp(0.0, imageSize.width),
+      position.dy.clamp(0.0, imageSize.height),
+    );
 
     // Check if tap is on an existing measurement point - if so, don't add new point
     for (final measurement in _measurements) {
       for (int i = 0; i < measurement.points.length; i++) {
         final point = measurement.points[i];
         final pointCenter = Offset(point.x, point.y);
-        final distance = (position - pointCenter).distance;
+        final distance = (clampedPosition - pointCenter).distance;
         if (distance <= 12) {
           // Hit an existing point, don't add new measurement point
           return;
@@ -362,17 +476,25 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       }
     }
 
-    setState(() {
-      _currentMeasurementPoints.add(
-        MeasurementPoint(x: position.dx, y: position.dy),
-      );
+    try {
+      setState(() {
+        _currentMeasurementPoints.add(
+          MeasurementPoint(x: clampedPosition.dx, y: clampedPosition.dy),
+        );
 
-      // Complete measurement if we have enough points
-      final requiredPoints = _selectedMeasurementTool!.requiredPoints;
-      if (_currentMeasurementPoints.length >= requiredPoints) {
-        _completeMeasurement();
-      }
-    });
+        // Complete measurement if we have enough points
+        final requiredPoints = _selectedMeasurementTool!.requiredPoints;
+        if (_currentMeasurementPoints.length >= requiredPoints) {
+          _completeMeasurement();
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ Error handling image tap: $e');
+      // Clear incomplete measurement on error
+      setState(() {
+        _currentMeasurementPoints.clear();
+      });
+    }
   }
 
   void _handleMeasurementPointDrag(Offset position) {
@@ -508,29 +630,65 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   void _completeMeasurement() {
     if (_selectedMeasurementTool == null || _currentMeasurementPoints.isEmpty) {
+      debugPrint('⚠️ Cannot complete measurement: no tool selected or no points');
       return;
     }
 
-    // Get pixel spacing from current DICOM image metadata
-    final pixelSpacing = _controller.state.currentImage?.metadata.pixelSpacing;
-    final currentScale = _controller.state.scale;
+    // Validate measurement points
+    final validPoints = <MeasurementPoint>[];
+    for (final point in _currentMeasurementPoints) {
+      if (point.x.isFinite && point.y.isFinite && 
+          point.x >= 0 && point.y >= 0) {
+        validPoints.add(point);
+      } else {
+        debugPrint('⚠️ Skipping invalid measurement point: (${point.x}, ${point.y})');
+      }
+    }
 
-    final measurement = MeasurementEntity(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      type: _selectedMeasurementTool!,
-      points: List.from(_currentMeasurementPoints),
-      pixelSpacing: pixelSpacing,
-      imageScale: currentScale,
-    );
+    if (validPoints.length < _selectedMeasurementTool!.requiredPoints) {
+      debugPrint('⚠️ Insufficient valid points for ${_selectedMeasurementTool!.name}: ${validPoints.length}/${_selectedMeasurementTool!.requiredPoints}');
+      setState(() {
+        _currentMeasurementPoints.clear();
+      });
+      return;
+    }
 
-    setState(() {
-      _measurements.add(measurement);
-      _currentMeasurementPoints.clear();
-      _selectedMeasurementTool = null;
-    });
+    try {
+      // Get pixel spacing from current DICOM image metadata
+      final pixelSpacing = _controller.state.currentImage?.metadata.pixelSpacing;
+      final currentScale = _controller.state.scale;
 
-    // Clear any selected measurement highlighting
-    _interactionController.clearSelectedMeasurement();
+      // Validate scale
+      if (currentScale <= 0 || !currentScale.isFinite) {
+        debugPrint('⚠️ Invalid scale for measurement: $currentScale');
+        return;
+      }
+
+      final measurement = MeasurementEntity(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        type: _selectedMeasurementTool!,
+        points: List.from(validPoints),
+        pixelSpacing: pixelSpacing,
+        imageScale: currentScale,
+      );
+
+      setState(() {
+        _measurements.add(measurement);
+        _currentMeasurementPoints.clear();
+        _selectedMeasurementTool = null;
+      });
+
+      // Clear any selected measurement highlighting
+      _interactionController.clearSelectedMeasurement();
+      
+      debugPrint('✅ Measurement completed successfully: ${measurement.type.name}');
+    } catch (e) {
+      debugPrint('❌ Error completing measurement: $e');
+      setState(() {
+        _currentMeasurementPoints.clear();
+        _selectedMeasurementTool = null;
+      });
+    }
   }
 
   void _clearAllMeasurements() {

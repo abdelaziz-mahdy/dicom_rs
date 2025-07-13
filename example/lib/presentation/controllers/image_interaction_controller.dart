@@ -45,16 +45,19 @@ class ImageInteractionController extends ChangeNotifier {
   void Function(Offset position)? onMeasurementPointDragged;
   void Function(dynamic measurement, int pointIndex, Offset newPosition)? onPointDrag;
 
-  // Brightness/contrast state
+  // Brightness/contrast state with debouncing
   double _currentBrightness = 0.0;
   double _currentContrast = 1.0;
+  Timer? _brightnessContrastDebounceTimer;
+  static const Duration _brightnessContrastDebounce = Duration(milliseconds: 16); // ~60fps
 
-  // Fast navigation state
-  Timer? _fastNavigationTimer;
-  bool _isFastNavigating = false;
+  // Enhanced navigation state - simplified and more reliable
+  Timer? _navigationTimer;
   LogicalKeyboardKey? _activeKey;
-  static const Duration _fastNavigationDelay = Duration(milliseconds: 150);
-  static const Duration _fastNavigationInterval = Duration(milliseconds: 100);
+  DateTime? _lastNavigationTime;
+  static const Duration _navigationDelay = Duration(milliseconds: 150);
+  static const Duration _navigationInterval = Duration(milliseconds: 120);
+  static const Duration _navigationDebounce = Duration(milliseconds: 50);
 
   bool get isInteracting => _isRightClickDragging;
   dynamic get selectedMeasurement => _selectedMeasurement;
@@ -62,7 +65,8 @@ class ImageInteractionController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _fastNavigationTimer?.cancel();
+    _navigationTimer?.cancel();
+    _brightnessContrastDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -95,7 +99,7 @@ class ImageInteractionController extends ChangeNotifier {
     }
   }
 
-  /// Handle keyboard events with fast navigation support
+  /// Handle keyboard events with enhanced debouncing and reliable navigation
   void handleKeyEvent(KeyEvent event) {
     if (!enableKeyboardNavigation) return;
     
@@ -115,31 +119,37 @@ class ImageInteractionController extends ChangeNotifier {
   }
 
   void _handleKeyDown(LogicalKeyboardKey key) {
-    // Cancel any existing timer
-    _fastNavigationTimer?.cancel();
+    final now = DateTime.now();
     
-    // Immediate navigation on first press
-    _navigateWithKey(key);
-    
-    // Start fast navigation timer if this is a new key or continuing same key
-    if (_activeKey != key) {
-      _activeKey = key;
-      _isFastNavigating = false;
+    // Debounce rapid key presses to prevent jumping
+    if (_lastNavigationTime != null) {
+      final timeSinceLastNav = now.difference(_lastNavigationTime!);
+      if (timeSinceLastNav < _navigationDebounce) {
+        return; // Ignore too-rapid key presses
+      }
     }
     
-    // Start timer for fast navigation
-    _fastNavigationTimer = Timer(_fastNavigationDelay, () {
-      _isFastNavigating = true;
-      _startFastNavigation(key);
-    });
+    // Clean up any existing timer
+    _navigationTimer?.cancel();
+    
+    // First key press: immediate navigation
+    if (_activeKey != key) {
+      _activeKey = key;
+      _navigateWithKey(key);
+      _lastNavigationTime = now;
+      
+      // Start repeat timer for continuous navigation
+      _navigationTimer = Timer(_navigationDelay, () {
+        _startRepeatedNavigation(key);
+      });
+    }
   }
 
   void _handleKeyUp(LogicalKeyboardKey key) {
     if (_activeKey == key) {
-      _fastNavigationTimer?.cancel();
-      _fastNavigationTimer = null;
+      _navigationTimer?.cancel();
+      _navigationTimer = null;
       _activeKey = null;
-      _isFastNavigating = false;
     }
   }
 
@@ -156,14 +166,17 @@ class ImageInteractionController extends ChangeNotifier {
     }
   }
 
-  void _startFastNavigation(LogicalKeyboardKey key) {
-    if (!_isFastNavigating || _activeKey != key) return;
+  void _startRepeatedNavigation(LogicalKeyboardKey key) {
+    // Only continue if the key is still being held down
+    if (_activeKey != key) return;
     
+    final now = DateTime.now();
     _navigateWithKey(key);
+    _lastNavigationTime = now;
     
-    // Schedule next fast navigation
-    _fastNavigationTimer = Timer(_fastNavigationInterval, () {
-      _startFastNavigation(key);
+    // Schedule next repeat navigation
+    _navigationTimer = Timer(_navigationInterval, () {
+      _startRepeatedNavigation(key);
     });
   }
 
@@ -198,7 +211,14 @@ class ImageInteractionController extends ChangeNotifier {
       _currentBrightness = _currentBrightness.clamp(-1.0, 1.0);
       _currentContrast = _currentContrast.clamp(0.1, 3.0);
       
-      onBrightnessContrastChanged?.call(_currentBrightness, _currentContrast);
+      // Debounce the callback to prevent blocking the app
+      _brightnessContrastDebounceTimer?.cancel();
+      _brightnessContrastDebounceTimer = Timer(_brightnessContrastDebounce, () {
+        if (onBrightnessContrastChanged != null) {
+          onBrightnessContrastChanged!(_currentBrightness, _currentContrast);
+        }
+      });
+      
       _lastPanPosition = event.localPosition;
     }
   }
@@ -283,11 +303,15 @@ class ImageInteractionController extends ChangeNotifier {
     _currentBrightness = 0.0;
     _currentContrast = 1.0;
     
-    // Reset fast navigation state
-    _fastNavigationTimer?.cancel();
-    _fastNavigationTimer = null;
+    // Reset navigation state
+    _navigationTimer?.cancel();
+    _navigationTimer = null;
     _activeKey = null;
-    _isFastNavigating = false;
+    _lastNavigationTime = null;
+    
+    // Reset brightness/contrast debounce
+    _brightnessContrastDebounceTimer?.cancel();
+    _brightnessContrastDebounceTimer = null;
     
     // Clear selected measurement
     _selectedMeasurement = null;
@@ -300,6 +324,24 @@ class ImageInteractionController extends ChangeNotifier {
   void syncBrightnessContrast(double brightness, double contrast) {
     _currentBrightness = brightness;
     _currentContrast = contrast;
+    // Notify listeners to update any UI that depends on these values
+    notifyListeners();
+  }
+
+  /// Get current brightness value
+  double get currentBrightness => _currentBrightness;
+  
+  /// Get current contrast value  
+  double get currentContrast => _currentContrast;
+
+  /// Set brightness/contrast values directly (for initialization)
+  void setBrightnessContrast(double brightness, double contrast) {
+    _currentBrightness = brightness;
+    _currentContrast = contrast;
+    // Cancel any pending debounce and immediately notify
+    _brightnessContrastDebounceTimer?.cancel();
+    onBrightnessContrastChanged?.call(_currentBrightness, _currentContrast);
+    notifyListeners();
   }
 
   /// Update feature toggles

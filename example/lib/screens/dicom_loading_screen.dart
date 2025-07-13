@@ -31,6 +31,14 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
   String _currentFileName = '';
   bool _isScanning = true;
   
+  // Enhanced progress tracking with ETA
+  DateTime? _startTime;
+  DateTime? _lastUpdateTime;
+  double _loadingSpeed = 0.0; // files per second
+  Duration _estimatedTimeRemaining = Duration.zero;
+  int _totalBytesProcessed = 0;
+  int _currentFileSize = 0;
+  
   StreamSubscription? _progressSubscription;
 
   @override
@@ -78,12 +86,45 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
     _progressSubscription = DicomLoadingProgressNotifier.stream.listen((event) {
       if (!mounted) return;
       
+      final now = DateTime.now();
+      
+      // Initialize start time on first progress event
+      if (_startTime == null && event.totalFiles > 0) {
+        _startTime = now;
+      }
+      
       setState(() {
         _currentMessage = event.message;
         _currentFileName = event.currentFile ?? '';
+        
+        // Calculate ETA and speed metrics when files progress
+        if (event.filesProcessed > _filesProcessed && _startTime != null) {
+          final elapsed = now.difference(_startTime!);
+          final newFilesProcessed = event.filesProcessed - _filesProcessed;
+          
+          // Update loading speed (files per second)
+          if (elapsed.inMilliseconds > 0) {
+            _loadingSpeed = event.filesProcessed / (elapsed.inMilliseconds / 1000.0);
+          }
+          
+          // Calculate ETA for remaining files
+          final remainingFiles = event.totalFiles - event.filesProcessed;
+          if (_loadingSpeed > 0 && remainingFiles > 0) {
+            final secondsRemaining = remainingFiles / _loadingSpeed;
+            _estimatedTimeRemaining = Duration(seconds: secondsRemaining.ceil());
+          }
+          
+          // Track bytes if available
+          if (event.currentFileSize != null) {
+            _totalBytesProcessed += event.currentFileSize!;
+            _currentFileSize = event.currentFileSize!;
+          }
+        }
+        
         _filesProcessed = event.filesProcessed;
         _totalFiles = event.totalFiles;
         _isScanning = event.isScanning;
+        _lastUpdateTime = now;
       });
 
       // Update progress animation
@@ -113,6 +154,17 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
     // Wait a moment then notify completion
     await Future.delayed(const Duration(milliseconds: 800));
     widget.onLoadingComplete();
+  }
+
+  /// Format duration for ETA display
+  String _formatDuration(Duration duration) {
+    if (duration.inHours > 0) {
+      return '${duration.inHours}h ${duration.inMinutes % 60}m';
+    } else if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    } else {
+      return '${duration.inSeconds}s';
+    }
   }
 
   @override
@@ -215,24 +267,52 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
 
                   const SizedBox(height: 16),
 
-                  // Progress text
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Progress text with enhanced metrics
+                  Column(
                     children: [
-                      Text(
-                        '$_filesProcessed of $_totalFiles files',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 14,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '$_filesProcessed of $_totalFiles files',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            '${(_totalFiles > 0 ? (_filesProcessed / _totalFiles * 100) : 0).round()}%',
+                            style: const TextStyle(
+                              color: Colors.cyan,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${(_totalFiles > 0 ? (_filesProcessed / _totalFiles * 100) : 0).round()}%',
-                        style: const TextStyle(
-                          color: Colors.cyan,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      const SizedBox(height: 8),
+                      // Enhanced metrics row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${_loadingSpeed.toStringAsFixed(1)} files/sec',
+                            style: TextStyle(
+                              color: Colors.cyan.withValues(alpha: 0.8),
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          if (_estimatedTimeRemaining.inSeconds > 0)
+                            Text(
+                              'ETA: ${_formatDuration(_estimatedTimeRemaining)}',
+                              style: TextStyle(
+                                color: Colors.cyan.withValues(alpha: 0.8),
+                                fontSize: 12,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
@@ -384,6 +464,7 @@ class DicomLoadingProgressEvent {
     this.isScanning = false,
     this.isComplete = false,
     this.error,
+    this.currentFileSize,
   });
 
   final String message;
@@ -393,6 +474,7 @@ class DicomLoadingProgressEvent {
   final bool isScanning;
   final bool isComplete;
   final String? error;
+  final int? currentFileSize;
 
   /// Create scanning event
   factory DicomLoadingProgressEvent.scanning({String? directory}) {
@@ -409,12 +491,14 @@ class DicomLoadingProgressEvent {
     required String fileName,
     required int processed,
     required int total,
+    int? fileSize,
   }) {
     return DicomLoadingProgressEvent(
       message: 'Processing DICOM files...',
       currentFile: fileName,
       filesProcessed: processed,
       totalFiles: total,
+      currentFileSize: fileSize,
     );
   }
 
@@ -423,12 +507,14 @@ class DicomLoadingProgressEvent {
     required String fileName,
     required int processed,
     required int total,
+    int? fileSize,
   }) {
     return DicomLoadingProgressEvent(
       message: 'Validating DICOM content...',
       currentFile: fileName,
       filesProcessed: processed,
       totalFiles: total,
+      currentFileSize: fileSize,
     );
   }
 

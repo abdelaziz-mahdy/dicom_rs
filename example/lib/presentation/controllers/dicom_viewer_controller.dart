@@ -45,92 +45,120 @@ class DicomViewerController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// ULTRA-OPTIMIZED: Immediate loading with parallel processing and instant first image
+  /// STREAMLINED: Fast loading with minimal checks for maximum performance
   Future<void> loadFromFileDataList(List<DicomFileData> fileDataList, {bool recursive = false}) async {
-    // Prevent duplicate loading
-    if (_isCurrentlyLoading) {
-      debugPrint('⚠️ Already loading files, ignoring duplicate request');
+    final totalStartTime = DateTime.now();
+    debugPrint('⏱️ [TIMING] loadFromFileDataList START - ${fileDataList.length} files');
+    
+    // Single early validation - fail fast if no files
+    if (fileDataList.isEmpty) {
+      _updateState(_state.copyWith(error: 'No files provided'));
       return;
     }
 
-    // Check if loading the same directory path
-    final directoryPath = fileDataList.isNotEmpty ? fileDataList.first.fullPath?.split('/').take(5).join('/') : null;
-    if (directoryPath != null && directoryPath == _lastLoadedDirectoryPath && _state.hasImages) {
-      debugPrint('⚠️ Same directory already loaded, ignoring duplicate request: $directoryPath');
-      return;
-    }
-
+    // Simple duplicate loading prevention
+    if (_isCurrentlyLoading) return;
     _isCurrentlyLoading = true;
-    _lastLoadedDirectoryPath = directoryPath;
+    
+    final stateUpdateTime = DateTime.now();
     _updateState(_state.copyWith(isLoading: true, error: null));
+    debugPrint('⏱️ [TIMING] Initial state update: ${DateTime.now().difference(stateUpdateTime).inMilliseconds}ms');
 
     try {
-      // Notify start of loading
-      DicomLoadingProgressNotifier.notify(
-        DicomLoadingProgressEvent.processing(
-          fileName: 'OPTIMIZED: Loading metadata in parallel...',
-          processed: 0,
-          total: fileDataList.length,
-        ),
-      );
-
-      // STEP 1: ULTRA-FAST parallel metadata extraction 
-      debugPrint('🚀 ULTRA-OPTIMIZED: Starting parallel metadata extraction...');
+      // ULTRA-OPTIMIZED: Use pre-extracted metadata directly (no redundant processing)
+      final metadataStartTime = DateTime.now();
+      final processedImages = <DicomImageEntity>[];
       
-      final entries = await _enhancedService.loadFromFileDataList(fileDataList);
-      final processedImages = entries.map((entry) => 
-        DicomImageEntity(
-          id: entry.name.hashCode.toString(),
-          name: entry.name,
-          bytes: entry.bytes,
-          metadata: DicomMapper.fromMetadata(entry.metadata),
-        )
-      ).toList();
+      debugPrint('⏱️ [TIMING] Creating ${fileDataList.length} entities from pre-extracted metadata...');
       
-      debugPrint('✅ ULTRA-OPTIMIZED: Parallel metadata extraction complete: ${processedImages.length} files');
+      // Process all files at once - metadata is already extracted by file selector
+      for (int i = 0; i < fileDataList.length; i++) {
+        final file = fileDataList[i];
+        
+        // OPTIMIZATION: Files should ALWAYS have pre-extracted metadata from file selector
+        if (file.metadata != null) {
+          processedImages.add(DicomImageEntity(
+            id: file.name.hashCode.toString(),
+            name: file.name,
+            bytes: file.bytes,
+            metadata: DicomMapper.fromMetadata(file.metadata!),
+          ));
+        } else {
+          // This should NOT happen if file selector worked correctly
+          debugPrint('⚠️ WARNING: File ${file.name} missing pre-extracted metadata - this indicates a bug in file selector');
+          // Only fallback if absolutely necessary
+          final metadata = await _extractMetadataFallback(file);
+          if (metadata != null) {
+            processedImages.add(DicomImageEntity(
+              id: file.name.hashCode.toString(),
+              name: file.name,
+              bytes: file.bytes,
+              metadata: DicomMapper.fromMetadata(metadata),
+            ));
+          }
+        }
+      }
+      
+      debugPrint('⏱️ [TIMING] Entity creation from pre-extracted metadata: ${DateTime.now().difference(metadataStartTime).inMilliseconds}ms');
 
-      if (processedImages.isNotEmpty) {
-        // Sort images properly
-        processedImages.sort(_compareImages);
-
-        // CRITICAL FIX: Update state with images first
-        _updateState(
-          _state.copyWith(
-            images: processedImages,
-            currentIndex: 0,
-            isLoading: false, // Loading complete after metadata
-          ),
-        );
-        
-        // STEP 2: INSTANT first image loading - load immediately for display
-        debugPrint('⚡ INSTANT: Loading first image immediately for display...');
-        await _loadImageAtIndex(0); // Load first image synchronously
-        debugPrint('✅ INSTANT: First image loaded and ready for display');
-        
-        // CRITICAL: Notify listeners that first image is ready
-        notifyListeners();
-        
-        // STEP 3: Background buffer loading (non-blocking)
-        debugPrint('🔄 BACKGROUND: Starting buffer preload for smooth navigation...');
-        unawaited(_preloadBufferOptimizedAsync(0)); // Non-blocking background loading
-        
-        // Final completion notification
-        DicomLoadingProgressNotifier.notify(
-          DicomLoadingProgressEvent.completed(totalLoaded: processedImages.length),
-        );
-        
-      } else {
-        final error = 'No valid DICOM files found';
-        _updateState(_state.copyWith(isLoading: false, error: error));
-        DicomLoadingProgressNotifier.notify(DicomLoadingProgressEvent.error(error));
+      if (processedImages.isEmpty) {
+        _updateState(_state.copyWith(isLoading: false, error: 'No valid DICOM files'));
+        return;
       }
 
+      // Sort and set images
+      final sortStartTime = DateTime.now();
+      processedImages.sort(_compareImages);
+      debugPrint('⏱️ [TIMING] Sorting ${processedImages.length} images: ${DateTime.now().difference(sortStartTime).inMilliseconds}ms');
+      
+      // Set images but keep loading true until first image is ready
+      final stateTime = DateTime.now();
+      _updateState(_state.copyWith(
+        images: processedImages,
+        currentIndex: 0,
+        isLoading: true, // Keep loading until first image is ready
+      ));
+      debugPrint('⏱️ [TIMING] Images state update: ${DateTime.now().difference(stateTime).inMilliseconds}ms');
+
+      // Load first image immediately and wait for it to be ready
+      final firstImageStartTime = DateTime.now();
+      await _loadImageAtIndex(0);
+      debugPrint('⏱️ [TIMING] First image load: ${DateTime.now().difference(firstImageStartTime).inMilliseconds}ms');
+      
+      // NOW set loading complete since first image is ready
+      final finalStateTime = DateTime.now();
+      _updateState(_state.copyWith(isLoading: false));
+      debugPrint('⏱️ [TIMING] Final loading complete: ${DateTime.now().difference(finalStateTime).inMilliseconds}ms');
+      
+      // Preload small buffer around first image for smooth navigation
+      unawaited(_preloadBuffer(0));
+      
+      DicomLoadingProgressNotifier.notify(
+        DicomLoadingProgressEvent.completed(totalLoaded: processedImages.length),
+      );
+      
+      debugPrint('⏱️ [TIMING] loadFromFileDataList TOTAL: ${DateTime.now().difference(totalStartTime).inMilliseconds}ms');
+
     } catch (e) {
-      final error = 'Failed to load DICOM files: $e';
-      _updateState(_state.copyWith(isLoading: false, error: error));
-      DicomLoadingProgressNotifier.notify(DicomLoadingProgressEvent.error(error));
+      debugPrint('⏱️ [TIMING] loadFromFileDataList ERROR after: ${DateTime.now().difference(totalStartTime).inMilliseconds}ms - $e');
+      _updateState(_state.copyWith(isLoading: false, error: 'Failed to load: $e'));
     } finally {
       _isCurrentlyLoading = false;
+    }
+  }
+
+  /// Fallback metadata extraction if not pre-extracted
+  Future<dynamic> _extractMetadataFallback(DicomFileData file) async {
+    final startTime = DateTime.now();
+    try {
+      debugPrint('⏱️ [TIMING] Fallback metadata extraction for ${file.name}...');
+      final entries = await _enhancedService.loadFromFileDataList([file]);
+      final extractTime = DateTime.now().difference(startTime).inMilliseconds;
+      debugPrint('⏱️ [TIMING] Fallback extraction ${file.name}: ${extractTime}ms');
+      return entries.isNotEmpty ? entries.first.metadata : null;
+    } catch (e) {
+      debugPrint('⏱️ [TIMING] Fallback extraction FAILED ${file.name}: ${DateTime.now().difference(startTime).inMilliseconds}ms - $e');
+      return null;
     }
   }
 
@@ -233,8 +261,25 @@ class DicomViewerController extends ChangeNotifier {
   void goToImage(int index) {
     if (index < 0 || index >= _state.images.length) return;
 
+    // Store current brightness/contrast before changing image
+    final currentBrightness = _state.brightness;
+    final currentContrast = _state.contrast;
+
     _updateState(_state.copyWith(currentIndex: index));
     _preloadBuffer(index);
+    
+    // Force brightness/contrast to persist after image change
+    // This ensures the adjusted values are applied to the new image
+    if (currentBrightness != 0.0 || currentContrast != 1.0) {
+      // Small delay to ensure state update is complete
+      Future.microtask(() {
+        _updateState(_state.copyWith(
+          brightness: currentBrightness,
+          contrast: currentContrast,
+        ));
+        notifyListeners();
+      });
+    }
   }
 
   /// Navigate to next image
@@ -252,42 +297,91 @@ class DicomViewerController extends ChangeNotifier {
     goToImage(prevIndex);
   }
 
-  /// OPTIMIZED: Get current image data with immediate cache check
+  /// OPTIMIZED: Get current image data with immediate cache check and comprehensive error handling
   Future<Uint8List?> getCurrentImageData() async {
-    if (!_state.hasImages) return null;
+    final startTime = DateTime.now();
+    
+    if (!_state.hasImages) {
+      debugPrint('⚠️ No images available for display');
+      return null;
+    }
+
+    if (_state.currentIndex < 0 || _state.currentIndex >= _state.images.length) {
+      debugPrint('⚠️ Invalid current index: ${_state.currentIndex} (total: ${_state.images.length})');
+      return null;
+    }
 
     final currentIndex = _state.currentIndex;
 
-    // Get raw image data from buffer
+    // Get raw image data from buffer with error handling
+    final bufferStartTime = DateTime.now();
     Uint8List? rawImageData;
-    if (_bufferCache.containsKey(currentIndex)) {
-      rawImageData = _bufferCache[currentIndex];
-    } else {
-      await _preloadBuffer(currentIndex);
-      rawImageData = _bufferCache[currentIndex];
+    try {
+      if (_bufferCache.containsKey(currentIndex)) {
+        rawImageData = _bufferCache[currentIndex];
+        debugPrint('⏱️ [TIMING] Buffer cache hit for index $currentIndex: ${DateTime.now().difference(bufferStartTime).inMilliseconds}ms');
+      } else {
+        debugPrint('⏱️ [TIMING] Buffer cache miss for index $currentIndex, preloading...');
+        await _preloadBuffer(currentIndex);
+        rawImageData = _bufferCache[currentIndex];
+        debugPrint('⏱️ [TIMING] Buffer preload for index $currentIndex: ${DateTime.now().difference(bufferStartTime).inMilliseconds}ms');
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading image data from buffer: $e');
+      return null;
     }
 
-    if (rawImageData == null) return null;
+    if (rawImageData == null) {
+      debugPrint('⚠️ No image data available in buffer for index $currentIndex');
+      return null;
+    }
+
+    // Validate image data integrity
+    if (rawImageData.isEmpty) {
+      debugPrint('⚠️ Image data is empty for index $currentIndex');
+      return null;
+    }
 
     // Apply brightness/contrast processing if adjustments are not default
     if (_state.brightness != 0.0 || _state.contrast != 1.0) {
       try {
+        final processingStartTime = DateTime.now();
+        debugPrint('⏱️ [TIMING] Image processing B:${_state.brightness} C:${_state.contrast}...');
+        
         final processedImage = await _repository.getProcessedImage(
           imageBytes: rawImageData,
           brightness: _state.brightness,
           contrast: _state.contrast,
         );
 
-        return processedImage.fold((data) => data, (error) {
-          debugPrint('Failed to process image: $error');
-          return rawImageData;
-        });
+        final processingTime = DateTime.now().difference(processingStartTime).inMilliseconds;
+        debugPrint('⏱️ [TIMING] Image processing: ${processingTime}ms');
+
+        final result = processedImage.fold(
+          (data) {
+            if (data.isEmpty) {
+              debugPrint('⚠️ Processed image data is empty, returning original');
+              return rawImageData;
+            }
+            return data;
+          },
+          (error) {
+            debugPrint('⚠️ Failed to process image with adjustments: $error');
+            return rawImageData;
+          }
+        );
+        
+        final totalTime = DateTime.now().difference(startTime).inMilliseconds;
+        debugPrint('⏱️ [TIMING] getCurrentImageData TOTAL: ${totalTime}ms');
+        return result;
       } catch (e) {
-        debugPrint('Error processing image: $e');
+        debugPrint('❌ Exception during image processing: $e');
         return rawImageData;
       }
     }
 
+    final totalTime = DateTime.now().difference(startTime).inMilliseconds;
+    debugPrint('⏱️ [TIMING] getCurrentImageData TOTAL (no processing): ${totalTime}ms');
     return rawImageData;
   }
 
@@ -304,29 +398,9 @@ class DicomViewerController extends ChangeNotifier {
   }
 
   
-  /// OPTIMIZED: Async buffer preload for background loading (non-blocking)
-  Future<void> _preloadBufferOptimizedAsync(int startIndex) async {
-    try {
-      final totalImages = _state.images.length;
-      final endIndex = (startIndex + _bufferSize - 1).clamp(0, totalImages - 1);
-
-      debugPrint('🔄 BACKGROUND: Async buffer preload for indices $startIndex-$endIndex');
-      
-      // Load remaining images in parallel (skip index 0 as it's already loaded)
-      final futures = <Future<void>>[];
-      for (int i = startIndex + 1; i <= endIndex; i++) {
-        futures.add(_loadImageAtIndex(i));
-      }
-
-      await Future.wait(futures);
-      debugPrint('✅ BACKGROUND: Async buffer preload complete');
-    } catch (e) {
-      debugPrint('❌ BACKGROUND: Error in async buffer preload: $e');
-    }
-  }
 
 
-  /// Preload images in buffer zone around current index
+  /// OPTIMIZED: Preload images in buffer zone around current index (on-demand only)
   Future<void> _preloadBuffer(int centerIndex) async {
     final totalImages = _state.images.length;
 
@@ -334,53 +408,93 @@ class DicomViewerController extends ChangeNotifier {
     final startIndex = (centerIndex - _bufferSize).clamp(0, totalImages - 1);
     final endIndex = (centerIndex + _bufferSize).clamp(0, totalImages - 1);
 
-    // Load images in parallel for buffer
+    // Check what's already loaded to avoid duplicate work
     final futures = <Future<void>>[];
+    final toLoad = <int>[];
 
     for (int i = startIndex; i <= endIndex; i++) {
       if (!_bufferCache.containsKey(i)) {
+        toLoad.add(i);
         futures.add(_loadImageAtIndex(i));
       }
     }
 
-    await Future.wait(futures);
+    if (toLoad.isNotEmpty) {
+      debugPrint('🔄 BUFFER: Loading ${toLoad.length} images around index $centerIndex (${toLoad.join(", ")})');
+      await Future.wait(futures);
+    }
 
     // Clean up old buffer entries to manage memory
     _cleanupBuffer(startIndex, endIndex);
   }
 
-  /// Load image at specific index into buffer
+  /// Load image at specific index into buffer with comprehensive error handling
   Future<void> _loadImageAtIndex(int index) async {
-    if (index < 0 || index >= _state.images.length) return;
+    final startTime = DateTime.now();
+    
+    if (index < 0 || index >= _state.images.length) {
+      debugPrint('⚠️ Invalid image index: $index (valid range: 0-${_state.images.length - 1})');
+      return;
+    }
 
     final image = _state.images[index];
-    final cacheKey = image.name; // Use name instead of path
+    final cacheKey = image.name;
+
+    // Validate image data before processing
+    if (image.bytes.isEmpty) {
+      debugPrint('⚠️ Empty image bytes for index $index (${image.name})');
+      return;
+    }
 
     try {
       // Check persistent cache first - never reload if already cached
+      final cacheCheckTime = DateTime.now();
       Uint8List? imageData = _persistentImageCache[cacheKey];
+      debugPrint('⏱️ [TIMING] Cache check for ${image.name}: ${DateTime.now().difference(cacheCheckTime).inMilliseconds}ms');
 
       if (imageData == null) {
         // Load from repository only if not in persistent cache
-        final result = await _repository.getImageDataFromBytes(image.bytes);
-        imageData = result.fold(
-          (data) {
-            // Store in persistent cache - never cleared
-            _persistentImageCache[cacheKey] = data;
-            return data;
-          },
-          (error) {
-            debugPrint('Failed to load image at index $index: $error');
-            return null;
-          },
-        );
+        try {
+          final repositoryStartTime = DateTime.now();
+          debugPrint('⏱️ [TIMING] Repository loading for ${image.name}...');
+          final result = await _repository.getImageDataFromBytes(image.bytes);
+          final repositoryTime = DateTime.now().difference(repositoryStartTime).inMilliseconds;
+          debugPrint('⏱️ [TIMING] Repository load ${image.name}: ${repositoryTime}ms');
+          
+          imageData = result.fold(
+            (data) {
+              if (data.isEmpty) {
+                debugPrint('⚠️ Repository returned empty image data for index $index');
+                return null;
+              }
+              // Store in persistent cache - never cleared
+              _persistentImageCache[cacheKey] = data;
+              return data;
+            },
+            (error) {
+              debugPrint('❌ Repository failed to load image at index $index: $error');
+              return null;
+            },
+          );
+        } catch (e) {
+          debugPrint('❌ Exception calling repository for index $index: $e');
+          return;
+        }
       }
 
-      if (imageData != null) {
+      if (imageData != null && imageData.isNotEmpty) {
         _bufferCache[index] = imageData;
+        final totalTime = DateTime.now().difference(startTime).inMilliseconds;
+        debugPrint('⏱️ [TIMING] ✅ Image ${index} (${image.name}) loaded: ${totalTime}ms (${imageData.length} bytes)');
+      } else {
+        debugPrint('⚠️ No valid image data obtained for index $index');
       }
     } catch (e) {
-      debugPrint('Error loading image at index $index: $e');
+      debugPrint('❌ Unexpected error loading image at index $index: $e');
+      
+      // Try to recover by removing corrupted cache entries
+      _persistentImageCache.remove(cacheKey);
+      _bufferCache.remove(index);
     }
   }
 
@@ -405,6 +519,8 @@ class DicomViewerController extends ChangeNotifier {
     required double contrast,
   }) {
     _updateState(_state.copyWith(brightness: brightness, contrast: contrast));
+    // Force notification to ensure UI updates immediately
+    notifyListeners();
   }
 
   /// Reset image adjustments
