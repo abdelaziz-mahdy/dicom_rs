@@ -7,6 +7,7 @@ import '../presentation/controllers/image_interaction_controller.dart';
 import '../domain/usecases/load_dicom_directory_usecase.dart';
 import '../domain/entities/dicom_image_entity.dart';
 import '../data/repositories/dicom_repository_impl.dart';
+import '../services/file_selector_service.dart';
 
 /// Modern DICOM viewer screen with clean architecture and enhanced UI/UX
 class DicomViewerScreen extends StatefulWidget {
@@ -24,7 +25,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   late final Animation<double> _fadeAnimation;
 
   bool _isFirstLoad = true;
-  String? _lastDirectory;
 
   @override
   void initState() {
@@ -70,9 +70,13 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   }
 
   void _onControllerChanged() {
-    if (_controller.state.hasImages && _isFirstLoad) {
-      _animationController.forward();
-      _isFirstLoad = false;
+    if (_controller.state.hasImages) {
+      if (_isFirstLoad) {
+        _animationController.forward();
+        _isFirstLoad = false;
+      }
+      // Trigger a rebuild to show the viewer instead of welcome screen
+      setState(() {});
     }
   }
 
@@ -118,19 +122,22 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
       actions: [
         // Show loading options only when no images are loaded
         if (!_controller.state.hasImages) ...[
+          () {
+            final config = FileSelectorService.getUIConfig();
+            return IconButton(
+              icon: Icon(config.primaryIcon),
+              onPressed: _selectFiles,
+              tooltip: config.primaryTooltip,
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.cyan.withValues(alpha: 0.1),
+                foregroundColor: Colors.cyan,
+              ),
+            );
+          }(),
           IconButton(
-            icon: const Icon(Icons.folder_open_rounded),
-            onPressed: _selectDirectory,
-            tooltip: 'Open DICOM directory',
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.cyan.withValues(alpha: 0.1),
-              foregroundColor: Colors.cyan,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_open_rounded),
+            icon: const Icon(Icons.description_rounded),
             onPressed: _selectSingleFile,
-            tooltip: 'Open single DICOM file',
+            tooltip: 'Select single DICOM file',
           ),
         ],
         // Show back and new directory buttons when images are loaded
@@ -144,15 +151,18 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
               foregroundColor: Colors.grey[300],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.folder_open_rounded),
-            onPressed: _selectDirectory,
-            tooltip: 'Open new directory',
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.cyan.withValues(alpha: 0.1),
-              foregroundColor: Colors.cyan,
-            ),
-          ),
+          () {
+            final config = FileSelectorService.getUIConfig();
+            return IconButton(
+              icon: Icon(config.primaryIcon),
+              onPressed: _selectFiles,
+              tooltip: config.primaryTooltip,
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.cyan.withValues(alpha: 0.1),
+                foregroundColor: Colors.cyan,
+              ),
+            );
+          }(),
           IconButton(
             icon: const Icon(Icons.close_rounded),
             onPressed: _closeViewer,
@@ -216,6 +226,27 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
           )
         else
           _buildWelcomeScreen(),
+        
+        // Loading overlay
+        if (_controller.state.isLoading)
+          Container(
+            color: Colors.black54,
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.cyan),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading DICOM files...',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -279,19 +310,22 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
               children: [
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _selectDirectory,
-                    icon: const Icon(Icons.folder_open_rounded),
-                    label: const Text('Open DICOM Directory'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.cyan,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  child: () {
+                    final config = FileSelectorService.getUIConfig();
+                    return ElevatedButton.icon(
+                      onPressed: _selectFiles,
+                      icon: Icon(config.primaryIcon),
+                      label: Text(config.primaryLabel),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.cyan,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }(),
                 ),
 
                 const SizedBox(height: 16),
@@ -337,54 +371,6 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
             ),
 
             const SizedBox(height: 40),
-
-            // Recent directory hint
-            if (_lastDirectory != null)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[800]?.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[700]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.history_rounded,
-                      color: Colors.grey[400],
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Recent Directory',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            _lastDirectory!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => _loadDirectory(_lastDirectory!),
-                      child: const Text('Load'),
-                    ),
-                  ],
-                ),
-              ),
           ],
         ),
       ),
@@ -398,26 +384,23 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     });
   }
 
-  Future<void> _selectDirectory() async {
-    final result = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: 'Select DICOM Directory',
-    );
+  Future<void> _selectFiles() async {
+    final result = await FileSelectorService.selectDicomFiles();
 
-    if (result != null && mounted) {
-      await _loadDirectory(result);
+    if (result != null && result.hasContent && mounted) {
+      if (result.isDirectory) {
+        await _loadDirectory(result.directoryPath!);
+      } else {
+        await _loadMultipleFiles(result.files!);
+      }
     }
   }
 
   Future<void> _selectSingleFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Select DICOM File',
-      type: FileType.custom,
-      allowedExtensions: ['dcm', 'dicom', 'ima', 'DICOM'],
-      allowMultiple: false,
-    );
+    final result = await FileSelectorService.selectSingleDicomFile();
 
-    if (result != null && result.files.isNotEmpty && mounted) {
-      final filePath = result.files.first.path;
+    if (result != null && result.hasContent && mounted) {
+      final filePath = result.files!.first.path;
       if (filePath != null) {
         await _loadSingleFile(filePath);
       }
@@ -426,14 +409,12 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
 
   Future<void> _loadSingleFile(String filePath) async {
     try {
-      setState(() {
-        _lastDirectory = filePath;
-      });
-
       await _controller.loadSingleFile(filePath);
 
       if (mounted && _controller.state.hasImages) {
         _showSuccessSnackBar('DICOM file loaded successfully');
+      } else {
+        _showErrorSnackBar('No images found in the selected file');
       }
     } catch (e) {
       if (mounted) {
@@ -442,12 +423,32 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     }
   }
 
+  Future<void> _loadMultipleFiles(List<PlatformFile> files) async {
+    try {
+      // Load each file individually
+      for (final file in files) {
+        if (file.path != null) {
+          await _controller.loadSingleFile(file.path!);
+        } else if (file.bytes != null) {
+          // For web, we need to handle bytes directly
+          // This would require modifications to the controller to accept bytes
+          // For now, we'll skip files without paths
+          continue;
+        }
+      }
+
+      if (mounted && _controller.state.hasImages) {
+        _showSuccessSnackBar('${files.length} DICOM files loaded successfully');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Failed to load DICOM files: $e');
+      }
+    }
+  }
+
   Future<void> _loadDirectory(String path) async {
     try {
-      setState(() {
-        _lastDirectory = path;
-      });
-
       await _controller.loadDirectory(path, recursive: true);
 
       if (mounted && _controller.state.hasImages) {
@@ -892,10 +893,10 @@ class _ExamplesDialog extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Examples
-            const Text(
+            Text(
               'Common Workflows:\n\n'
               '1. Basic Viewing:\n'
-              '   • Open DICOM directory\n'
+              '   • ${FileSelectorService.getUIConfig().helpText}\n'
               '   • Navigate through slices\n'
               '   • Adjust image settings\n\n'
               '2. Taking Measurements:\n'
