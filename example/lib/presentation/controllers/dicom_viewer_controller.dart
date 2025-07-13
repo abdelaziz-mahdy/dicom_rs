@@ -36,10 +36,19 @@ class DicomViewerController extends ChangeNotifier {
   Timer? _cacheCleanupTimer;
   static const int _bufferSize =
       5; // Load 5 images around current for smoother navigation
+      
+  // Brightness/contrast processing optimization
+  int _adjustmentRequestId = 0;
+  int _lastProcessedRequestId = 0;
+  Timer? _adjustmentDebounceTimer;
+  double _pendingBrightness = 0.0;
+  double _pendingContrast = 1.0;
+  bool _hasPendingAdjustment = false;
 
   @override
   void dispose() {
     _cacheCleanupTimer?.cancel();
+    _adjustmentDebounceTimer?.cancel();
     _persistentImageCache.clear();
     _bufferCache.clear();
     super.dispose();
@@ -345,8 +354,10 @@ class DicomViewerController extends ChangeNotifier {
     // Apply brightness/contrast processing if adjustments are not default
     if (_state.brightness != 0.0 || _state.contrast != 1.0) {
       try {
+        // Capture current request ID to check if it's still the latest
+        final currentRequestId = _adjustmentRequestId;
         final processingStartTime = DateTime.now();
-        debugPrint('⏱️ [TIMING] Image processing B:${_state.brightness} C:${_state.contrast}...');
+        debugPrint('⏱️ [PROCESSING] Starting request $currentRequestId: B:${_state.brightness} C:${_state.contrast}...');
         
         final processedImage = await _repository.getProcessedImage(
           imageBytes: rawImageData,
@@ -355,7 +366,18 @@ class DicomViewerController extends ChangeNotifier {
         );
 
         final processingTime = DateTime.now().difference(processingStartTime).inMilliseconds;
-        debugPrint('⏱️ [TIMING] Image processing: ${processingTime}ms');
+        
+        // Check if this request is still relevant (not superseded by newer request)
+        if (currentRequestId != _adjustmentRequestId) {
+          debugPrint('⏱️ [PROCESSING] ❌ Request $currentRequestId CANCELLED (newer: $_adjustmentRequestId) after ${processingTime}ms');
+          // Return raw image data instead of processed (user moved on)
+          final totalTime = DateTime.now().difference(startTime).inMilliseconds;
+          debugPrint('⏱️ [TIMING] getCurrentImageData TOTAL (cancelled): ${totalTime}ms');
+          return rawImageData;
+        }
+        
+        _lastProcessedRequestId = currentRequestId;
+        debugPrint('⏱️ [PROCESSING] ✅ Request $currentRequestId completed: ${processingTime}ms');
 
         final result = processedImage.fold(
           (data) {
@@ -485,7 +507,7 @@ class DicomViewerController extends ChangeNotifier {
       if (imageData != null && imageData.isNotEmpty) {
         _bufferCache[index] = imageData;
         final totalTime = DateTime.now().difference(startTime).inMilliseconds;
-        debugPrint('⏱️ [TIMING] ✅ Image ${index} (${image.name}) loaded: ${totalTime}ms (${imageData.length} bytes)');
+        debugPrint('⏱️ [TIMING] ✅ Image $index (${image.name}) loaded: ${totalTime}ms (${imageData.length} bytes)');
       } else {
         debugPrint('⚠️ No valid image data obtained for index $index');
       }
@@ -513,18 +535,55 @@ class DicomViewerController extends ChangeNotifier {
     }
   }
 
-  /// Update brightness and contrast
+  /// Update brightness and contrast with smart debouncing to prevent request cascading
   void updateImageAdjustments({
     required double brightness,
     required double contrast,
   }) {
+    final requestStartTime = DateTime.now();
+    
+    // Store pending values for debouncing
+    _pendingBrightness = brightness;
+    _pendingContrast = contrast;
+    _hasPendingAdjustment = true;
+    
+    // Update UI state immediately for responsive feedback
     _updateState(_state.copyWith(brightness: brightness, contrast: contrast));
-    // Force notification to ensure UI updates immediately
+    notifyListeners();
+    
+    // Cancel existing debounce timer
+    _adjustmentDebounceTimer?.cancel();
+    
+    // Debounce the actual processing to prevent cascade of cancelled requests
+    _adjustmentDebounceTimer = Timer(const Duration(milliseconds: 50), () {
+      if (_hasPendingAdjustment) {
+        _processPendingAdjustment();
+      }
+    });
+    
+    final totalTime = DateTime.now().difference(requestStartTime).inMilliseconds;
+    debugPrint('⏱️ [ADJUSTMENT] Queued: B:${brightness.toStringAsFixed(3)} C:${contrast.toStringAsFixed(3)} (${totalTime}ms)');
+  }
+  
+  /// Process the pending brightness/contrast adjustment
+  void _processPendingAdjustment() {
+    if (!_hasPendingAdjustment) return;
+    
+    _adjustmentRequestId++;
+    _hasPendingAdjustment = false;
+    
+    debugPrint('⏱️ [ADJUSTMENT] Request $_adjustmentRequestId: B:${_pendingBrightness.toStringAsFixed(3)} C:${_pendingContrast.toStringAsFixed(3)}');
+    
+    // Force immediate UI update to trigger getCurrentImageData with latest values
     notifyListeners();
   }
 
   /// Reset image adjustments
   void resetImageAdjustments() {
+    _adjustmentDebounceTimer?.cancel();
+    _hasPendingAdjustment = false;
+    _pendingBrightness = 0.0;
+    _pendingContrast = 1.0;
     _updateState(_state.copyWith(brightness: 0.0, contrast: 1.0, scale: 1.0));
   }
 
@@ -538,6 +597,15 @@ class DicomViewerController extends ChangeNotifier {
     // Clear buffer, but keep persistent cache
     _bufferCache.clear();
     _cacheCleanupTimer?.cancel();
+    
+    // Clear brightness/contrast debouncing state
+    _adjustmentDebounceTimer?.cancel();
+    _hasPendingAdjustment = false;
+    _pendingBrightness = 0.0;
+    _pendingContrast = 1.0;
+    _adjustmentRequestId = 0;
+    _lastProcessedRequestId = 0;
+    
     _updateState(const DicomViewerState());
   }
 

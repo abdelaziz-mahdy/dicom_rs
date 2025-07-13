@@ -147,18 +147,10 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
         _controller.state.contrast,
       );
 
-      // OPTIMIZED: Try to get image synchronously first
-      final syncImageData = _controller.getCurrentImageDataSync();
-      if (syncImageData != null) {
-        setState(() {
-          _currentImageData = syncImageData;
-        });
-      } else {
-        // Only load async if sync data not available
-        setState(() {});
-        // Use microtask to avoid blocking UI updates
-        Future.microtask(() => _loadCurrentImage());
-      }
+      // Always use async loading to ensure brightness/contrast adjustments are applied
+      setState(() {});
+      // Use microtask to avoid blocking UI updates
+      Future.microtask(() => _loadCurrentImage());
     }
   }
 

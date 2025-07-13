@@ -48,8 +48,7 @@ class ImageInteractionController extends ChangeNotifier {
   // Brightness/contrast state with debouncing
   double _currentBrightness = 0.0;
   double _currentContrast = 1.0;
-  Timer? _brightnessContrastDebounceTimer;
-  static const Duration _brightnessContrastDebounce = Duration(milliseconds: 16); // ~60fps
+  // Removed debouncing for immediate brightness/contrast response
 
   // Enhanced navigation state - simplified and more reliable
   Timer? _navigationTimer;
@@ -66,7 +65,6 @@ class ImageInteractionController extends ChangeNotifier {
   @override
   void dispose() {
     _navigationTimer?.cancel();
-    _brightnessContrastDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -211,13 +209,10 @@ class ImageInteractionController extends ChangeNotifier {
       _currentBrightness = _currentBrightness.clamp(-1.0, 1.0);
       _currentContrast = _currentContrast.clamp(0.1, 3.0);
       
-      // Debounce the callback to prevent blocking the app
-      _brightnessContrastDebounceTimer?.cancel();
-      _brightnessContrastDebounceTimer = Timer(_brightnessContrastDebounce, () {
-        if (onBrightnessContrastChanged != null) {
-          onBrightnessContrastChanged!(_currentBrightness, _currentContrast);
-        }
-      });
+      // Call immediately for responsive adjustments
+      if (onBrightnessContrastChanged != null) {
+        onBrightnessContrastChanged!(_currentBrightness, _currentContrast);
+      }
       
       _lastPanPosition = event.localPosition;
     }
@@ -309,9 +304,7 @@ class ImageInteractionController extends ChangeNotifier {
     _activeKey = null;
     _lastNavigationTime = null;
     
-    // Reset brightness/contrast debounce
-    _brightnessContrastDebounceTimer?.cancel();
-    _brightnessContrastDebounceTimer = null;
+    // Brightness/contrast state reset (no debouncing)
     
     // Clear selected measurement
     _selectedMeasurement = null;
@@ -338,8 +331,7 @@ class ImageInteractionController extends ChangeNotifier {
   void setBrightnessContrast(double brightness, double contrast) {
     _currentBrightness = brightness;
     _currentContrast = contrast;
-    // Cancel any pending debounce and immediately notify
-    _brightnessContrastDebounceTimer?.cancel();
+    // Immediately notify without debouncing
     onBrightnessContrastChanged?.call(_currentBrightness, _currentContrast);
     notifyListeners();
   }
