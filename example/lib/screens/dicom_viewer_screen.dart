@@ -8,6 +8,8 @@ import '../presentation/controllers/image_interaction_controller.dart';
 import '../domain/usecases/load_dicom_directory_usecase.dart';
 import '../domain/entities/dicom_image_entity.dart';
 import '../data/repositories/dicom_repository_impl.dart';
+import '../core/app_log.dart';
+import '../services/example_studies.dart';
 import '../services/file_selector_service.dart';
 import 'dicom_loading_screen.dart';
 
@@ -275,9 +277,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
               const SizedBox(height: 16),
 
               Text(
-                'Professional medical image viewer with advanced measurement tools, '
-                'brightness/contrast controls, and intuitive navigation. '
-                'Select one or more DICOM files to get started.',
+                'Browse DICOM series, adjust brightness and contrast, and take '
+                'measurements. Your files are opened on this device and never '
+                'uploaded. Select a folder or files to get started.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 16,
@@ -377,6 +379,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: 28),
+
+                  _ExampleStudyPicker(onOpen: _openExample),
                 ],
               ),
 
@@ -485,23 +491,17 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
 
     debugPrint('🚀 Starting navigation to loading screen...');
 
-    // Start loading task immediately after navigation
+    // Start loading now; the loading screen waits on this future, so it sees
+    // the outcome even if loading finishes before the screen is built.
+    debugPrint('🔄 Starting loading task...');
+    final task = Future<void>.microtask(loadingTask);
     unawaited(
-      Future.microtask(() async {
-        try {
-          debugPrint('🔄 Starting loading task...');
-          await loadingTask();
-          debugPrint('✅ Loading task completed successfully');
-        } catch (error, stackTrace) {
-          debugPrint('❌ Loading task failed: $error');
-          debugPrint('❌ Stack trace: $stackTrace');
-          if (mounted) {
-            DicomLoadingProgressNotifier.notify(
-              DicomLoadingProgressEvent.error('$error'),
-            );
-          }
-        }
-      }),
+      task.then(
+        (_) => debugPrint('✅ Loading task completed successfully'),
+        onError: (Object error, StackTrace stackTrace) {
+          appLog.handle(error, stackTrace, 'Loading DICOM files failed');
+        },
+      ),
     );
 
     // Navigate to loading screen - this will block until loading is complete
@@ -510,6 +510,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
       MaterialPageRoute(
         builder:
             (context) => DicomLoadingScreen(
+              task: task,
               onLoadingComplete: () {
                 debugPrint('✅ Loading completed - popping screen with success');
                 // Pop the loading screen when complete
@@ -537,9 +538,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     } else if (result == false && mounted) {
       debugPrint('❌ Loading failed - showing error');
       // Show error message if loading failed
-      _showErrorSnackBar(
-        'Failed to load DICOM files. Check console for details.',
-      );
+      _showErrorSnackBar('Failed to load the DICOM files.');
     } else if (result == null && mounted) {
       debugPrint('🚫 Loading cancelled by user');
       // User cancelled the loading
@@ -591,7 +590,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
           '✅ ${_controller.state.images.length} DICOM files loaded successfully from ${files.length} files',
         );
         _showSuccessSnackBar(
-          '${_controller.state.images.length} DICOM files loaded successfully',
+          _controller.state.images.length == 1
+              ? '1 DICOM file loaded'
+              : '${_controller.state.images.length} DICOM files loaded',
         );
       } else {
         final error = 'No valid DICOM images found in ${files.length} files';
@@ -625,7 +626,29 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   }
 
   void _showExamples() {
-    showDialog(context: context, builder: (context) => _ExamplesDialog());
+    showDialog(
+      context: context,
+      builder: (context) => _ExamplesDialog(onOpen: _openExample),
+    );
+  }
+
+  /// Opens one of the bundled example studies in the viewer.
+  Future<void> _openExample(ExampleStudy study) async {
+    try {
+      await _navigateToLoadingAndProcess(() async {
+        final files = await study.load();
+        await _loadMultipleFiles(files);
+        // Before the loading screen closes, so the viewer opens on this slice.
+        if (_controller.state.hasImages) {
+          _controller.goToImage(study.startSlice - 1);
+        }
+      });
+    } catch (e, stackTrace) {
+      appLog.handle(e, stackTrace, 'Opening the ${study.title} example failed');
+      if (mounted) {
+        _showErrorSnackBar('Could not open the ${study.title} example.');
+      }
+    }
   }
 
   void _showMetadata() {
@@ -655,6 +678,11 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     showDialog(context: context, builder: (context) => _AboutDialog());
   }
 
+  /// Keeps messages above the viewer's slice controls instead of covering
+  /// the slice counter and navigation buttons.
+  EdgeInsets get _snackBarMargin =>
+      EdgeInsets.fromLTRB(16, 0, 16, _controller.state.hasImages ? 88 : 16);
+
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -667,6 +695,8 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
         ),
         backgroundColor: Colors.green[700],
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        margin: _snackBarMargin,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
@@ -684,11 +714,13 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
         ),
         backgroundColor: Colors.red[700],
         behavior: SnackBarBehavior.floating,
+        margin: _snackBarMargin,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        // The details are in the in-app log, not only in a developer console.
         action: SnackBarAction(
-          label: 'Dismiss',
+          label: 'View logs',
           textColor: Colors.white,
-          onPressed: () {},
+          onPressed: () => showAppLogs(context),
         ),
       ),
     );
@@ -999,87 +1031,251 @@ class _HelpDialog extends StatelessWidget {
   }
 }
 
-/// Examples dialog with sample workflows
+/// The app's version, passed by the release workflow with
+/// `--dart-define=APP_VERSION=<version>`.
+const _appVersionDefine = String.fromEnvironment('APP_VERSION');
+String get _appVersion =>
+    _appVersionDefine.isEmpty
+        ? 'Development build'
+        : 'Version $_appVersionDefine';
+
+/// Buttons that open the bundled example studies, shown on the welcome screen
+/// so people without their own DICOM files can try the viewer.
+class _ExampleStudyPicker extends StatelessWidget {
+  const _ExampleStudyPicker({required this.onOpen});
+
+  final ValueChanged<ExampleStudy> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          'No DICOM files at hand? Open an example',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.85),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final study in ExampleStudy.all)
+              ActionChip(
+                avatar: Icon(study.icon, size: 18, color: Colors.cyan),
+                label: Text(study.title),
+                tooltip: '${study.details}\nSource: ${study.source}',
+                onPressed: () => onOpen(study),
+                backgroundColor: Colors.cyan.withValues(alpha: 0.08),
+                side: BorderSide(color: Colors.cyan.withValues(alpha: 0.4)),
+                labelStyle: const TextStyle(color: Colors.white),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'De-identified research images, ${ExampleStudy.license}',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.5),
+            fontSize: 12,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+}
+
+/// Examples dialog: example studies to open, then common workflows.
 class _ExamplesDialog extends StatelessWidget {
+  const _ExamplesDialog({required this.onOpen});
+
+  final ValueChanged<ExampleStudy> onOpen;
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.grey[900],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 500,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.cyan.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.cyan.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.play_circle_outline_rounded,
+                      color: Colors.cyan,
+                      size: 24,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.play_circle_outline_rounded,
-                    color: Colors.cyan,
-                    size: 24,
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Text(
+                      'Examples',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                const Text(
-                  'Usage Examples',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-            const Divider(color: Colors.cyan),
-            const SizedBox(height: 16),
-
-            // Examples
-            Text(
-              'Common Workflows:\n\n'
-              '1. Basic Viewing:\n'
-              '   • Select one or more DICOM files\n'
-              '   • Navigate through slices with arrow keys or mouse\n'
-              '   • Adjust brightness/contrast with right-click drag\n\n'
-              '2. Taking Measurements:\n'
-              '   • Select measurement tool from toolbar\n'
-              '   • Click points on image to measure\n'
-              '   • View calculated distances and angles\n\n'
-              '3. Multi-File Analysis:\n'
-              '   • Select multiple DICOM files at once\n'
-              '   • Use fast navigation between images\n'
-              '   • Maintain consistent window/level settings',
-              style: TextStyle(color: Colors.white, fontSize: 14, height: 1.6),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Close button
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.cyan,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Close'),
+                ],
               ),
-            ),
-          ],
+
+              const SizedBox(height: 16),
+              const Divider(color: Colors.cyan),
+              const SizedBox(height: 16),
+
+              const Text(
+                'Open an example study',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'De-identified research images from the NCI Imaging Data '
+                'Commons, licensed ${ExampleStudy.license}.',
+                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+
+              for (final study in ExampleStudy.all)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _ExampleStudyTile(
+                    study: study,
+                    onOpen: () {
+                      Navigator.of(context).pop();
+                      onOpen(study);
+                    },
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+              const Text(
+                'Common workflows',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '1. Basic viewing\n'
+                '   • Select one or more DICOM files\n'
+                '   • Navigate through slices with arrow keys or mouse\n'
+                '   • Adjust brightness/contrast with right-click drag\n\n'
+                '2. Taking measurements\n'
+                '   • Select a measurement tool from the toolbar\n'
+                '   • Click points on the image to measure\n'
+                '   • View calculated distances and angles\n\n'
+                '3. Multi-file analysis\n'
+                '   • Select multiple DICOM files at once\n'
+                '   • Use fast navigation between images\n'
+                '   • Keep consistent window/level settings',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.6,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One example study in the Examples dialog.
+class _ExampleStudyTile extends StatelessWidget {
+  const _ExampleStudyTile({required this.study, required this.onOpen});
+
+  final ExampleStudy study;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.grey[850],
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.cyan.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(study.icon, color: Colors.cyan),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      study.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      study.details,
+                      style: TextStyle(color: Colors.grey[300], fontSize: 13),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${study.source} · ${study.sourceUrl.replaceFirst('https://', '')}',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Tooltip(
+                message: 'Open ${study.title}',
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.cyan,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1128,16 +1324,16 @@ class _AboutDialog extends StatelessWidget {
             const SizedBox(height: 8),
 
             Text(
-              'Version 2.0.0',
+              _appVersion,
               style: TextStyle(color: Colors.grey[400], fontSize: 16),
             ),
 
             const SizedBox(height: 24),
 
             Text(
-              'Advanced medical image viewer built with Flutter and Rust. '
-              'Features clean architecture, modern UI, and powerful '
-              'measurement tools for medical professionals.',
+              'DICOM viewer built with Flutter and Rust on the dicom_rs '
+              'package. Files are opened on this device and never uploaded.\n\n'
+              'Not for diagnostic use.',
               style: TextStyle(
                 color: Colors.grey[300],
                 fontSize: 14,
@@ -1148,17 +1344,39 @@ class _AboutDialog extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Close button
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.cyan,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                // The in-app log, for bug reports and when something fails.
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    showAppLogs(context);
+                  },
+                  icon: const Icon(Icons.receipt_long_rounded),
+                  label: const Text('View logs'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.cyan,
+                    side: const BorderSide(color: Colors.cyan),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
-              ),
-              child: const Text('Close'),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.cyan,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ],
             ),
           ],
         ),

@@ -44,6 +44,7 @@ dependencies:
   cupertino_icons: ^2.0.0
   file_picker: ^13.3.2
   path: ^1.9.0
+  talker_flutter: ^5.2.0
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,12 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # De-identified example studies (CC BY 4.0); see assets/examples/ATTRIBUTION.md.
+  assets:
+    - assets/examples/chest_ct/
+    - assets/examples/head_mr/
+    - assets/examples/chest_xray/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
