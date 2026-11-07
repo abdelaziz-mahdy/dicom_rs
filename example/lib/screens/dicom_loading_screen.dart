@@ -8,11 +8,18 @@ class DicomLoadingScreen extends StatefulWidget {
     required this.onLoadingComplete,
     required this.onLoadingError,
     this.initialMessage = 'Preparing to load DICOM files...',
+    this.task,
   });
 
   final VoidCallback onLoadingComplete;
   final void Function(String error) onLoadingError;
   final String initialMessage;
+
+  /// The load this screen waits for. Progress events only drive the display;
+  /// the outcome comes from this future, which keeps its result even when the
+  /// load finishes before the screen is built (example studies load from the
+  /// app bundle in milliseconds).
+  final Future<void>? task;
 
   @override
   State<DicomLoadingScreen> createState() => _DicomLoadingScreenState();
@@ -69,6 +76,7 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
 
     // Listen to global loading progress events
     _listenToLoadingProgress();
+    _waitForTask();
   }
 
   @override
@@ -137,6 +145,21 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
         widget.onLoadingError(event.error!);
       }
     });
+  }
+
+  void _waitForTask() {
+    widget.task?.then(
+      (_) {
+        if (_finished || !mounted) return;
+        _finished = true;
+        _handleLoadingComplete();
+      },
+      onError: (Object error) {
+        if (_finished || !mounted) return;
+        _finished = true;
+        widget.onLoadingError('$error');
+      },
+    );
   }
 
   void _handleLoadingComplete() async {
@@ -420,7 +443,7 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
                           '• Large directories may take longer to scan\n'
                           '• DICOM validation ensures file compatibility\n'
                           '• Files are processed in parallel for speed\n'
-                          '• Progress is saved during loading',
+                          '• Files are read on this device and never uploaded',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 12,
