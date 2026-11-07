@@ -27,7 +27,7 @@ The viewer has no server. Files you open are read and decoded on your own comput
 
 ### Medical professionals: your feedback is welcome
 
-If you are a radiologist, technologist, clinician or medical physicist, we would love to hear from you. Try the [web demo](https://abdelaziz-mahdy.github.io/dicom_rs/) with de-identified images and [open an issue](https://github.com/abdelaziz-mahdy/dicom_rs/issues/new) with what works, what feels wrong, and what would make the viewer useful in your daily work. Please never attach images that contain patient information.
+If you are a radiologist, technologist, clinician or medical physicist, we would love to hear from you. Try the [web demo](https://abdelaziz-mahdy.github.io/dicom_rs/) with de-identified images and [open an issue](https://github.com/abdelaziz-mahdy/dicom_rs/issues/new) with what works, what feels wrong, and what would make the viewer useful in your daily work. GitHub issues are public, so if you attach a screenshot or file to show a problem, use a de-identified image.
 
 ### Sample files you can use
 
