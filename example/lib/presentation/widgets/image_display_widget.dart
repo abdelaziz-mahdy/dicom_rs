@@ -79,6 +79,9 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
             scale: widget.scale,
             child: Stack(
               alignment: Alignment.center,
+              // With an image, fill the box the viewer sized to the image's
+              // fitted size, so small images are enlarged too.
+              fit: widget.imageData != null ? StackFit.expand : StackFit.loose,
               children: [
                 // Main image
                 _buildImage(),

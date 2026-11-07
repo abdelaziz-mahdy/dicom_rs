@@ -5,6 +5,7 @@ import '../controllers/dicom_viewer_controller.dart';
 import '../controllers/image_interaction_controller.dart';
 import '../../domain/entities/measurement_entity.dart';
 import 'image_display_widget.dart';
+import 'image_fit.dart';
 import 'measurement_toolbar_widget.dart';
 import 'viewer_controls_widget.dart';
 import 'help_dialog_widget.dart';
@@ -43,6 +44,11 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   // Current image data
   Uint8List? _currentImageData;
+
+  /// Pixel size of the current image and the size it is displayed at, from
+  /// the last layout; used to convert measurements to millimetres.
+  Size? _imagePixelSize;
+  Size? _displayedImageSize;
 
   // Measurement state
   final List<MeasurementEntity> _measurements = [];
@@ -246,20 +252,45 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
                 Expanded(
                   child: Stack(
                     children: [
-                      // Image display
-                      Center(
-                        child: ImageDisplayWidget(
-                          imageData: _currentImageData,
-                          scale: _controller.state.scale,
-                          measurements: _measurements,
-                          currentMeasurementPoints: _currentMeasurementPoints,
-                          selectedTool: _selectedMeasurementTool,
-                          isLoading:
-                              _controller.state.hasImages &&
-                              _currentImageData == null,
-                          measurementsVisible: _measurementsVisible,
-                          interactionController: _interactionController,
-                        ),
+                      // Image display, fitted to the available area so small
+                      // images are enlarged as well as large ones reduced.
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final display = ImageDisplayWidget(
+                            imageData: _currentImageData,
+                            scale: _controller.state.scale,
+                            measurements: _measurements,
+                            currentMeasurementPoints: _currentMeasurementPoints,
+                            selectedTool: _selectedMeasurementTool,
+                            isLoading:
+                                _controller.state.hasImages &&
+                                _currentImageData == null,
+                            measurementsVisible: _measurementsVisible,
+                            interactionController: _interactionController,
+                          );
+                          final data = _currentImageData;
+                          final pixelSize =
+                              data == null ? null : pngPixelSize(data);
+                          if (pixelSize == null) {
+                            _imagePixelSize = null;
+                            _displayedImageSize = null;
+                            return Center(child: display);
+                          }
+                          final fitted = fitInside(
+                            pixelSize,
+                            const EdgeInsets.all(
+                              16,
+                            ).deflateSize(constraints.biggest),
+                          );
+                          _imagePixelSize = pixelSize;
+                          _displayedImageSize = fitted;
+                          return Center(
+                            child: SizedBox.fromSize(
+                              size: fitted,
+                              child: display,
+                            ),
+                          );
+                        },
                       ),
 
                       // UI overlays
@@ -662,9 +693,13 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     }
 
     try {
-      // Get pixel spacing from current DICOM image metadata
-      final pixelSpacing =
-          _controller.state.currentImage?.metadata.pixelSpacing;
+      // DICOM pixel spacing is in mm per image pixel, but the points are in
+      // displayed pixels, so convert it for the size the image is shown at.
+      final pixelSpacing = spacingForDisplay(
+        _controller.state.currentImage?.metadata.pixelSpacing,
+        imageWidth: _imagePixelSize?.width ?? 0,
+        displayedWidth: _displayedImageSize?.width ?? 0,
+      );
       final currentScale = _controller.state.scale;
 
       // Validate scale
