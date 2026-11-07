@@ -2,6 +2,9 @@
 name = "dicom_rs"
 version = "0.1.0"
 edition = "2021"
+description = "Rust backend of the dicom_rs Flutter package"
+license = "MIT"
+repository = "https://github.com/abdelaziz-mahdy/dicom_rs"
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
