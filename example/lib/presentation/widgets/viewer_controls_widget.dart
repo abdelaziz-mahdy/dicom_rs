@@ -74,9 +74,10 @@ class _ViewerControlsWidgetState extends State<ViewerControlsWidget> {
           // Fast rewind
           IconButton(
             icon: const Icon(Icons.fast_rewind, color: Colors.cyan),
-            onPressed: widget.currentIndex > 10 
-                ? () => widget.onGoToImage(widget.currentIndex - 10)
-                : null,
+            onPressed:
+                widget.currentIndex > 10
+                    ? () => widget.onGoToImage(widget.currentIndex - 10)
+                    : null,
             tooltip: 'Go back 10 images',
           ),
 
@@ -96,7 +97,8 @@ class _ViewerControlsWidgetState extends State<ViewerControlsWidget> {
                 border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: _showIndexInput ? _buildIndexInput() : _buildIndexDisplay(),
+              child:
+                  _showIndexInput ? _buildIndexInput() : _buildIndexDisplay(),
             ),
           ),
 
@@ -105,16 +107,18 @@ class _ViewerControlsWidgetState extends State<ViewerControlsWidget> {
           // Fast forward
           IconButton(
             icon: const Icon(Icons.fast_forward, color: Colors.cyan),
-            onPressed: widget.currentIndex + 10 <= widget.totalImages 
-                ? () => widget.onGoToImage(widget.currentIndex + 10)
-                : null,
+            onPressed:
+                widget.currentIndex + 10 <= widget.totalImages
+                    ? () => widget.onGoToImage(widget.currentIndex + 10)
+                    : null,
             tooltip: 'Go forward 10 images',
           ),
 
           // Next button
           IconButton(
             icon: const Icon(Icons.skip_next, color: Colors.cyan),
-            onPressed: widget.currentIndex < widget.totalImages ? widget.onNext : null,
+            onPressed:
+                widget.currentIndex < widget.totalImages ? widget.onNext : null,
             tooltip: 'Next image (→)',
           ),
         ],
@@ -152,9 +156,7 @@ class _ViewerControlsWidgetState extends State<ViewerControlsWidget> {
           contentPadding: EdgeInsets.zero,
         ),
         keyboardType: TextInputType.number,
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-        ],
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         onSubmitted: (value) {
           final index = int.tryParse(value);
           if (index != null && index >= 1 && index <= widget.totalImages) {
@@ -171,7 +173,9 @@ class _ViewerControlsWidgetState extends State<ViewerControlsWidget> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Please enter a number between 1 and ${widget.totalImages}'),
+                  content: Text(
+                    'Please enter a number between 1 and ${widget.totalImages}',
+                  ),
                   backgroundColor: Colors.orange[700],
                   duration: const Duration(seconds: 2),
                 ),

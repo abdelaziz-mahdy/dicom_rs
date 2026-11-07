@@ -21,7 +21,8 @@ class MeasurementEntity {
   final String unit;
   final Color color;
   final bool isSelected;
-  final List<double>? pixelSpacing; // DICOM pixel spacing [row, column] in mm/pixel
+  final List<double>?
+  pixelSpacing; // DICOM pixel spacing [row, column] in mm/pixel
   final double imageScale; // Current image scale factor
 
   MeasurementEntity copyWith({
@@ -50,15 +51,14 @@ class MeasurementEntity {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is MeasurementEntity && other.id == id;
+      identical(this, other) || other is MeasurementEntity && other.id == id;
 
   /// Get calculated value with unit for display
   String get displayValue {
     if (value != null) {
       return '${value!.toStringAsFixed(1)} $unit';
     }
-    
+
     // Calculate value based on measurement type
     final calculatedValue = _calculateValue();
     final actualUnit = _getActualUnit();
@@ -99,12 +99,14 @@ class MeasurementEntity {
           final center = points[1].toOffset();
           final p1 = points[0].toOffset();
           final p2 = points[2].toOffset();
-          
+
           final angle1 = (p1 - center).direction;
           final angle2 = (p2 - center).direction;
           final angleDiff = (angle2 - angle1).abs();
-          
-          return angleDiff * 180 / 3.14159; // Convert to degrees (no scaling needed)
+
+          return angleDiff *
+              180 /
+              3.14159; // Convert to degrees (no scaling needed)
         }
         return 0.0;
 
@@ -138,10 +140,13 @@ class MeasurementEntity {
     if (pixelSpacing == null || pixelSpacing!.isEmpty) {
       return pixelDistance; // Return pixel value if no spacing info
     }
-    
+
     // Use average of row and column spacing for distance calculations
-    final avgSpacing = (pixelSpacing![0] + (pixelSpacing!.length > 1 ? pixelSpacing![1] : pixelSpacing![0])) / 2.0;
-    
+    final avgSpacing =
+        (pixelSpacing![0] +
+            (pixelSpacing!.length > 1 ? pixelSpacing![1] : pixelSpacing![0])) /
+        2.0;
+
     // Account for image scaling: measurements are in original image space,
     // but we want real-world measurements regardless of zoom level
     return pixelDistance * avgSpacing;
@@ -152,11 +157,12 @@ class MeasurementEntity {
     if (pixelSpacing == null || pixelSpacing!.isEmpty) {
       return pixelArea; // Return pixel value if no spacing info
     }
-    
+
     // For area, we need both row and column spacing
     final rowSpacing = pixelSpacing![0];
-    final colSpacing = pixelSpacing!.length > 1 ? pixelSpacing![1] : pixelSpacing![0];
-    
+    final colSpacing =
+        pixelSpacing!.length > 1 ? pixelSpacing![1] : pixelSpacing![0];
+
     // Area scaling is spacing_row * spacing_col
     return pixelArea * rowSpacing * colSpacing;
   }
@@ -177,11 +183,7 @@ class MeasurementPoint {
   final double y;
   final bool isDraggable;
 
-  MeasurementPoint copyWith({
-    double? x,
-    double? y,
-    bool? isDraggable,
-  }) {
+  MeasurementPoint copyWith({double? x, double? y, bool? isDraggable}) {
     return MeasurementPoint(
       x: x ?? this.x,
       y: y ?? this.y,
@@ -194,9 +196,7 @@ class MeasurementPoint {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MeasurementPoint && 
-      other.x == x && 
-      other.y == y;
+      other is MeasurementPoint && other.x == x && other.y == y;
 
   @override
   int get hashCode => Object.hash(x, y);
@@ -210,7 +210,7 @@ enum MeasurementType {
   area('Area', 3);
 
   const MeasurementType(this.displayName, this.requiredPoints);
-  
+
   final String displayName;
   final int requiredPoints;
 }

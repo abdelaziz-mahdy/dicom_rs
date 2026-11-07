@@ -43,9 +43,7 @@ class DicomImageEntity {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is DicomImageEntity && 
-      other.id == id && 
-      other.name == name;
+      other is DicomImageEntity && other.id == id && other.name == name;
 
   @override
   int get hashCode => Object.hash(id, name);

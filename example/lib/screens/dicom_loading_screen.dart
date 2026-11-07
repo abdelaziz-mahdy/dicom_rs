@@ -30,29 +30,27 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
   String _currentMessage = '';
   String _currentFileName = '';
   bool _isScanning = true;
-  
+
   // Enhanced progress tracking with ETA
   DateTime? _startTime;
-  DateTime? _lastUpdateTime;
   double _loadingSpeed = 0.0; // files per second
   Duration _estimatedTimeRemaining = Duration.zero;
-  int _totalBytesProcessed = 0;
-  int _currentFileSize = 0;
-  
+
   StreamSubscription? _progressSubscription;
+  bool _finished = false;
 
   @override
   void initState() {
     super.initState();
-    
+
     _currentMessage = widget.initialMessage;
-    
+
     // Setup animations
     _progressController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -68,7 +66,7 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
 
     // Start pulse animation
     _pulseController.repeat(reverse: true);
-    
+
     // Listen to global loading progress events
     _listenToLoadingProgress();
   }
@@ -85,46 +83,40 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
     // Listen to loading progress events from the global stream
     _progressSubscription = DicomLoadingProgressNotifier.stream.listen((event) {
       if (!mounted) return;
-      
+
       final now = DateTime.now();
-      
+
       // Initialize start time on first progress event
       if (_startTime == null && event.totalFiles > 0) {
         _startTime = now;
       }
-      
+
       setState(() {
         _currentMessage = event.message;
         _currentFileName = event.currentFile ?? '';
-        
+
         // Calculate ETA and speed metrics when files progress
         if (event.filesProcessed > _filesProcessed && _startTime != null) {
           final elapsed = now.difference(_startTime!);
-          final newFilesProcessed = event.filesProcessed - _filesProcessed;
-          
           // Update loading speed (files per second)
           if (elapsed.inMilliseconds > 0) {
-            _loadingSpeed = event.filesProcessed / (elapsed.inMilliseconds / 1000.0);
+            _loadingSpeed =
+                event.filesProcessed / (elapsed.inMilliseconds / 1000.0);
           }
-          
+
           // Calculate ETA for remaining files
           final remainingFiles = event.totalFiles - event.filesProcessed;
           if (_loadingSpeed > 0 && remainingFiles > 0) {
             final secondsRemaining = remainingFiles / _loadingSpeed;
-            _estimatedTimeRemaining = Duration(seconds: secondsRemaining.ceil());
-          }
-          
-          // Track bytes if available
-          if (event.currentFileSize != null) {
-            _totalBytesProcessed += event.currentFileSize!;
-            _currentFileSize = event.currentFileSize!;
+            _estimatedTimeRemaining = Duration(
+              seconds: secondsRemaining.ceil(),
+            );
           }
         }
-        
+
         _filesProcessed = event.filesProcessed;
         _totalFiles = event.totalFiles;
         _isScanning = event.isScanning;
-        _lastUpdateTime = now;
       });
 
       // Update progress animation
@@ -133,10 +125,15 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
         _progressController.animateTo(progress);
       }
 
-      // Handle completion
+      // Finish once: the first completion or error decides the outcome.
+      // A directory load used to send more than one, and each popped the
+      // route, so the second pop removed the screen underneath.
+      if (_finished) return;
       if (event.isComplete) {
+        _finished = true;
         _handleLoadingComplete();
       } else if (event.error != null) {
+        _finished = true;
         widget.onLoadingError(event.error!);
       }
     });
@@ -145,14 +142,16 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
   void _handleLoadingComplete() async {
     // Complete the progress animation
     await _progressController.forward();
-    
+    if (!mounted) return;
+
     // Show completion briefly
     setState(() {
       _currentMessage = 'Loading complete!';
     });
-    
+
     // Wait a moment then notify completion
     await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
     widget.onLoadingComplete();
   }
 
@@ -180,256 +179,259 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Loading icon with pulse animation
-                AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _pulseAnimation.value,
-                      child: Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: Colors.cyan.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.cyan.withValues(alpha: 0.3),
-                            width: 2,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Loading icon with pulse animation
+                  AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _pulseAnimation.value,
+                        child: Container(
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: Colors.cyan.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.cyan.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.medical_information_rounded,
+                            size: 64,
+                            color: Colors.cyan,
                           ),
                         ),
-                        child: const Icon(
-                          Icons.medical_information_rounded,
-                          size: 64,
-                          color: Colors.cyan,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 48),
-
-                // Main title
-                const Text(
-                  'Loading DICOM Files',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
+                      );
+                    },
                   ),
-                  textAlign: TextAlign.center,
-                ),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 48),
 
-                // Current message
-                Text(
-                  _currentMessage,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 16,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 32),
-
-                // Progress section
-                if (_totalFiles > 0) ...[
-                  // Progress bar
-                  Container(
-                    width: double.infinity,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[800],
-                      borderRadius: BorderRadius.circular(4),
+                  // Main title
+                  const Text(
+                    'Loading DICOM Files',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: AnimatedBuilder(
-                      animation: _progressAnimation,
-                      builder: (context, child) {
-                        return FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: _progressAnimation.value,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.cyan,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    textAlign: TextAlign.center,
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                  // Progress text with enhanced metrics
-                  Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '$_filesProcessed of $_totalFiles files',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            '${(_totalFiles > 0 ? (_filesProcessed / _totalFiles * 100) : 0).round()}%',
-                            style: const TextStyle(
-                              color: Colors.cyan,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                  // Current message
+                  Text(
+                    _currentMessage,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Progress section
+                  if (_totalFiles > 0) ...[
+                    // Progress bar
+                    Container(
+                      width: double.infinity,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      const SizedBox(height: 8),
-                      // Enhanced metrics row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${_loadingSpeed.toStringAsFixed(1)} files/sec',
-                            style: TextStyle(
-                              color: Colors.cyan.withValues(alpha: 0.8),
-                              fontSize: 12,
-                              fontFamily: 'monospace',
+                      child: AnimatedBuilder(
+                        animation: _progressAnimation,
+                        builder: (context, child) {
+                          return FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: _progressAnimation.value,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.cyan,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
                             ),
-                          ),
-                          if (_estimatedTimeRemaining.inSeconds > 0)
+                          );
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Progress text with enhanced metrics
+                    Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
                             Text(
-                              'ETA: ${_formatDuration(_estimatedTimeRemaining)}',
+                              '$_filesProcessed of $_totalFiles files',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              '${(_totalFiles > 0 ? (_filesProcessed / _totalFiles * 100) : 0).round()}%',
+                              style: const TextStyle(
+                                color: Colors.cyan,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Enhanced metrics row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${_loadingSpeed.toStringAsFixed(1)} files/sec',
                               style: TextStyle(
                                 color: Colors.cyan.withValues(alpha: 0.8),
                                 fontSize: 12,
                                 fontFamily: 'monospace',
                               ),
                             ),
+                            if (_estimatedTimeRemaining.inSeconds > 0)
+                              Text(
+                                'ETA: ${_formatDuration(_estimatedTimeRemaining)}',
+                                style: TextStyle(
+                                  color: Colors.cyan.withValues(alpha: 0.8),
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ] else if (_isScanning) ...[
+                    // Scanning indicator
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.cyan,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Scanning for DICOM files...',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  // Current file name (if available)
+                  if (_currentFileName.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800]?.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.cyan.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Processing:',
+                            style: TextStyle(
+                              color: Colors.cyan,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _currentFileName,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 14,
+                              fontFamily: 'monospace',
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ] else if (_isScanning) ...[
-                  // Scanning indicator
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.cyan),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Scanning for DICOM files...',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 48),
 
-                // Current file name (if available)
-                if (_currentFileName.isNotEmpty) ...[
+                  // Tips section
                   Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.grey[800]?.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.cyan.withValues(alpha: 0.2),
-                      ),
+                      color: Colors.grey[900]?.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[700]!),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Processing:',
-                          style: TextStyle(
-                            color: Colors.cyan,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb_outline_rounded,
+                              color: Colors.yellow[600],
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Loading Tips',
+                              style: TextStyle(
+                                color: Colors.yellow[600],
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 12),
                         Text(
-                          _currentFileName,
+                          '• Large directories may take longer to scan\n'
+                          '• DICOM validation ensures file compatibility\n'
+                          '• Files are processed in parallel for speed\n'
+                          '• Progress is saved during loading',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 14,
-                            fontFamily: 'monospace',
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 12,
+                            height: 1.5,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
                 ],
-
-                const SizedBox(height: 48),
-
-                // Tips section
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[900]?.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.grey[700]!,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.lightbulb_outline_rounded,
-                            color: Colors.yellow[600],
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Loading Tips',
-                            style: TextStyle(
-                              color: Colors.yellow[600],
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '• Large directories may take longer to scan\n'
-                        '• DICOM validation ensures file compatibility\n'
-                        '• Files are processed in parallel for speed\n'
-                        '• Progress is saved during loading',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 12,
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -479,9 +481,10 @@ class DicomLoadingProgressEvent {
   /// Create scanning event
   factory DicomLoadingProgressEvent.scanning({String? directory}) {
     return DicomLoadingProgressEvent(
-      message: directory != null 
-          ? 'Scanning directory: ${directory.split('/').last}'
-          : 'Scanning for DICOM files...',
+      message:
+          directory != null
+              ? 'Scanning directory: ${directory.split('/').last}'
+              : 'Scanning for DICOM files...',
       isScanning: true,
     );
   }
@@ -528,9 +531,6 @@ class DicomLoadingProgressEvent {
 
   /// Create error event
   factory DicomLoadingProgressEvent.error(String error) {
-    return DicomLoadingProgressEvent(
-      message: 'Loading failed',
-      error: error,
-    );
+    return DicomLoadingProgressEvent(message: 'Loading failed', error: error);
   }
 }

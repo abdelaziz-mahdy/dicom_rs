@@ -16,13 +16,15 @@ class DicomIsolateValidator {
   ) async {
     final coreCount = _coreCount;
     debugPrint('🚀 ISOLATE: Using $coreCount CPU cores for DICOM validation');
-    
+
     if (files.isEmpty) return [];
-    
+
     // Distribute files across CPU cores
     final batches = _distributeFilesAcrossCores(files, coreCount);
-    debugPrint('🚀 ISOLATE: Split ${files.length} files into ${batches.length} batches');
-    
+    debugPrint(
+      '🚀 ISOLATE: Split ${files.length} files into ${batches.length} batches',
+    );
+
     // Start progress tracking
     DicomLoadingProgressNotifier.notify(
       DicomLoadingProgressEvent.processing(
@@ -31,60 +33,70 @@ class DicomIsolateValidator {
         total: files.length,
       ),
     );
-    
+
     // Create isolates for each batch
     final isolateFutures = <Future<List<DicomFileData>>>[];
     final progressPorts = <ReceivePort>[];
-    
+
     for (int i = 0; i < batches.length; i++) {
       final progressPort = ReceivePort();
       progressPorts.add(progressPort);
-      
+
       // Listen to progress from this isolate
       _listenToIsolateProgress(progressPort, i, batches.length);
-      
+
       // Start isolate validation
-      isolateFutures.add(_validateBatchInIsolate(
-        batches[i], 
-        i, 
-        progressPort.sendPort,
-      ));
+      isolateFutures.add(
+        _validateBatchInIsolate(batches[i], i, progressPort.sendPort),
+      );
     }
-    
+
     try {
       // Wait for all isolates to complete
       final results = await Future.wait(isolateFutures);
-      
+
       // Close progress ports
       for (final port in progressPorts) {
         port.close();
       }
-      
+
       // Combine results from all isolates
       final allValidFiles = <DicomFileData>[];
       for (final batchResult in results) {
         allValidFiles.addAll(batchResult);
       }
-      
+
       if (allValidFiles.isEmpty) {
-        debugPrint('❌ ISOLATE: No valid DICOM files found - this likely indicates DicomHandler() cannot work in isolates');
-        debugPrint('❌ ISOLATE: The dicom_rs package may require main thread context for native bindings');
+        debugPrint(
+          '❌ ISOLATE: No valid DICOM files found - this likely indicates DicomHandler() cannot work in isolates',
+        );
+        debugPrint(
+          '❌ ISOLATE: The dicom_rs package may require main thread context for native bindings',
+        );
       } else {
-        debugPrint('✅ ISOLATE: Validation complete - ${allValidFiles.length}/${files.length} valid DICOM files');
+        debugPrint(
+          '✅ ISOLATE: Validation complete - ${allValidFiles.length}/${files.length} valid DICOM files',
+        );
       }
-      
+
+      // Images are loaded after this; the viewer controller sends the
+      // completion event once they are.
       DicomLoadingProgressNotifier.notify(
-        DicomLoadingProgressEvent.completed(totalLoaded: allValidFiles.length),
+        DicomLoadingProgressEvent(
+          message:
+              'Found ${allValidFiles.length} DICOM files, loading images...',
+          filesProcessed: files.length,
+          totalFiles: files.length,
+        ),
       );
-      
+
       return allValidFiles;
-      
     } catch (e) {
       // Close progress ports on error
       for (final port in progressPorts) {
         port.close();
       }
-      
+
       debugPrint('❌ ISOLATE: Validation failed: $e');
       DicomLoadingProgressNotifier.notify(
         DicomLoadingProgressEvent.error('Validation failed: $e'),
@@ -94,21 +106,28 @@ class DicomIsolateValidator {
   }
 
   /// Distribute files evenly across available CPU cores
-  static List<List<File>> _distributeFilesAcrossCores(List<File> files, int coreCount) {
+  static List<List<File>> _distributeFilesAcrossCores(
+    List<File> files,
+    int coreCount,
+  ) {
     final batches = <List<File>>[];
     final filesPerCore = (files.length / coreCount).ceil();
-    
+
     for (int i = 0; i < coreCount && i * filesPerCore < files.length; i++) {
       final startIndex = i * filesPerCore;
       final endIndex = ((i + 1) * filesPerCore).clamp(0, files.length);
       batches.add(files.sublist(startIndex, endIndex));
     }
-    
+
     return batches;
   }
 
   /// Listen to progress updates from an isolate
-  static void _listenToIsolateProgress(ReceivePort progressPort, int isolateIndex, int totalIsolates) {
+  static void _listenToIsolateProgress(
+    ReceivePort progressPort,
+    int isolateIndex,
+    int totalIsolates,
+  ) {
     progressPort.listen((message) {
       if (message is Map<String, dynamic>) {
         final processed = message['processed'] as int? ?? 0;
@@ -116,14 +135,16 @@ class DicomIsolateValidator {
         final fileName = message['fileName'] as String? ?? '';
         final isComplete = message['complete'] as bool? ?? false;
         final isError = message['error'] as bool? ?? false;
-        
+
         if (isComplete) {
-          debugPrint('✅ ISOLATE $isolateIndex: Completed validation of $total files');
+          debugPrint(
+            '✅ ISOLATE $isolateIndex: Completed validation of $total files',
+          );
         } else if (isError) {
           debugPrint('❌ ISOLATE $isolateIndex: $fileName');
         } else {
           debugPrint('🔄 ISOLATE $isolateIndex: $fileName ($processed/$total)');
-          
+
           // Report progress to UI
           DicomLoadingProgressNotifier.notify(
             DicomLoadingProgressEvent.processing(
@@ -144,7 +165,7 @@ class DicomIsolateValidator {
     SendPort progressPort,
   ) async {
     final receivePort = ReceivePort();
-    
+
     try {
       await Isolate.spawn(
         _isolateValidationWorker,
@@ -155,11 +176,10 @@ class DicomIsolateValidator {
           progressPort: progressPort,
         ),
       );
-      
+
       // Wait for result from isolate
       final result = await receivePort.first as List<DicomFileData>;
       return result;
-      
     } finally {
       receivePort.close();
     }
@@ -168,14 +188,14 @@ class DicomIsolateValidator {
   /// Isolate worker function for DICOM validation
   static void _isolateValidationWorker(_IsolateValidationParams params) async {
     final validFiles = <DicomFileData>[];
-    
+
     try {
       // Initialize RustLib in this isolate
       await RustLib.init();
       for (int i = 0; i < params.files.length; i++) {
         final file = params.files[i];
         final fileName = path.basename(file.path);
-        
+
         // Report progress
         params.progressPort.send({
           'processed': i + 1,
@@ -183,23 +203,24 @@ class DicomIsolateValidator {
           'fileName': fileName,
           'complete': false,
         });
-        
+
         try {
           // Read file bytes
           final bytes = await file.readAsBytes();
-          
+
           // Validate DICOM and extract metadata in one pass
           final handler = DicomHandler();
           final metadata = await handler.getMetadata(bytes);
-          
+
           // If we got here, it's a valid DICOM file
-          validFiles.add(DicomFileData(
-            name: fileName,
-            bytes: bytes,
-            fullPath: file.path,
-            metadata: metadata,
-          ));
-          
+          validFiles.add(
+            DicomFileData(
+              name: fileName,
+              bytes: bytes,
+              fullPath: file.path,
+              metadata: metadata,
+            ),
+          );
         } catch (e) {
           // DON'T HIDE ERRORS - Report them for debugging
           params.progressPort.send({
@@ -212,7 +233,7 @@ class DicomIsolateValidator {
           continue;
         }
       }
-      
+
       // Report completion
       params.progressPort.send({
         'processed': params.files.length,
@@ -220,10 +241,9 @@ class DicomIsolateValidator {
         'fileName': 'Completed',
         'complete': true,
       });
-      
+
       // Send results back to main isolate
       params.responsePort.send(validFiles);
-      
     } catch (e) {
       // Send error back to main isolate
       params.responsePort.send(<DicomFileData>[]);

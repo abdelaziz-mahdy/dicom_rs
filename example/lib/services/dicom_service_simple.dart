@@ -31,9 +31,11 @@ class DicomServiceSimple {
   }
 
   /// Load multiple DICOM files from bytes
-  static Future<List<DicomFile>> loadMultipleFiles(List<Uint8List> dicomBytesLit) async {
+  static Future<List<DicomFile>> loadMultipleFiles(
+    List<Uint8List> dicomBytesLit,
+  ) async {
     final List<DicomFile> files = [];
-    
+
     for (final bytes in dicomBytesLit) {
       try {
         if (await isValidDicom(bytes)) {
@@ -44,14 +46,16 @@ class DicomServiceSimple {
         // Skip invalid files
       }
     }
-    
+
     return files;
   }
 
   /// Get image bytes for multiple DICOM files
-  static Future<List<Uint8List>> getMultipleImageBytes(List<Uint8List> dicomBytesLit) async {
+  static Future<List<Uint8List>> getMultipleImageBytes(
+    List<Uint8List> dicomBytesLit,
+  ) async {
     final List<Uint8List> images = [];
-    
+
     for (final dicomBytes in dicomBytesLit) {
       try {
         if (await isValidDicom(dicomBytes)) {
@@ -62,31 +66,33 @@ class DicomServiceSimple {
         // Skip invalid files
       }
     }
-    
+
     return images;
   }
 
   /// Organize files by patient name for simple grouping
   static Map<String, List<DicomFile>> organizeByPatient(List<DicomFile> files) {
     final Map<String, List<DicomFile>> organized = {};
-    
+
     for (final file in files) {
       final patientName = file.metadata.patientName ?? 'Unknown Patient';
       organized.putIfAbsent(patientName, () => []).add(file);
     }
-    
+
     return organized;
   }
 
   /// Organize files by modality
-  static Map<String, List<DicomFile>> organizeByModality(List<DicomFile> files) {
+  static Map<String, List<DicomFile>> organizeByModality(
+    List<DicomFile> files,
+  ) {
     final Map<String, List<DicomFile>> organized = {};
-    
+
     for (final file in files) {
       final modality = file.metadata.modality ?? 'Unknown';
       organized.putIfAbsent(modality, () => []).add(file);
     }
-    
+
     return organized;
   }
 
@@ -100,7 +106,7 @@ class DicomServiceSimple {
       if (aInstance != bInstance) {
         return aInstance.compareTo(bInstance);
       }
-      
+
       // Then by slice location if available
       final aLocation = a.metadata.sliceLocation ?? 0.0;
       final bLocation = b.metadata.sliceLocation ?? 0.0;

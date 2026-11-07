@@ -115,9 +115,13 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
-            'Medical Image Viewer',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          const Flexible(
+            child: Text(
+              'Medical Image Viewer',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
         ],
       ),
@@ -139,9 +143,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
           IconButton(
             icon: const Icon(Icons.description_rounded),
             onPressed: _selectSingleFile,
-            tooltip: kIsWeb 
-                ? 'Select single file (DICOM validation after selection)'
-                : 'Select single DICOM file',
+            tooltip:
+                kIsWeb
+                    ? 'Select single file (DICOM validation after selection)'
+                    : 'Select single DICOM file',
           ),
         ],
         // Show back and new directory buttons when images are loaded
@@ -211,170 +216,173 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
           colors: [Colors.grey[900]!, const Color(0xFF0A0A0A)],
         ),
       ),
-      child: _controller.state.hasImages
-          ? FadeTransition(
-              opacity: _fadeAnimation,
-              child: CleanDicomViewer(
-                controller: _controller,
-                interactionController: _interactionController,
-                showControls: true,
-                showMeasurementToolbar: true,
-                enableHelpButton: true,
-              ),
-            )
-          : _buildWelcomeScreen(),
+      child:
+          _controller.state.hasImages
+              ? FadeTransition(
+                opacity: _fadeAnimation,
+                child: CleanDicomViewer(
+                  controller: _controller,
+                  interactionController: _interactionController,
+                  showControls: true,
+                  showMeasurementToolbar: true,
+                  enableHelpButton: true,
+                ),
+              )
+              : _buildWelcomeScreen(),
     );
   }
 
   Widget _buildWelcomeScreen() {
     return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Welcome icon
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.cyan.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.cyan.withValues(alpha: 0.3),
-                  width: 2,
+      child: SingleChildScrollView(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Welcome icon
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.cyan.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.cyan.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.medical_information_rounded,
+                  size: 64,
+                  color: Colors.cyan,
                 ),
               ),
-              child: const Icon(
-                Icons.medical_information_rounded,
-                size: 64,
-                color: Colors.cyan,
+
+              const SizedBox(height: 32),
+
+              // Welcome text
+              const Text(
+                'Welcome to DICOM Viewer',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
 
-            const SizedBox(height: 32),
+              const SizedBox(height: 16),
 
-            // Welcome text
-            const Text(
-              'Welcome to DICOM Viewer',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+              Text(
+                'Professional medical image viewer with advanced measurement tools, '
+                'brightness/contrast controls, and intuitive navigation. '
+                'Select one or more DICOM files to get started.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 40),
 
-            Text(
-              'Professional medical image viewer with advanced measurement tools, '
-              'brightness/contrast controls, and intuitive navigation. '
-              'Select one or more DICOM files to get started.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 16,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 40),
-
-            // Quick start buttons
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: () {
-                    final config = FileSelectorService.getUIConfig();
-                    return ElevatedButton.icon(
-                      onPressed: _selectFiles,
-                      icon: Icon(config.primaryIcon),
-                      label: Text(config.primaryLabel),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.cyan,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+              // Quick start buttons
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: () {
+                      final config = FileSelectorService.getUIConfig();
+                      return ElevatedButton.icon(
+                        onPressed: _selectFiles,
+                        icon: Icon(config.primaryIcon),
+                        label: Text(config.primaryLabel),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.cyan,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                    );
-                  }(),
-                ),
+                      );
+                    }(),
+                  ),
 
-                // Secondary button for native platforms
-                () {
-                  final config = FileSelectorService.getUIConfig();
-                  if (config.hasSecondaryOption) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: SizedBox(
-                        width: double.infinity,
+                  // Secondary button for native platforms
+                  () {
+                    final config = FileSelectorService.getUIConfig();
+                    if (config.hasSecondaryOption) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _selectFilesAlternative,
+                            icon: Icon(config.secondaryIcon),
+                            label: Text(config.secondaryLabel!),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.cyan,
+                              side: const BorderSide(color: Colors.cyan),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }(),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: _selectFilesAlternative,
-                          icon: Icon(config.secondaryIcon),
-                          label: Text(config.secondaryLabel!),
+                          onPressed: _showHelp,
+                          icon: const Icon(Icons.help_outline_rounded),
+                          label: const Text('Help'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.cyan,
                             side: const BorderSide(color: Colors.cyan),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
                       ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                }(),
 
-                const SizedBox(height: 16),
+                      const SizedBox(width: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _showHelp,
-                        icon: const Icon(Icons.help_outline_rounded),
-                        label: const Text('Help'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.cyan,
-                          side: const BorderSide(color: Colors.cyan),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _showExamples,
+                          icon: const Icon(Icons.play_circle_outline_rounded),
+                          label: const Text('Examples'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.cyan,
+                            side: const BorderSide(color: Colors.cyan),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
+                  ),
+                ],
+              ),
 
-                    const SizedBox(width: 16),
-
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _showExamples,
-                        icon: const Icon(Icons.play_circle_outline_rounded),
-                        label: const Text('Examples'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.cyan,
-                          side: const BorderSide(color: Colors.cyan),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
@@ -391,10 +399,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       await _navigateToLoadingAndProcess(() async {
         debugPrint('📂 Starting directory/file selection...');
-        
+
         final result = await FileSelectorService.selectDicomContent();
         debugPrint('📂 Selection result: ${result?.files.length ?? 0} files');
-        
+
         if (result != null && result.hasContent) {
           debugPrint('📂 Loading ${result.files.length} files...');
           await _loadMultipleFiles(result.files);
@@ -418,10 +426,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       await _navigateToLoadingAndProcess(() async {
         debugPrint('📄 Starting individual files selection...');
-        
+
         final result = await FileSelectorService.selectDicomFiles();
         debugPrint('📄 Selection result: ${result?.files.length ?? 0} files');
-        
+
         if (result != null && result.hasContent) {
           debugPrint('📄 Loading ${result.files.length} files...');
           await _loadMultipleFiles(result.files);
@@ -445,10 +453,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       await _navigateToLoadingAndProcess(() async {
         debugPrint('📄 Starting single file selection...');
-        
+
         final result = await FileSelectorService.selectSingleDicomFile();
         debugPrint('📄 Selection result: ${result?.files.length ?? 0} files');
-        
+
         if (result != null && result.hasContent) {
           final fileData = result.files.first;
           debugPrint('📄 Loading single file: ${fileData.name}');
@@ -470,45 +478,50 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   }
 
   /// Navigate to loading screen and process the loading task
-  Future<void> _navigateToLoadingAndProcess(Future<void> Function() loadingTask) async {
+  Future<void> _navigateToLoadingAndProcess(
+    Future<void> Function() loadingTask,
+  ) async {
     if (!mounted) return;
 
     debugPrint('🚀 Starting navigation to loading screen...');
 
     // Start loading task immediately after navigation
-    unawaited(Future.microtask(() async {
-      try {
-        debugPrint('🔄 Starting loading task...');
-        await loadingTask();
-        debugPrint('✅ Loading task completed successfully');
-      } catch (error, stackTrace) {
-        debugPrint('❌ Loading task failed: $error');
-        debugPrint('❌ Stack trace: $stackTrace');
-        if (mounted) {
-          DicomLoadingProgressNotifier.notify(
-            DicomLoadingProgressEvent.error('$error'),
-          );
+    unawaited(
+      Future.microtask(() async {
+        try {
+          debugPrint('🔄 Starting loading task...');
+          await loadingTask();
+          debugPrint('✅ Loading task completed successfully');
+        } catch (error, stackTrace) {
+          debugPrint('❌ Loading task failed: $error');
+          debugPrint('❌ Stack trace: $stackTrace');
+          if (mounted) {
+            DicomLoadingProgressNotifier.notify(
+              DicomLoadingProgressEvent.error('$error'),
+            );
+          }
         }
-      }
-    }));
+      }),
+    );
 
     // Navigate to loading screen - this will block until loading is complete
     debugPrint('🔄 Pushing loading screen...');
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => DicomLoadingScreen(
-          onLoadingComplete: () {
-            debugPrint('✅ Loading completed - popping screen with success');
-            // Pop the loading screen when complete
-            Navigator.of(context).pop(true);
-          },
-          onLoadingError: (error) {
-            debugPrint('❌ Loading error received: $error');
-            // Pop the loading screen with error
-            Navigator.of(context).pop(false);
-          },
-          initialMessage: 'Preparing to load DICOM files...',
-        ),
+        builder:
+            (context) => DicomLoadingScreen(
+              onLoadingComplete: () {
+                debugPrint('✅ Loading completed - popping screen with success');
+                // Pop the loading screen when complete
+                Navigator.of(context).pop(true);
+              },
+              onLoadingError: (error) {
+                debugPrint('❌ Loading error received: $error');
+                // Pop the loading screen with error
+                Navigator.of(context).pop(false);
+              },
+              initialMessage: 'Preparing to load DICOM files...',
+            ),
       ),
     );
 
@@ -524,7 +537,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     } else if (result == false && mounted) {
       debugPrint('❌ Loading failed - showing error');
       // Show error message if loading failed
-      _showErrorSnackBar('Failed to load DICOM files. Check console for details.');
+      _showErrorSnackBar(
+        'Failed to load DICOM files. Check console for details.',
+      );
     } else if (result == null && mounted) {
       debugPrint('🚫 Loading cancelled by user');
       // User cancelled the loading
@@ -535,7 +550,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       debugPrint('📄 Loading single file: ${fileData.name}');
       debugPrint('📄 File size: ${fileData.bytes.length} bytes');
-      
+
       await _controller.loadSingleFileFromData(fileData);
 
       if (mounted && _controller.state.hasImages) {
@@ -560,18 +575,24 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       debugPrint('📄 Loading ${files.length} files...');
       for (int i = 0; i < files.length && i < 5; i++) {
-        debugPrint('📄 File $i: ${files[i].name} (${files[i].bytes.length} bytes)');
+        debugPrint(
+          '📄 File $i: ${files[i].name} (${files[i].bytes.length} bytes)',
+        );
       }
       if (files.length > 5) {
         debugPrint('📄 ... and ${files.length - 5} more files');
       }
-      
+
       // Load files from DicomFileData list (bytes-based)
       await _controller.loadFromFileDataList(files);
 
       if (mounted && _controller.state.hasImages) {
-        debugPrint('✅ ${_controller.state.images.length} DICOM files loaded successfully from ${files.length} files');
-        _showSuccessSnackBar('${_controller.state.images.length} DICOM files loaded successfully');
+        debugPrint(
+          '✅ ${_controller.state.images.length} DICOM files loaded successfully from ${files.length} files',
+        );
+        _showSuccessSnackBar(
+          '${_controller.state.images.length} DICOM files loaded successfully',
+        );
       } else {
         final error = 'No valid DICOM images found in ${files.length} files';
         debugPrint('❌ $error');
@@ -865,7 +886,11 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               ],
             ),
           ),
-          Switch(value: value, onChanged: onChanged, activeColor: Colors.cyan),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: Colors.cyan,
+          ),
         ],
       ),
     );
@@ -1425,5 +1450,3 @@ class _MetadataDialog extends StatelessWidget {
     return list.map((e) => e.toStringAsFixed(3)).join(', ');
   }
 }
-
-

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use flutter_rust_bridge::frb;
 use dicom::{
     core::DataDictionary,
     dictionary_std::{tags, StandardDataDictionary},
@@ -175,6 +176,7 @@ fn extract_metadata(obj: &FileDicomObject<InMemDicomObject>) -> Result<DicomMeta
 // -----------------------------------------------------------------------------
 
 impl DicomHandler {
+    #[frb(sync)]
     pub fn new() -> Self {
         Self {}
     }
@@ -299,4 +301,39 @@ impl DicomHandler {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Synchronous variants for the web
+// -----------------------------------------------------------------------------
+//
+// flutter_rust_bridge runs async calls on a pool of web workers, which needs
+// SharedArrayBuffer and therefore cross-origin isolation headers on the page.
+// Sync calls run on the calling thread instead, so the web build uses these and
+// works on any static host with no extra setup. Native platforms keep using
+// the async versions above.
 
+impl DicomHandler {
+    #[frb(sync)]
+    pub fn is_dicom_file_sync(&self, bytes: Vec<u8>) -> bool {
+        self.is_dicom_file(bytes)
+    }
+
+    #[frb(sync)]
+    pub fn load_file_with_image_sync(&self, bytes: Vec<u8>) -> Result<DicomFile, String> {
+        self.load_file_with_image(bytes)
+    }
+
+    #[frb(sync)]
+    pub fn get_metadata_sync(&self, bytes: Vec<u8>) -> Result<DicomMetadata, String> {
+        self.get_metadata(bytes)
+    }
+
+    #[frb(sync)]
+    pub fn get_image_bytes_sync(&self, bytes: Vec<u8>) -> Result<Vec<u8>, String> {
+        self.get_image_bytes(bytes)
+    }
+
+    #[frb(sync)]
+    pub fn extract_pixel_data_sync(&self, bytes: Vec<u8>) -> Result<DicomImage, String> {
+        self.extract_pixel_data(bytes)
+    }
+}

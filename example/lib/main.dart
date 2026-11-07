@@ -4,10 +4,10 @@ import 'screens/dicom_viewer_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize the Rust library for DICOM operations
   await RustLib.init();
-  
+
   runApp(const DicomViewerApp());
 }
 
@@ -19,9 +19,7 @@ class DicomViewerApp extends StatelessWidget {
     return MaterialApp(
       title: 'DICOM Medical Image Viewer',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(
-        useMaterial3: true,
-      ).copyWith(
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.cyan,
           brightness: Brightness.dark,
@@ -60,9 +58,7 @@ class DicomViewerApp extends StatelessWidget {
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         dialogTheme: DialogThemeData(
           backgroundColor: Colors.grey[900],

@@ -1,3 +1,6 @@
+// Progress output is the point of this integration test.
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:integration_test/integration_test.dart';
@@ -5,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import 'package:dicom_rs_example/services/dicom_service_simple.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'synthetic_dicom.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -34,107 +39,10 @@ void main() {
     // Create a proper synthetic DICOM file for testing
     print('Creating synthetic DICOM file for testing...');
     sampleDicomPath = '${tempDir.path}/synthetic_sample.dcm';
-    
+
     // Create a proper minimal DICOM file with required elements
-    final dicomData = <int>[
-      // DICOM preamble (128 bytes of zeros)
-      ...List.filled(128, 0),
-      
-      // DICOM prefix "DICM"
-      0x44, 0x49, 0x43, 0x4D,
-      
-      // File Meta Information Group Length (0002,0000) - UL
-      0x02, 0x00, 0x00, 0x00, 0x55, 0x4C, 0x04, 0x00, 
-      0x94, 0x00, 0x00, 0x00, // Length: 148 bytes
-      
-      // Media Storage SOP Class UID (0002,0002) - UI  
-      0x02, 0x00, 0x02, 0x00, 0x55, 0x49, 0x1A, 0x00,
-      // CT Image Storage SOP Class UID
-      0x31, 0x2E, 0x32, 0x2E, 0x38, 0x34, 0x30, 0x2E, 
-      0x31, 0x30, 0x30, 0x30, 0x38, 0x2E, 0x35, 0x2E, 
-      0x31, 0x2E, 0x34, 0x2E, 0x31, 0x2E, 0x31, 0x2E, 
-      0x32, 0x00,
-      
-      // Media Storage SOP Instance UID (0002,0003) - UI
-      0x02, 0x00, 0x03, 0x00, 0x55, 0x49, 0x20, 0x00,
-      0x31, 0x2E, 0x32, 0x2E, 0x38, 0x34, 0x30, 0x2E, 
-      0x31, 0x30, 0x30, 0x30, 0x38, 0x2E, 0x31, 0x2E, 
-      0x31, 0x2E, 0x31, 0x2E, 0x31, 0x2E, 0x31, 0x2E, 
-      0x31, 0x2E, 0x31, 0x00,
-      
-      // Transfer Syntax UID (0002,0010) - UI 
-      0x02, 0x00, 0x10, 0x00, 0x55, 0x49, 0x1A, 0x00,
-      // Implicit VR Little Endian
-      0x31, 0x2E, 0x32, 0x2E, 0x38, 0x34, 0x30, 0x2E, 
-      0x31, 0x30, 0x30, 0x30, 0x38, 0x2E, 0x31, 0x2E, 
-      0x32, 0x2E, 0x31, 0x00,
-      
-      // Implementation Class UID (0002,0012) - UI
-      0x02, 0x00, 0x12, 0x00, 0x55, 0x49, 0x16, 0x00,
-      0x31, 0x2E, 0x32, 0x2E, 0x38, 0x34, 0x30, 0x2E, 
-      0x31, 0x30, 0x30, 0x30, 0x38, 0x2E, 0x31, 0x2E, 
-      0x32, 0x2E, 0x31, 0x00,
-      
-      // Patient Name (0010,0010) - PN
-      0x10, 0x00, 0x10, 0x00, 0x0C, 0x00, 
-      0x54, 0x45, 0x53, 0x54, 0x5E, 0x50, 0x41, 0x54, 
-      0x49, 0x45, 0x4E, 0x54,
-      
-      // Patient ID (0010,0020) - LO
-      0x10, 0x00, 0x20, 0x00, 0x06, 0x00,
-      0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
-      
-      // Study Date (0008,0020) - DA
-      0x08, 0x00, 0x20, 0x00, 0x08, 0x00,
-      0x32, 0x30, 0x32, 0x34, 0x30, 0x31, 0x30, 0x31,
-      
-      // Modality (0008,0060) - CS
-      0x08, 0x00, 0x60, 0x00, 0x02, 0x00,
-      0x43, 0x54,
-      
-      // Study Description (0008,1030) - LO
-      0x08, 0x00, 0x30, 0x10, 0x0A, 0x00,
-      0x54, 0x45, 0x53, 0x54, 0x20, 0x53, 0x54, 0x55, 
-      0x44, 0x59,
-      
-      // Rows (0028,0010) - US
-      0x28, 0x00, 0x10, 0x00, 0x02, 0x00,
-      0x00, 0x02, // 512
-      
-      // Columns (0028,0011) - US  
-      0x28, 0x00, 0x11, 0x00, 0x02, 0x00,
-      0x00, 0x02, // 512
-      
-      // Bits Allocated (0028,0100) - US
-      0x28, 0x00, 0x00, 0x01, 0x02, 0x00,
-      0x10, 0x00, // 16
-      
-      // Bits Stored (0028,0101) - US
-      0x28, 0x00, 0x01, 0x01, 0x02, 0x00,
-      0x10, 0x00, // 16
-      
-      // High Bit (0028,0102) - US
-      0x28, 0x00, 0x02, 0x01, 0x02, 0x00,
-      0x0F, 0x00, // 15
-      
-      // Pixel Representation (0028,0103) - US
-      0x28, 0x00, 0x03, 0x01, 0x02, 0x00,
-      0x00, 0x00, // unsigned
-      
-      // Samples per Pixel (0028,0002) - US
-      0x28, 0x00, 0x02, 0x00, 0x02, 0x00,
-      0x01, 0x00, // 1
-      
-      // Photometric Interpretation (0028,0004) - CS
-      0x28, 0x00, 0x04, 0x00, 0x0C, 0x00,
-      0x4D, 0x4F, 0x4E, 0x4F, 0x43, 0x48, 0x52, 0x4F, 
-      0x4D, 0x45, 0x32, 0x20,
-      
-      // Pixel Data (7FE0,0010) - OW with minimal pixel data
-      0xE0, 0x7F, 0x10, 0x00, 0x00, 0x00, 0x00, 0x04,
-      0x00, 0x00, 0xFF, 0xFF, // 4 bytes of dummy pixel data
-    ];
-    
+    final dicomData = buildSyntheticDicom();
+
     await File(sampleDicomPath).writeAsBytes(dicomData);
     print('Created synthetic DICOM file at: $sampleDicomPath');
 
@@ -254,7 +162,9 @@ void main() {
 
       print('Image dimensions: ${pixelData.width}x${pixelData.height}');
       print('Bits allocated: ${pixelData.bitsAllocated}');
-      print('Photometric interpretation: ${pixelData.photometricInterpretation}');
+      print(
+        'Photometric interpretation: ${pixelData.photometricInterpretation}',
+      );
     });
 
     test('Get encoded image from DICOM file if file exists', () async {
@@ -283,12 +193,14 @@ void main() {
       final bytes = await file.readAsBytes();
       final bytesList = [bytes, bytes];
       final files = await DicomServiceSimple.loadMultipleFiles(bytesList);
-      
+
       expect(files.length, 2);
       expect(files.every((f) => f.isValid), isTrue);
-      
+
       // Test getting multiple image bytes
-      final imageBytes = await DicomServiceSimple.getMultipleImageBytes(bytesList);
+      final imageBytes = await DicomServiceSimple.getMultipleImageBytes(
+        bytesList,
+      );
       expect(imageBytes.length, 2);
       expect(imageBytes.every((bytes) => bytes.isNotEmpty), isTrue);
 
@@ -336,16 +248,14 @@ void main() {
       }
 
       // List all files in the directory
-      final files = dir
-          .listSync(recursive: true)
-          .whereType<File>()
-          .toList();
+      final files = dir.listSync(recursive: true).whereType<File>().toList();
 
       print('Found ${files.length} total files in directory');
 
       // Check which ones are DICOM files using our minimal API
       var dicomCount = 0;
-      for (final file in files.take(5)) { // Check first 5 files only for performance
+      for (final file in files.take(5)) {
+        // Check first 5 files only for performance
         try {
           final bytes = await file.readAsBytes();
           if (await DicomServiceSimple.isValidDicom(bytes)) {
@@ -368,12 +278,13 @@ void main() {
       }
 
       // Get all file paths
-      final filePaths = dir
-          .listSync(recursive: true)
-          .whereType<File>()
-          .map((f) => f.path)
-          .take(3) // Process first 3 files for performance
-          .toList();
+      final filePaths =
+          dir
+              .listSync(recursive: true)
+              .whereType<File>()
+              .map((f) => f.path)
+              .take(3) // Process first 3 files for performance
+              .toList();
 
       if (filePaths.isEmpty) {
         markTestSkipped('No files found in directory');
@@ -395,7 +306,9 @@ void main() {
 
       if (dicomBytesList.isNotEmpty) {
         // Load and organize the files
-        final dicomFiles = await DicomServiceSimple.loadMultipleFiles(dicomBytesList);
+        final dicomFiles = await DicomServiceSimple.loadMultipleFiles(
+          dicomBytesList,
+        );
         expect(dicomFiles.isNotEmpty, isTrue);
 
         final organized = DicomServiceSimple.organizeByPatient(dicomFiles);
@@ -422,21 +335,29 @@ void main() {
       // Test that loading invalid data throws appropriate errors
       bool loadFileThrows = false;
       bool getMetadataThrows = false;
-      
+
       try {
         await handler.loadFile(invalidBytes);
       } catch (e) {
         loadFileThrows = true;
       }
-      
+
       try {
         await handler.getMetadata(invalidBytes);
       } catch (e) {
         getMetadataThrows = true;
       }
-      
-      expect(loadFileThrows, isTrue, reason: 'loadFile should throw an error for invalid data');
-      expect(getMetadataThrows, isTrue, reason: 'getMetadata should throw an error for invalid data');
+
+      expect(
+        loadFileThrows,
+        isTrue,
+        reason: 'loadFile should throw an error for invalid data',
+      );
+      expect(
+        getMetadataThrows,
+        isTrue,
+        reason: 'getMetadata should throw an error for invalid data',
+      );
 
       print('Error handling works correctly for invalid data');
     });
@@ -492,10 +413,7 @@ void main() {
         modality: 'CT',
       );
 
-      const file = DicomFile(
-        metadata: metadata,
-        isValid: true,
-      );
+      const file = DicomFile(metadata: metadata, isValid: true);
 
       expect(file.isValid, isTrue);
       expect(file.metadata.patientName, 'Test Patient');
@@ -507,7 +425,7 @@ void main() {
 
     test('DicomImage properties', () {
       final pixelData = Uint8List.fromList([1, 2, 3, 4]);
-      
+
       final image = DicomImage(
         width: 512,
         height: 512,
@@ -533,14 +451,14 @@ void main() {
     test('All minimal API features work correctly', () async {
       // Summary test to verify the integration test suite covers all key features
       final handler = DicomHandler();
-      
+
       expect(handler, isA<DicomHandler>());
       expect(handler.isDicomFile, isA<Function>());
       expect(handler.loadFile, isA<Function>());
       expect(handler.getMetadata, isA<Function>());
       expect(handler.getImageBytes, isA<Function>());
       expect(handler.extractPixelData, isA<Function>());
-      
+
       // Service layer functions
       expect(DicomServiceSimple.isValidDicom, isA<Function>());
       expect(DicomServiceSimple.loadFile, isA<Function>());
@@ -549,7 +467,7 @@ void main() {
       expect(DicomServiceSimple.organizeByModality, isA<Function>());
       expect(DicomServiceSimple.sortByInstanceNumber, isA<Function>());
       expect(DicomServiceSimple.getBasicStats, isA<Function>());
-      
+
       print('All minimal API features are available and tested');
     });
   });

@@ -74,6 +74,13 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
         _mainFocusNode.requestFocus();
       }
     });
+
+    // Show the current image if loading finished before this widget was
+    // built. Otherwise nothing requests it until the controller changes
+    // again, and the viewer stays on "Loading image...".
+    if (_controller.state.hasImages) {
+      Future.microtask(_loadCurrentImage);
+    }
   }
 
   @override
@@ -162,7 +169,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
         setState(() {
           _currentImageData = imageData;
         });
-        
+
         // Validate loaded image data
         if (mounted && imageData == null && _controller.state.hasImages) {
           debugPrint('⚠️ Failed to load current image data');
@@ -183,11 +190,11 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   /// Retry loading current image with exponential backoff
   void _retryImageLoad({int attempt = 1, int maxAttempts = 3}) {
     if (attempt > maxAttempts || !mounted) return;
-    
+
     final delay = Duration(milliseconds: 100 * attempt);
     Future.delayed(delay, () async {
       if (!mounted) return;
-      
+
       try {
         final imageData = await _controller.getCurrentImageData();
         if (mounted) {
@@ -247,7 +254,9 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
                           measurements: _measurements,
                           currentMeasurementPoints: _currentMeasurementPoints,
                           selectedTool: _selectedMeasurementTool,
-                          isLoading: _controller.state.hasImages && _currentImageData == null,
+                          isLoading:
+                              _controller.state.hasImages &&
+                              _currentImageData == null,
                           measurementsVisible: _measurementsVisible,
                           interactionController: _interactionController,
                         ),
@@ -323,11 +332,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.tune,
-                      color: Colors.cyan,
-                      size: 14,
-                    ),
+                    Icon(Icons.tune, color: Colors.cyan, size: 14),
                     const SizedBox(width: 6),
                     Text(
                       'Adjustments',
@@ -439,9 +444,12 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   void _handleImageTap(Offset position, Size imageSize) {
     // Validate inputs
-    if (position.dx.isNaN || position.dy.isNaN || 
-        position.dx < 0 || position.dy < 0 ||
-        imageSize.width <= 0 || imageSize.height <= 0) {
+    if (position.dx.isNaN ||
+        position.dy.isNaN ||
+        position.dx < 0 ||
+        position.dy < 0 ||
+        imageSize.width <= 0 ||
+        imageSize.height <= 0) {
       debugPrint('⚠️ Invalid tap position or image size');
       return;
     }
@@ -622,23 +630,31 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   void _completeMeasurement() {
     if (_selectedMeasurementTool == null || _currentMeasurementPoints.isEmpty) {
-      debugPrint('⚠️ Cannot complete measurement: no tool selected or no points');
+      debugPrint(
+        '⚠️ Cannot complete measurement: no tool selected or no points',
+      );
       return;
     }
 
     // Validate measurement points
     final validPoints = <MeasurementPoint>[];
     for (final point in _currentMeasurementPoints) {
-      if (point.x.isFinite && point.y.isFinite && 
-          point.x >= 0 && point.y >= 0) {
+      if (point.x.isFinite &&
+          point.y.isFinite &&
+          point.x >= 0 &&
+          point.y >= 0) {
         validPoints.add(point);
       } else {
-        debugPrint('⚠️ Skipping invalid measurement point: (${point.x}, ${point.y})');
+        debugPrint(
+          '⚠️ Skipping invalid measurement point: (${point.x}, ${point.y})',
+        );
       }
     }
 
     if (validPoints.length < _selectedMeasurementTool!.requiredPoints) {
-      debugPrint('⚠️ Insufficient valid points for ${_selectedMeasurementTool!.name}: ${validPoints.length}/${_selectedMeasurementTool!.requiredPoints}');
+      debugPrint(
+        '⚠️ Insufficient valid points for ${_selectedMeasurementTool!.name}: ${validPoints.length}/${_selectedMeasurementTool!.requiredPoints}',
+      );
       setState(() {
         _currentMeasurementPoints.clear();
       });
@@ -647,7 +663,8 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
     try {
       // Get pixel spacing from current DICOM image metadata
-      final pixelSpacing = _controller.state.currentImage?.metadata.pixelSpacing;
+      final pixelSpacing =
+          _controller.state.currentImage?.metadata.pixelSpacing;
       final currentScale = _controller.state.scale;
 
       // Validate scale
@@ -672,8 +689,10 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
       // Clear any selected measurement highlighting
       _interactionController.clearSelectedMeasurement();
-      
-      debugPrint('✅ Measurement completed successfully: ${measurement.type.name}');
+
+      debugPrint(
+        '✅ Measurement completed successfully: ${measurement.type.name}',
+      );
     } catch (e) {
       debugPrint('❌ Error completing measurement: $e');
       setState(() {
@@ -705,7 +724,6 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       builder: (context) => const HelpDialogWidget(),
     );
   }
-
 
   void reset() {
     _controller.reset();

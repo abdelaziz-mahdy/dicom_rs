@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import '../models/complex_types.dart';
@@ -10,7 +9,9 @@ class EnhancedDicomService {
   final DicomHandler _handler = DicomHandler();
 
   /// Sort DICOM entries by instance number and slice location
-  List<DicomDirectoryEntry> _sortDicomEntries(List<DicomDirectoryEntry> entries) {
+  List<DicomDirectoryEntry> _sortDicomEntries(
+    List<DicomDirectoryEntry> entries,
+  ) {
     final sortedEntries = List<DicomDirectoryEntry>.from(entries);
     sortedEntries.sort((a, b) {
       // First sort by instance number if available
@@ -19,7 +20,7 @@ class EnhancedDicomService {
       if (aInstance != bInstance) {
         return aInstance.compareTo(bInstance);
       }
-      
+
       // Then by slice location if available
       final aLocation = a.metadata.sliceLocation ?? 0.0;
       final bLocation = b.metadata.sliceLocation ?? 0.0;
@@ -60,7 +61,7 @@ class EnhancedDicomService {
   /// Get enhanced metadata map (simulated from basic metadata)
   Future<DicomMetadataMap> getAllMetadata({required Uint8List bytes}) async {
     final metadata = await _handler.getMetadata(bytes);
-    
+
     // Create mock tags from metadata
     final tags = <String, DicomTag>{};
     final groupElements = <String, Map<String, DicomTag>>{};
@@ -121,25 +122,33 @@ class EnhancedDicomService {
   }
 
   /// ULTRA-OPTIMIZED: Use pre-extracted metadata (no processing needed!)
-  Future<List<DicomDirectoryEntry>> loadFromFileDataList(List<DicomFileData> fileDataList) async {
-    debugPrint('🚀 ULTRA-OPTIMIZED: Using pre-extracted metadata for ${fileDataList.length} files (NO PROCESSING NEEDED!)...');
-    
+  Future<List<DicomDirectoryEntry>> loadFromFileDataList(
+    List<DicomFileData> fileDataList,
+  ) async {
+    debugPrint(
+      '🚀 ULTRA-OPTIMIZED: Using pre-extracted metadata for ${fileDataList.length} files (NO PROCESSING NEEDED!)...',
+    );
+
     // Since metadata is already extracted in FileSelectorService, just convert the data!
     final entries = <DicomDirectoryEntry>[];
-    
+
     for (final fileData in fileDataList) {
       final entry = await _processFileDataParallel(fileData);
       if (entry != null) {
         entries.add(entry);
       }
     }
-    
-    debugPrint('✅ ULTRA-OPTIMIZED: Metadata conversion complete: ${entries.length}/${fileDataList.length} files processed');
+
+    debugPrint(
+      '✅ ULTRA-OPTIMIZED: Metadata conversion complete: ${entries.length}/${fileDataList.length} files processed',
+    );
     return _sortDicomEntries(entries);
   }
-  
+
   /// Process a single file data - use pre-extracted metadata (ULTRA-OPTIMIZED)
-  Future<DicomDirectoryEntry?> _processFileDataParallel(DicomFileData fileData) async {
+  Future<DicomDirectoryEntry?> _processFileDataParallel(
+    DicomFileData fileData,
+  ) async {
     try {
       // ULTRA-OPTIMIZATION: Use pre-extracted metadata from FileSelectorService!
       // No need to extract metadata again - it was already done during validation
@@ -147,7 +156,7 @@ class EnhancedDicomService {
         debugPrint('❌ No pre-extracted metadata for ${fileData.name}');
         return null;
       }
-      
+
       return DicomDirectoryEntry(
         bytes: fileData.bytes,
         name: fileData.name,
@@ -164,13 +173,17 @@ class EnhancedDicomService {
 
   /// Load files from DicomFileData list recursively (FAST - metadata only)
   /// This method is now a wrapper around loadFromFileDataList for API compatibility
-  Future<List<DicomDirectoryEntry>> loadFromFileDataListRecursive(List<DicomFileData> fileDataList) async {
+  Future<List<DicomDirectoryEntry>> loadFromFileDataListRecursive(
+    List<DicomFileData> fileDataList,
+  ) async {
     // Since we already have all files in the list, recursive behavior is handled by FileSelectorService
     return await loadFromFileDataList(fileDataList);
   }
 
   /// Load directory organized by patients from file data
-  Future<List<DicomPatient>> loadOrganizedFromFileData(List<DicomFileData> fileDataList) async {
+  Future<List<DicomPatient>> loadOrganizedFromFileData(
+    List<DicomFileData> fileDataList,
+  ) async {
     final entries = await loadFromFileDataList(fileDataList);
     return _organizeEntriesByPatient(entries);
   }
@@ -178,7 +191,8 @@ class EnhancedDicomService {
   /// Load with unified structure from file data
   Future<List<DicomDirectoryEntry>> loadUnifiedFromFileData({
     required List<DicomFileData> fileDataList,
-    bool recursive = false, // Ignored - file data list already contains all files
+    bool recursive =
+        false, // Ignored - file data list already contains all files
   }) async {
     return await loadFromFileDataList(fileDataList);
   }
@@ -200,7 +214,9 @@ class EnhancedDicomService {
   }
 
   /// Create a volume from a series of DICOM files
-  Future<DicomVolume> createVolumeFromSeries(List<DicomDirectoryEntry> entries) async {
+  Future<DicomVolume> createVolumeFromSeries(
+    List<DicomDirectoryEntry> entries,
+  ) async {
     if (entries.isEmpty) {
       throw Exception('No entries provided for volume creation');
     }
@@ -211,7 +227,7 @@ class EnhancedDicomService {
     // Get dimensions from first slice
     final firstEntry = sortedEntries.first;
     int width = 512, height = 512; // defaults
-    
+
     if (firstEntry.image != null) {
       width = firstEntry.image!.width.toInt();
       height = firstEntry.image!.height.toInt();
@@ -233,14 +249,17 @@ class EnhancedDicomService {
   }
 
   /// Organize directory entries by patient
-  List<DicomPatient> _organizeEntriesByPatient(List<DicomDirectoryEntry> entries) {
+  List<DicomPatient> _organizeEntriesByPatient(
+    List<DicomDirectoryEntry> entries,
+  ) {
     final patientMap = <String, List<DicomDirectoryEntry>>{};
 
     // Group by patient
     for (final entry in entries) {
-      final patientKey = entry.metadata.patientId ?? 
-                        entry.metadata.patientName ?? 
-                        'Unknown Patient';
+      final patientKey =
+          entry.metadata.patientId ??
+          entry.metadata.patientName ??
+          'Unknown Patient';
       patientMap.putIfAbsent(patientKey, () => []).add(entry);
     }
 
@@ -251,45 +270,51 @@ class EnhancedDicomService {
       // Group by study
       final studyMap = <String, List<DicomDirectoryEntry>>{};
       for (final entry in patientEntries) {
-        final studyKey = entry.metadata.studyInstanceUID ?? 
-                        entry.metadata.studyDescription ?? 
-                        'Unknown Study';
+        final studyKey =
+            entry.metadata.studyInstanceUID ??
+            entry.metadata.studyDescription ??
+            'Unknown Study';
         studyMap.putIfAbsent(studyKey, () => []).add(entry);
       }
 
-      final studies = studyMap.entries.map((studyEntry) {
-        final studyEntries = studyEntry.value;
-        final firstStudyEntry = studyEntries.first;
+      final studies =
+          studyMap.entries.map((studyEntry) {
+            final studyEntries = studyEntry.value;
+            final firstStudyEntry = studyEntries.first;
 
-        // Group by series
-        final seriesMap = <String, List<DicomDirectoryEntry>>{};
-        for (final entry in studyEntries) {
-          final seriesKey = entry.metadata.seriesInstanceUID ?? 
-                           entry.metadata.seriesDescription ?? 
-                           'Unknown Series';
-          seriesMap.putIfAbsent(seriesKey, () => []).add(entry);
-        }
+            // Group by series
+            final seriesMap = <String, List<DicomDirectoryEntry>>{};
+            for (final entry in studyEntries) {
+              final seriesKey =
+                  entry.metadata.seriesInstanceUID ??
+                  entry.metadata.seriesDescription ??
+                  'Unknown Series';
+              seriesMap.putIfAbsent(seriesKey, () => []).add(entry);
+            }
 
-        final series = seriesMap.entries.map((seriesEntry) {
-          final seriesEntries = seriesEntry.value;
-          final firstSeriesEntry = seriesEntries.first;
+            final series =
+                seriesMap.entries.map((seriesEntry) {
+                  final seriesEntries = seriesEntry.value;
+                  final firstSeriesEntry = seriesEntries.first;
 
-          return DicomSeries(
-            seriesInstanceUID: firstSeriesEntry.metadata.seriesInstanceUID,
-            seriesDescription: firstSeriesEntry.metadata.seriesDescription,
-            seriesNumber: firstSeriesEntry.metadata.seriesNumber,
-            modality: firstSeriesEntry.metadata.modality,
-            instances: seriesEntries,
-          );
-        }).toList();
+                  return DicomSeries(
+                    seriesInstanceUID:
+                        firstSeriesEntry.metadata.seriesInstanceUID,
+                    seriesDescription:
+                        firstSeriesEntry.metadata.seriesDescription,
+                    seriesNumber: firstSeriesEntry.metadata.seriesNumber,
+                    modality: firstSeriesEntry.metadata.modality,
+                    instances: seriesEntries,
+                  );
+                }).toList();
 
-        return DicomStudy(
-          studyInstanceUID: firstStudyEntry.metadata.studyInstanceUID,
-          studyDescription: firstStudyEntry.metadata.studyDescription,
-          studyDate: firstStudyEntry.metadata.studyDate,
-          series: series,
-        );
-      }).toList();
+            return DicomStudy(
+              studyInstanceUID: firstStudyEntry.metadata.studyInstanceUID,
+              studyDescription: firstStudyEntry.metadata.studyDescription,
+              studyDate: firstStudyEntry.metadata.studyDate,
+              series: series,
+            );
+          }).toList();
 
       return DicomPatient(
         patientId: firstEntry.metadata.patientId,
@@ -301,23 +326,26 @@ class EnhancedDicomService {
 }
 
 /// Compute slice spacing for a series
-Future<double?> computeSliceSpacing({required List<DicomDirectoryEntry> entries}) async {
+Future<double?> computeSliceSpacing({
+  required List<DicomDirectoryEntry> entries,
+}) async {
   if (entries.length < 2) return null;
 
-  final positions = entries
-      .map((e) => e.metadata.sliceLocation)
-      .where((loc) => loc != null)
-      .cast<double>()
-      .toList();
+  final positions =
+      entries
+          .map((e) => e.metadata.sliceLocation)
+          .where((loc) => loc != null)
+          .cast<double>()
+          .toList();
 
   if (positions.length < 2) return null;
 
   positions.sort();
-  
+
   // Calculate average spacing between consecutive slices
   double totalSpacing = 0;
   int count = 0;
-  
+
   for (int i = 1; i < positions.length; i++) {
     totalSpacing += (positions[i] - positions[i - 1]).abs();
     count++;
@@ -332,7 +360,10 @@ Future<bool> isDicomFile({required Uint8List bytes}) async {
   return await handler.isDicomFile(bytes);
 }
 
-Future<bool> isDicomdirFile({required Uint8List bytes, String? filename}) async {
+Future<bool> isDicomdirFile({
+  required Uint8List bytes,
+  String? filename,
+}) async {
   try {
     return filename?.toLowerCase().contains('dicomdir') ?? false;
   } catch (e) {
