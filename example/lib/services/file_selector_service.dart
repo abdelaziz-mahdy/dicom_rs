@@ -33,15 +33,8 @@ class FileSelectorService {
     try {
       debugPrint('🚀 Processing file $fileIndex/$totalFiles: ${file.name}');
       
-      Uint8List bytes;
-      if (file.bytes != null) {
-        bytes = file.bytes!;
-      } else if (file.path != null) {
-        bytes = await File(file.path!).readAsBytes();
-      } else {
-        debugPrint('❌ Skipping file ${file.name}: no bytes or path available');
-        return null;
-      }
+      // Reads from the path on native and from the browser's file on web.
+      final bytes = await file.readAsBytes();
       
       // SINGLE PASS: Try to extract metadata directly - if this succeeds, it's valid DICOM!
       final handler = DicomHandler();
@@ -86,18 +79,15 @@ class FileSelectorService {
   static Future<FileSelectorResult?> selectDicomFiles() async {
     final config = _getFilePickerConfig();
     
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       dialogTitle: config.dialogTitle,
       type: config.fileType,
       allowedExtensions: config.allowedExtensions,
-      allowMultiple: true,
-      withReadStream: false, // Use bytes instead of streams for better performance
-      withData: true,
     );
 
-    if (result != null && result.files.isNotEmpty) {
+    if (files.isNotEmpty) {
       // Validate and filter DICOM files based on content
-      final validDicomFiles = await _validateAndFilterDicomFiles(result.files);
+      final validDicomFiles = await _validateAndFilterDicomFiles(files);
       
       if (validDicomFiles.isNotEmpty) {
         return FileSelectorResult.files(validDicomFiles);
@@ -112,18 +102,15 @@ class FileSelectorService {
   static Future<FileSelectorResult?> selectSingleDicomFile() async {
     final config = _getFilePickerConfig();
     
-    final result = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       dialogTitle: config.dialogTitle.replaceAll('Files', 'File'),
       type: config.fileType,
       allowedExtensions: config.allowedExtensions,
-      allowMultiple: false,
-      withReadStream: false, // Use bytes instead of streams
-      withData: true,
     );
 
-    if (result != null && result.files.isNotEmpty) {
+    if (file != null) {
       // Validate and filter DICOM files based on content
-      final validDicomFiles = await _validateAndFilterDicomFiles(result.files);
+      final validDicomFiles = await _validateAndFilterDicomFiles([file]);
       
       if (validDicomFiles.isNotEmpty) {
         return FileSelectorResult.files(validDicomFiles);
@@ -154,7 +141,7 @@ class FileSelectorService {
     debugPrint('📂 Starting directory selection...');
 
     try {
-      final directoryPath = await FilePicker.platform.getDirectoryPath(
+      final directoryPath = await FilePicker.getDirectoryPath(
         dialogTitle: 'Select Directory Containing DICOM Files',
       );
 
