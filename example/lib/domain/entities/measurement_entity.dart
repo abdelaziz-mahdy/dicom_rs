@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'dart:ui';
 
 /// Clean domain entity for measurements
@@ -62,11 +64,15 @@ class MeasurementEntity {
     // Calculate value based on measurement type
     final calculatedValue = _calculateValue();
     final actualUnit = _getActualUnit();
-    return '${calculatedValue.toStringAsFixed(1)} $actualUnit';
+    // A circle is measured from its centre to its edge: say it is a radius.
+    final prefix = type == MeasurementType.circle ? 'r ' : '';
+    return '$prefix${calculatedValue.toStringAsFixed(1)} $actualUnit';
   }
 
   /// Get the actual unit based on pixel spacing availability
   String _getActualUnit() {
+    // Angles do not depend on pixel size.
+    if (type == MeasurementType.angle) return '°';
     if (pixelSpacing != null && pixelSpacing!.isNotEmpty) {
       switch (type) {
         case MeasurementType.distance:
@@ -102,11 +108,11 @@ class MeasurementEntity {
 
           final angle1 = (p1 - center).direction;
           final angle2 = (p2 - center).direction;
-          final angleDiff = (angle2 - angle1).abs();
-
-          return angleDiff *
-              180 /
-              3.14159; // Convert to degrees (no scaling needed)
+          // Directions are in (-pi, pi]; the angle between the arms is the
+          // smaller way round, so it is never more than 180 degrees.
+          var angleDiff = (angle2 - angle1).abs() % (2 * math.pi);
+          if (angleDiff > math.pi) angleDiff = 2 * math.pi - angleDiff;
+          return angleDiff * 180 / math.pi;
         }
         return 0.0;
 
@@ -212,5 +218,11 @@ enum MeasurementType {
   const MeasurementType(this.displayName, this.requiredPoints);
 
   final String displayName;
+
+  /// Points needed before the measurement can be completed. Most tools
+  /// complete at exactly this many; an area takes any number of points and
+  /// closes when the first point is clicked again.
   final int requiredPoints;
+
+  bool get closesByClickingFirstPoint => this == MeasurementType.area;
 }
