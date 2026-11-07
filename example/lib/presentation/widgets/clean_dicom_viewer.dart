@@ -338,9 +338,48 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     );
   }
 
+  /// What to click for the selected measurement tool.
+  String? get _measurementHint => switch (_selectedMeasurementTool) {
+    MeasurementType.distance => 'Click the start and end points',
+    MeasurementType.angle =>
+      'Click a point on one arm, then the vertex, then a point on the other arm',
+    MeasurementType.circle => 'Click the centre, then a point on the edge',
+    MeasurementType.area =>
+      _currentMeasurementPoints.length < 3
+          ? 'Click points around the area'
+          : 'Keep clicking, or click the first point to close the area',
+    null => null,
+  };
+
   Widget _buildUIOverlays() {
+    final hint = _measurementHint;
     return Stack(
       children: [
+        if (hint != null)
+          Positioned(
+            top: 16,
+            left: 72,
+            right: 72,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.cyan.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  hint,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+
         // Enhanced image adjustments display with status indicators
         Positioned(
           top: 16,
@@ -510,13 +549,29 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
     try {
       setState(() {
+        final tool = _selectedMeasurementTool!;
+        // An area takes any number of points and closes when the first
+        // point is clicked again.
+        if (tool.closesByClickingFirstPoint) {
+          final first = _currentMeasurementPoints.firstOrNull;
+          if (first != null &&
+              _currentMeasurementPoints.length >= tool.requiredPoints &&
+              (clampedPosition - Offset(first.x, first.y)).distance <= 12) {
+            _completeMeasurement();
+            return;
+          }
+          _currentMeasurementPoints.add(
+            MeasurementPoint(x: clampedPosition.dx, y: clampedPosition.dy),
+          );
+          return;
+        }
+
         _currentMeasurementPoints.add(
           MeasurementPoint(x: clampedPosition.dx, y: clampedPosition.dy),
         );
 
         // Complete measurement if we have enough points
-        final requiredPoints = _selectedMeasurementTool!.requiredPoints;
-        if (_currentMeasurementPoints.length >= requiredPoints) {
+        if (_currentMeasurementPoints.length >= tool.requiredPoints) {
           _completeMeasurement();
         }
       });
