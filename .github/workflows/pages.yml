@@ -36,7 +36,7 @@ jobs:
         run: |
           flutter pub get
           dart run dicom_rs:build_web
-          flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+          flutter build web --release --base-href "/${{ github.event.repository.name }}/" --dart-define=APP_VERSION="web demo, ${GITHUB_SHA::7}"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

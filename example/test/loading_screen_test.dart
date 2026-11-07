@@ -76,4 +76,48 @@ void main() {
     expect(completions, 1);
     expect(errors, isEmpty);
   });
+
+  testWidgets('finishes when the load completed before the screen opened', (
+    tester,
+  ) async {
+    completions = 0;
+    errors = [];
+    // Example studies load from the app bundle in milliseconds, so the load
+    // can finish before the screen subscribes to progress events.
+    final task = Future<void>.value();
+    await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DicomLoadingScreen(
+          task: task,
+          onLoadingComplete: () => completions++,
+          onLoadingError: errors.add,
+        ),
+      ),
+    );
+    await waitForCompletionDelay(tester);
+
+    expect(completions, 1);
+    expect(errors, isEmpty);
+  });
+
+  testWidgets('reports a failed load from its task', (tester) async {
+    completions = 0;
+    errors = [];
+    final task = Future<void>.error(Exception('no valid DICOM files'));
+    task.ignore();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DicomLoadingScreen(
+          task: task,
+          onLoadingComplete: () => completions++,
+          onLoadingError: errors.add,
+        ),
+      ),
+    );
+    await waitForCompletionDelay(tester);
+
+    expect(completions, 0);
+    expect(errors.single, contains('no valid DICOM files'));
+  });
 }

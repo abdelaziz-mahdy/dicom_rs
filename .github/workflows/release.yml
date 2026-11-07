@@ -37,7 +37,7 @@ jobs:
         working-directory: example
         run: |
           flutter pub get
-          flutter build apk --release
+          flutter build apk --release --dart-define=APP_VERSION="${TAG#v}"
           cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/dicom-viewer-${TAG}-android.apk"
       - uses: actions/upload-artifact@v4
         with:
@@ -59,7 +59,7 @@ jobs:
         working-directory: example
         run: |
           flutter pub get
-          flutter build macos --release
+          flutter build macos --release --dart-define=APP_VERSION="${TAG#v}"
           ditto -c -k --keepParent build/macos/Build/Products/Release/dicom_rs_example.app \
             "$GITHUB_WORKSPACE/dicom-viewer-${TAG}-macos.zip"
       - uses: actions/upload-artifact@v4
@@ -85,7 +85,7 @@ jobs:
         working-directory: example
         run: |
           flutter pub get
-          flutter build windows --release
+          flutter build windows --release --dart-define=APP_VERSION="${TAG#v}"
       - name: Zip
         shell: pwsh
         run: |
@@ -115,7 +115,7 @@ jobs:
         working-directory: example
         run: |
           flutter pub get
-          flutter build linux --release
+          flutter build linux --release --dart-define=APP_VERSION="${TAG#v}"
           tar -czf "$GITHUB_WORKSPACE/dicom-viewer-${TAG}-linux-x64.tar.gz" \
             -C build/linux/x64/release bundle
       - uses: actions/upload-artifact@v4
@@ -144,7 +144,7 @@ jobs:
           cd example
           flutter pub get
           dart run dicom_rs:build_web
-          flutter build web --release
+          flutter build web --release --dart-define=APP_VERSION="${TAG#v}"
           cd build
           zip -r "$GITHUB_WORKSPACE/dicom-viewer-${TAG}-web.zip" web
       - uses: actions/upload-artifact@v4

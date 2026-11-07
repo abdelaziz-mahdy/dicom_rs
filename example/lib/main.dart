@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:dicom_rs/dicom_rs.dart';
+import 'core/app_log.dart';
 import 'screens/dicom_viewer_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // In-app log (About > View logs) for what the app prints and any errors.
+  initAppLog();
 
   // Initialize the Rust library for DICOM operations
   await RustLib.init();
