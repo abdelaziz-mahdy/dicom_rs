@@ -230,153 +230,155 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
 
   Widget _buildWelcomeScreen() {
     return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Welcome icon
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.cyan.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.cyan.withValues(alpha: 0.3),
-                  width: 2,
+      child: SingleChildScrollView(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Welcome icon
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.cyan.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.cyan.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.medical_information_rounded,
+                  size: 64,
+                  color: Colors.cyan,
                 ),
               ),
-              child: const Icon(
-                Icons.medical_information_rounded,
-                size: 64,
-                color: Colors.cyan,
+
+              const SizedBox(height: 32),
+
+              // Welcome text
+              const Text(
+                'Welcome to DICOM Viewer',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
 
-            const SizedBox(height: 32),
+              const SizedBox(height: 16),
 
-            // Welcome text
-            const Text(
-              'Welcome to DICOM Viewer',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+              Text(
+                'Professional medical image viewer with advanced measurement tools, '
+                'brightness/contrast controls, and intuitive navigation. '
+                'Select one or more DICOM files to get started.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 40),
 
-            Text(
-              'Professional medical image viewer with advanced measurement tools, '
-              'brightness/contrast controls, and intuitive navigation. '
-              'Select one or more DICOM files to get started.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 16,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 40),
-
-            // Quick start buttons
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: () {
-                    final config = FileSelectorService.getUIConfig();
-                    return ElevatedButton.icon(
-                      onPressed: _selectFiles,
-                      icon: Icon(config.primaryIcon),
-                      label: Text(config.primaryLabel),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.cyan,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+              // Quick start buttons
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: () {
+                      final config = FileSelectorService.getUIConfig();
+                      return ElevatedButton.icon(
+                        onPressed: _selectFiles,
+                        icon: Icon(config.primaryIcon),
+                        label: Text(config.primaryLabel),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.cyan,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                    );
-                  }(),
-                ),
+                      );
+                    }(),
+                  ),
 
-                // Secondary button for native platforms
-                () {
-                  final config = FileSelectorService.getUIConfig();
-                  if (config.hasSecondaryOption) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: SizedBox(
-                        width: double.infinity,
+                  // Secondary button for native platforms
+                  () {
+                    final config = FileSelectorService.getUIConfig();
+                    if (config.hasSecondaryOption) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _selectFilesAlternative,
+                            icon: Icon(config.secondaryIcon),
+                            label: Text(config.secondaryLabel!),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.cyan,
+                              side: const BorderSide(color: Colors.cyan),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }(),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: _selectFilesAlternative,
-                          icon: Icon(config.secondaryIcon),
-                          label: Text(config.secondaryLabel!),
+                          onPressed: _showHelp,
+                          icon: const Icon(Icons.help_outline_rounded),
+                          label: const Text('Help'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.cyan,
                             side: const BorderSide(color: Colors.cyan),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
                       ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                }(),
 
-                const SizedBox(height: 16),
+                      const SizedBox(width: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _showHelp,
-                        icon: const Icon(Icons.help_outline_rounded),
-                        label: const Text('Help'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.cyan,
-                          side: const BorderSide(color: Colors.cyan),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _showExamples,
+                          icon: const Icon(Icons.play_circle_outline_rounded),
+                          label: const Text('Examples'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.cyan,
+                            side: const BorderSide(color: Colors.cyan),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
+                  ),
+                ],
+              ),
 
-                    const SizedBox(width: 16),
-
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _showExamples,
-                        icon: const Icon(Icons.play_circle_outline_rounded),
-                        label: const Text('Examples'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.cyan,
-                          side: const BorderSide(color: Colors.cyan),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
