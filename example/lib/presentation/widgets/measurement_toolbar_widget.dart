@@ -32,10 +32,16 @@ class MeasurementToolbarWidget extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Measurement tools
-          ...MeasurementType.values.map((type) => _buildToolButton(type)),
-
-          const Spacer(),
+          // Measurement tools; they scroll sideways when the window is narrow
+          // so the controls on the right stay visible.
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: MeasurementType.values.map(_buildToolButton).toList(),
+              ),
+            ),
+          ),
 
           // Controls
           IconButton(
