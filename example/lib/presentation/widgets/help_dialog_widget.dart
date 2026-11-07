@@ -49,7 +49,15 @@ class HelpDialogWidget extends StatelessWidget {
               // Navigation section
               _buildSection('Navigation', Icons.navigation, [
                 _buildHelpItem('← → Arrow Keys', 'Navigate between slices'),
-                _buildHelpItem('Mouse Wheel', 'Scroll through slices'),
+                _buildHelpItem(
+                  'Mouse Wheel / Two-finger Swipe',
+                  'Change slice',
+                ),
+                _buildHelpItem('Drag', 'Move the image'),
+                _buildHelpItem(
+                  'Pinch or Ctrl/⌘ + Scroll',
+                  'Zoom at the pointer',
+                ),
                 _buildHelpItem('Click Image Counter', 'Jump to specific slice'),
                 _buildHelpItem('Fast Forward/Rewind', 'Jump ±10 slices'),
               ]),
@@ -59,10 +67,13 @@ class HelpDialogWidget extends StatelessWidget {
               // Image adjustments section
               _buildSection('Image Adjustments', Icons.tune, [
                 _buildHelpItem(
-                  'Right-click + Drag',
+                  'Right-drag or Shift + Drag',
                   'Adjust brightness/contrast',
                 ),
-                _buildHelpItem('Reset Button', 'Reset all adjustments'),
+                _buildHelpItem(
+                  'Reset Button',
+                  'Reset brightness, contrast and zoom',
+                ),
                 _buildHelpItem(
                   'Live Preview',
                   'See values in top-right corner',
