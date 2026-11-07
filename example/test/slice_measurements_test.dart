@@ -5,10 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 MeasurementEntity distance(String id) => MeasurementEntity(
   id: id,
   type: MeasurementType.distance,
-  points: const [
-    MeasurementPoint(x: 0, y: 0),
-    MeasurementPoint(x: 10, y: 0),
-  ],
+  points: const [MeasurementPoint(x: 0, y: 0), MeasurementPoint(x: 10, y: 0)],
 );
 
 void main() {
