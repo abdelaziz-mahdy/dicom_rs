@@ -1,6 +1,3 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
-
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -133,6 +130,10 @@ class PrecompileBinariesCommand extends Command {
         'temp-dir',
         help: 'Directory to store temporary build artifacts',
       )
+      ..addOption(
+        'glibc-version',
+        help: 'GLIBC version to use for linux builds',
+      )
       ..addFlag(
         "verbose",
         abbr: "v",
@@ -205,6 +206,7 @@ class PrecompileBinariesCommand extends Command {
       androidNdkVersion: argResults!['android-ndk-version'] as String?,
       androidMinSdkVersion: androidMinSdkVersion,
       tempDir: argResults!['temp-dir'] as String?,
+      glibcVersion: argResults!['glibc-version'] as String?,
     );
 
     await precompileBinaries.run();

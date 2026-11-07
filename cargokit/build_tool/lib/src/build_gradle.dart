@@ -1,6 +1,3 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
-
 import 'dart:io';
 
 import 'package:logging/logging.dart';
@@ -21,15 +18,18 @@ class BuildGradle {
 
   Future<void> build() async {
     final targets =
-        Environment.targetPlatforms.map((arch) {
-          final target = Target.forFlutterName(arch);
-          if (target == null) {
-            throw Exception(
-              "Unknown darwin target or platform: $arch, ${Environment.darwinPlatformName}",
-            );
-          }
-          return target;
-        }).toList();
+        Environment.targetPlatforms
+            .map((arch) {
+              final target = Target.forFlutterName(arch);
+              if (target == null) {
+                throw Exception(
+                  "Unknown darwin target or platform: $arch, ${Environment.darwinPlatformName}",
+                );
+              }
+              return target;
+            })
+            .toSet()
+            .toList();
 
     final environment = BuildEnvironment.fromEnvironment(isAndroid: true);
     final provider = ArtifactProvider(
