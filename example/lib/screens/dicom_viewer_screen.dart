@@ -979,25 +979,21 @@ class _HelpDialog extends StatelessWidget {
               child: SingleChildScrollView(
                 child: Text(
                   'Navigation:\n'
-                  '• Use arrow keys (←→) or mouse wheel to navigate between slices\n'
+                  '• Use the arrow keys, the mouse wheel or a two-finger swipe to change slice\n'
                   '• Click the image counter to jump to a specific slice\n'
                   '• Use fast forward/rewind buttons for quick navigation\n\n'
                   'Image Adjustments:\n'
-                  '• Right-click and drag to adjust brightness and contrast\n'
-                  '• Use the reset button to restore original settings\n\n'
+                  '• Right-drag or Shift + drag to adjust brightness and contrast\n'
+                  '• Use the reset button to restore brightness, contrast and zoom\n\n'
                   'Measurements:\n'
                   '• Select a measurement tool from the toolbar\n'
                   '• Click points on the image to create measurements\n'
                   '• Toggle visibility or clear all measurements as needed\n\n'
                   'Zoom & Pan:\n'
-                  '• Use pinch gestures on touch devices to zoom\n'
-                  '• Multi-touch gestures for pan and zoom\n\n'
-                  'Keyboard Shortcuts:\n'
-                  '• ← → Navigate slices\n'
-                  '• R Reset image adjustments\n'
-                  '• H Toggle help\n'
-                  '• M Toggle measurements\n'
-                  '• F11 Fullscreen mode',
+                  '• Drag the image to move it\n'
+                  '• Pinch, or hold Ctrl/⌘ and scroll, to zoom at the pointer\n\n'
+                  'Keyboard:\n'
+                  '• ← → or ↑ ↓ Change slice',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,
