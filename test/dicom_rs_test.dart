@@ -22,12 +22,10 @@ void main() {
       );
 
       const file = DicomFile(
-        path: '/test/path.dcm',
         metadata: metadata,
         isValid: true,
       );
 
-      expect(file.path, '/test/path.dcm');
       expect(file.metadata.patientName, 'Test Patient');
       expect(file.metadata.modality, 'CT');
       expect(file.isValid, isTrue);
