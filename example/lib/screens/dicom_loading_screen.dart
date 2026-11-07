@@ -37,6 +37,7 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
   Duration _estimatedTimeRemaining = Duration.zero;
 
   StreamSubscription? _progressSubscription;
+  bool _finished = false;
 
   @override
   void initState() {
@@ -124,10 +125,15 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
         _progressController.animateTo(progress);
       }
 
-      // Handle completion
+      // Finish once: the first completion or error decides the outcome.
+      // A directory load used to send more than one, and each popped the
+      // route, so the second pop removed the screen underneath.
+      if (_finished) return;
       if (event.isComplete) {
+        _finished = true;
         _handleLoadingComplete();
       } else if (event.error != null) {
+        _finished = true;
         widget.onLoadingError(event.error!);
       }
     });
@@ -136,6 +142,7 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
   void _handleLoadingComplete() async {
     // Complete the progress animation
     await _progressController.forward();
+    if (!mounted) return;
 
     // Show completion briefly
     setState(() {
@@ -144,6 +151,7 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
 
     // Wait a moment then notify completion
     await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
     widget.onLoadingComplete();
   }
 

@@ -79,8 +79,15 @@ class DicomIsolateValidator {
         );
       }
 
+      // Images are loaded after this; the viewer controller sends the
+      // completion event once they are.
       DicomLoadingProgressNotifier.notify(
-        DicomLoadingProgressEvent.completed(totalLoaded: allValidFiles.length),
+        DicomLoadingProgressEvent(
+          message:
+              'Found ${allValidFiles.length} DICOM files, loading images...',
+          filesProcessed: files.length,
+          totalFiles: files.length,
+        ),
       );
 
       return allValidFiles;
