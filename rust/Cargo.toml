@@ -11,3 +11,7 @@ flutter_rust_bridge = "=2.13.0"
 dicom = "0.10.1"
 anyhow = "1.0"
 dicom-pixeldata = { version = "0.10", features = ["image"] }
+
+[lints.rust]
+# Set by flutter_rust_bridge macros.
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(frb_expand)"] }

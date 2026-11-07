@@ -47,7 +47,7 @@ class DicomFile {
 
 /// Main handler for DICOM operations
 class DicomHandler {
-  const DicomHandler();
+  const DicomHandler.raw();
 
   static Future<DicomHandler> default_() =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerDefault();
@@ -59,9 +59,25 @@ class DicomHandler {
         bytes: bytes,
       );
 
+  DicomImage extractPixelDataSync({required List<int> bytes}) => RustLib
+      .instance
+      .api
+      .crateApiDicomRsInterfaceDicomHandlerExtractPixelDataSync(
+        that: this,
+        bytes: bytes,
+      );
+
   /// Get encoded image bytes (PNG format) from DICOM bytes
   Future<Uint8List> getImageBytes({required List<int> bytes}) =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetImageBytes(
+        that: this,
+        bytes: bytes,
+      );
+
+  Uint8List getImageBytesSync({required List<int> bytes}) => RustLib
+      .instance
+      .api
+      .crateApiDicomRsInterfaceDicomHandlerGetImageBytesSync(
         that: this,
         bytes: bytes,
       );
@@ -73,9 +89,21 @@ class DicomHandler {
         bytes: bytes,
       );
 
+  DicomMetadata getMetadataSync({required List<int> bytes}) =>
+      RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerGetMetadataSync(
+        that: this,
+        bytes: bytes,
+      );
+
   /// Check if bytes represent a valid DICOM file
   Future<bool> isDicomFile({required List<int> bytes}) =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerIsDicomFile(
+        that: this,
+        bytes: bytes,
+      );
+
+  bool isDicomFileSync({required List<int> bytes}) =>
+      RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerIsDicomFileSync(
         that: this,
         bytes: bytes,
       );
@@ -93,8 +121,15 @@ class DicomHandler {
         bytes: bytes,
       );
 
-  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<DicomHandler> newInstance() =>
+  DicomFile loadFileWithImageSync({required List<int> bytes}) => RustLib
+      .instance
+      .api
+      .crateApiDicomRsInterfaceDicomHandlerLoadFileWithImageSync(
+        that: this,
+        bytes: bytes,
+      );
+
+  factory DicomHandler() =>
       RustLib.instance.api.crateApiDicomRsInterfaceDicomHandlerNew();
 
   @override

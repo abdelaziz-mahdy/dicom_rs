@@ -5,6 +5,9 @@
 library;
 
 import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../src/rust/api/dicom_rs_interface.dart' as rust;
 
 /// Core metadata extracted from a DICOM file
@@ -114,8 +117,7 @@ class DicomHandler {
 
   /// Initialize the Rust handler (called automatically)
   static Future<rust.DicomHandler> _getRustHandler() async {
-    _rustHandler ??= await rust.DicomHandler.newInstance();
-    return _rustHandler!;
+    return _rustHandler ??= rust.DicomHandler();
   }
 
   /// Check if bytes represent a valid DICOM file
@@ -131,6 +133,9 @@ class DicomHandler {
   Future<bool> isDicomFile(List<int> bytes) async {
     try {
       final rustHandler = await _getRustHandler();
+      // On the web, sync calls avoid flutter_rust_bridge's worker pool, which
+      // would need cross-origin isolation headers on the hosting page.
+      if (kIsWeb) return rustHandler.isDicomFileSync(bytes: bytes);
       return await rustHandler.isDicomFile(bytes: bytes);
     } catch (e) {
       return false;
@@ -158,7 +163,10 @@ class DicomHandler {
   /// ```
   Future<DicomFile> loadFile(List<int> bytes) async {
     final rustHandler = await _getRustHandler();
-    final rustFile = await rustHandler.loadFileWithImage(bytes: bytes);
+    final rustFile =
+        kIsWeb
+            ? rustHandler.loadFileWithImageSync(bytes: bytes)
+            : await rustHandler.loadFileWithImage(bytes: bytes);
 
     return DicomFile(
       metadata: _convertMetadata(rustFile.metadata),
@@ -186,7 +194,10 @@ class DicomHandler {
   /// ```
   Future<DicomMetadata> getMetadata(List<int> bytes) async {
     final rustHandler = await _getRustHandler();
-    final rustMetadata = await rustHandler.getMetadata(bytes: bytes);
+    final rustMetadata =
+        kIsWeb
+            ? rustHandler.getMetadataSync(bytes: bytes)
+            : await rustHandler.getMetadata(bytes: bytes);
     return _convertMetadata(rustMetadata);
   }
 
@@ -209,6 +220,7 @@ class DicomHandler {
   /// ```
   Future<Uint8List> getImageBytes(List<int> bytes) async {
     final rustHandler = await _getRustHandler();
+    if (kIsWeb) return rustHandler.getImageBytesSync(bytes: bytes);
     return await rustHandler.getImageBytes(bytes: bytes);
   }
 
@@ -232,7 +244,10 @@ class DicomHandler {
   /// ```
   Future<DicomImage> extractPixelData(List<int> bytes) async {
     final rustHandler = await _getRustHandler();
-    final rustImage = await rustHandler.extractPixelData(bytes: bytes);
+    final rustImage =
+        kIsWeb
+            ? rustHandler.extractPixelDataSync(bytes: bytes)
+            : await rustHandler.extractPixelData(bytes: bytes);
     return _convertImage(rustImage);
   }
 
