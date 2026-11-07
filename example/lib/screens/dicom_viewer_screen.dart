@@ -115,9 +115,13 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
-            'Medical Image Viewer',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          const Flexible(
+            child: Text(
+              'Medical Image Viewer',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
         ],
       ),
