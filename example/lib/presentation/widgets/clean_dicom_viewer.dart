@@ -7,6 +7,7 @@ import '../../domain/entities/measurement_entity.dart';
 import 'image_display_widget.dart';
 import 'image_fit.dart';
 import 'measurement_toolbar_widget.dart';
+import 'slice_measurements.dart';
 import 'viewer_controls_widget.dart';
 import 'help_dialog_widget.dart';
 
@@ -51,7 +52,18 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   Size? _displayedImageSize;
 
   // Measurement state
-  final List<MeasurementEntity> _measurements = [];
+  /// Measurements per slice; [_measurements] is the current slice's list.
+  final SliceMeasurements _slices = SliceMeasurements();
+  List<MeasurementEntity> get _measurements =>
+      _slices.onSlice(_controller.state.currentIndex);
+
+  /// The measurement whose point was clicked, offered for copy, move or
+  /// delete.
+  String? _selectedMeasurementId;
+
+  // To notice a slice change or a newly loaded series.
+  int? _lastSliceIndex;
+  List<Object?>? _lastImages;
   final List<MeasurementPoint> _currentMeasurementPoints = [];
   MeasurementType? _selectedMeasurementTool;
   bool _measurementsVisible = true;
@@ -150,6 +162,19 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   void _onControllerChanged() {
     if (mounted) {
+      // A new series starts without measurements.
+      if (!identical(_controller.state.images, _lastImages)) {
+        _lastImages = _controller.state.images;
+        _slices.clearAll();
+        _selectedMeasurementId = null;
+      }
+      // A half-drawn measurement and the selection belong to the slice they
+      // were made on.
+      if (_controller.state.currentIndex != _lastSliceIndex) {
+        _lastSliceIndex = _controller.state.currentIndex;
+        _currentMeasurementPoints.clear();
+        _selectedMeasurementId = null;
+      }
       // Always sync interaction controller with current brightness/contrast values
       // This ensures consistency when navigating between images
       _interactionController.syncBrightnessContrast(
@@ -351,11 +376,114 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     null => null,
   };
 
+  // Actions on the selected measurement.
+
+  bool get _hasNextSlice =>
+      _controller.state.currentIndex < _controller.state.images.length - 1;
+
+  /// Copies the selected measurement to the next slice and goes there, with
+  /// the copy selected so it can be adjusted or carried further.
+  void _copySelectedToNextSlice() {
+    final id = _selectedMeasurementId;
+    if (id == null || !_hasNextSlice) return;
+    final from = _controller.state.currentIndex;
+    final copy = _slices.copy(
+      id,
+      from: from,
+      to: from + 1,
+      newId: DateTime.now().microsecondsSinceEpoch.toString(),
+    );
+    if (copy == null) return;
+    _controller.goToImage(from + 1);
+    setState(() => _selectedMeasurementId = copy.id);
+  }
+
+  /// Moves the selected measurement to the next slice and goes there.
+  void _moveSelectedToNextSlice() {
+    final id = _selectedMeasurementId;
+    if (id == null || !_hasNextSlice) return;
+    final from = _controller.state.currentIndex;
+    if (!_slices.move(id, from: from, to: from + 1)) return;
+    _controller.goToImage(from + 1);
+    setState(() => _selectedMeasurementId = id);
+  }
+
+  void _deleteSelectedMeasurement() {
+    final id = _selectedMeasurementId;
+    if (id == null) return;
+    setState(() {
+      _slices.remove(id, slice: _controller.state.currentIndex);
+      _selectedMeasurementId = null;
+    });
+  }
+
+  Widget _buildSelectionActions() {
+    Widget action(IconData icon, String label, VoidCallback? onPressed) =>
+        TextButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 18),
+          label: Text(label),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.cyan,
+            disabledForegroundColor: Colors.white38,
+          ),
+        );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.cyan.withValues(alpha: 0.4)),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          action(
+            Icons.copy_rounded,
+            'Copy to next slice',
+            _hasNextSlice ? _copySelectedToNextSlice : null,
+          ),
+          action(
+            Icons.arrow_downward_rounded,
+            'Move to next slice',
+            _hasNextSlice ? _moveSelectedToNextSlice : null,
+          ),
+          action(
+            Icons.delete_outline_rounded,
+            'Delete',
+            _deleteSelectedMeasurement,
+          ),
+          IconButton(
+            tooltip: 'Done',
+            icon: const Icon(Icons.close_rounded, size: 18),
+            color: Colors.white70,
+            onPressed: () => setState(() => _selectedMeasurementId = null),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUIOverlays() {
     final hint = _measurementHint;
+    final showSelection =
+        _selectedMeasurementId != null &&
+        _slices.find(
+              _selectedMeasurementId!,
+              slice: _controller.state.currentIndex,
+            ) !=
+            null;
     return Stack(
       children: [
-        if (hint != null)
+        if (showSelection)
+          Positioned(
+            top: 12,
+            left: 72,
+            right: 72,
+            child: Center(child: _buildSelectionActions()),
+          )
+        else if (hint != null)
           Positioned(
             top: 16,
             left: 72,
@@ -525,27 +653,32 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
       return;
     }
 
-    // Only add new measurement points if we have a selected tool
-    if (_selectedMeasurementTool == null) return;
-
     // Ensure position is within image bounds
     final clampedPosition = Offset(
       position.dx.clamp(0.0, imageSize.width),
       position.dy.clamp(0.0, imageSize.height),
     );
 
-    // Check if tap is on an existing measurement point - if so, don't add new point
+    // A click on a point of an existing measurement selects it (for copy,
+    // move or delete) instead of adding a point.
     for (final measurement in _measurements) {
       for (int i = 0; i < measurement.points.length; i++) {
         final point = measurement.points[i];
         final pointCenter = Offset(point.x, point.y);
         final distance = (clampedPosition - pointCenter).distance;
-        if (distance <= 12) {
-          // Hit an existing point, don't add new measurement point
+        if (distance <= 12 && _currentMeasurementPoints.isEmpty) {
+          setState(() => _selectedMeasurementId = measurement.id);
+          _interactionController.setSelectedMeasurement(measurement, i);
           return;
         }
       }
     }
+    if (_selectedMeasurementId != null) {
+      setState(() => _selectedMeasurementId = null);
+    }
+
+    // Only add new measurement points if we have a selected tool
+    if (_selectedMeasurementTool == null) return;
 
     try {
       setState(() {
@@ -798,8 +931,9 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
   void _clearAllMeasurements() {
     setState(() {
-      _measurements.clear();
+      _slices.clearAll();
       _currentMeasurementPoints.clear();
+      _selectedMeasurementId = null;
     });
 
     // Clear any selected measurement highlighting
@@ -822,7 +956,8 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
   void reset() {
     _controller.reset();
     setState(() {
-      _measurements.clear();
+      _slices.clearAll();
+      _selectedMeasurementId = null;
       _currentMeasurementPoints.clear();
       _selectedMeasurementTool = null;
       _measurementsVisible = true;
