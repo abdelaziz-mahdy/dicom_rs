@@ -1,9 +1,47 @@
 # dicom_rs
 
-[![pub package](https://img.shields.io/pub/v/dicom_rs.svg)](https://pub.dev/packages/dicom_rs)
+[![CI](https://github.com/abdelaziz-mahdy/dicom_rs/actions/workflows/ci.yml/badge.svg)](https://github.com/abdelaziz-mahdy/dicom_rs/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A high-performance Flutter package for DICOM file handling using a Rust backend. Fast, memory-efficient, and cross-platform DICOM operations optimized for production medical applications.
+
+**This repository also ships a complete DICOM viewer app** built on the package (in [`example/`](example)). You can use it without writing any code:
+
+- **Try it in your browser:** [abdelaziz-mahdy.github.io/dicom_rs](https://abdelaziz-mahdy.github.io/dicom_rs/)
+- **Download it** for Android, macOS, Windows or Linux from [Releases](https://github.com/abdelaziz-mahdy/dicom_rs/releases)
+
+## 🖥️ The DICOM viewer app
+
+Open a folder or a set of DICOM files and browse them as a series. The viewer has:
+
+- slice navigation with the keyboard, mouse wheel and on-screen controls
+- brightness/contrast (right-click and drag) and zoom
+- distance, angle, circle and area measurements
+- a metadata panel for the current image
+
+### Your files stay on your device
+
+The viewer has no server. Files you open are read and decoded on your own computer or phone, and in the web demo they are decoded inside your browser tab; nothing is uploaded anywhere. Closing the tab or the app discards them.
+
+> **Not for diagnostic use.** The viewer is a demonstration of the `dicom_rs` package. It is not a certified medical device and must not be used for diagnosis or treatment decisions.
+
+### Sample files you can use
+
+You need DICOM files to try the viewer. If you don't have your own, these public sources provide de-identified research images for free:
+
+- **[NCI Imaging Data Commons](https://portal.imaging.datacommons.cancer.gov/)**: free to download without an account. More than 95% of the data is licensed CC BY, and each file is labelled with its license.
+- **[The Cancer Imaging Archive (TCIA)](https://www.cancerimagingarchive.net/)**: most collections are CC BY and can be downloaded without registration. Some collections carry non-commercial or restricted licenses, so check the collection's *Data Usage Policy* tab before you share or reuse files.
+
+Credit the source collection when you publish or share images from these archives. Do not open files with real patient information in a demo you share with others.
+
+### Installing the downloaded apps
+
+The release builds are not signed with a paid developer certificate, so your system will warn you the first time:
+
+- **macOS:** unzip, then right-click the app and choose **Open** (or allow it in System Settings → Privacy & Security).
+- **Windows:** unzip and run `dicom_rs_example.exe`; if SmartScreen appears, choose **More info → Run anyway**.
+- **Linux:** extract the archive and run `bundle/dicom_rs_example`.
+- **Android:** open the APK and allow installing apps from that source when asked.
 
 ## 🚀 Features
 
@@ -28,17 +66,20 @@ A high-performance Flutter package for DICOM file handling using a Rust backend.
 
 ## 📦 Installation
 
-Add `dicom_rs` to your `pubspec.yaml`:
+`dicom_rs` is not on pub.dev yet. Add it from GitHub in your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dicom_rs: ^0.1.0
+  dicom_rs:
+    git: https://github.com/abdelaziz-mahdy/dicom_rs.git
 ```
 
 Then run:
 ```bash
 flutter pub get
 ```
+
+The Rust backend is compiled when you build your app, so you need a Rust toolchain installed ([rustup.rs](https://rustup.rs)).
 
 ## 🛠️ Quick Start
 
@@ -202,31 +243,23 @@ class DicomFile {
 | **Linux** | ✅ Supported | Full native performance |
 | **Web** | ✅ Supported | WebAssembly build with performance considerations |
 
-### Web Platform Notes
+### Using dicom_rs on the web
 
-The package supports web platforms with some considerations:
+On the web the Rust backend runs as WebAssembly. Build it once into your app's `web/pkg` folder, from your app's root:
 
-- **WebAssembly backend**: Uses Rust compiled to WebAssembly
-- **Performance**: Slower than native due to WebAssembly overhead and lack of isolate support
-- **Build steps**: Requires `flutter_rust_bridge_codegen build-web` and moving the web pkg to your app's web directory
-- **Memory constraints**: Works within browser memory limitations
-
-#### Web Build Steps
 ```bash
-# Generate web build
-flutter_rust_bridge_codegen build-web
-
-# Move the generated web package to your app's web directory
-# (Copy the generated pkg files to your Flutter app's web/ folder)
+dart run dicom_rs:build_web
 ```
 
-Web support is functional but performance is not as optimal as native platforms due to WebAssembly limitations and the absence of isolate support.
+This works the same on Windows, macOS and Linux. It needs Rust ([rustup.rs](https://rustup.rs)) and `wasm-pack` (`cargo install wasm-pack`). Run it again after updating `dicom_rs`.
+
+That is all: no changes to `index.html`, no service worker and no special server headers. The module is built without threads, so the app works on any static host, GitHub Pages included. The trade-off is that decoding runs on the browser's main thread (roughly 0.1 s for a 512×512 image), so very large series load more slowly than on native platforms.
 
 ## 🚨 Current Limitations
 
 ### Platform Limitations
 
-1. **Web Performance**: Slower than native due to WebAssembly and lack of isolates
+1. **Web Performance**: Decoding runs on the browser's main thread, so it is slower than native and the page pauses briefly per image
 2. **Native Dependencies**: Requires native compilation on each platform
 
 ### DICOM Support
@@ -255,7 +288,7 @@ flutter run
 
 - **Multi-series DICOM viewer** with smooth navigation
 - **Interactive image controls** (brightness, contrast, zoom)
-- **Measurement tools** (distance, area)
+- **Measurement tools** (distance, angle, circle, area)
 - **Performance optimization** examples
 - **File organization** and series management
 
@@ -284,22 +317,22 @@ flutter build <platform>
 ### Testing
 
 ```bash
-# Package tests (work in progress)
+# Package tests. The Rust-backed tests load rust/target/release, so build it first
+# (they are skipped with a hint when the library is missing).
+cargo build --release --manifest-path rust/Cargo.toml
 flutter test
 
-# Example app tests (work in progress)
+# Example app tests
 cd example
 flutter test
 
-# Integration tests
-flutter test integration_test/
-# or run with specific driver
-flutter drive --driver=test_driver/integration_test.dart --target=integration_test/simple_test.dart
-
-# Example app integration tests
-cd example
-flutter test integration_test/
+# Example integration tests (on a desktop or device)
+flutter test integration_test/simple_test.dart -d macos
 ```
+
+### Releases
+
+Pushing a `v*` tag (for example `v0.2.0`) builds the viewer for Android, macOS, Windows, Linux and the web and attaches the builds to a GitHub release. Every push to `main` updates the web demo on GitHub Pages.
 
 ## 🤝 Contributing
 
