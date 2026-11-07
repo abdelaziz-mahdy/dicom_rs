@@ -25,6 +25,10 @@ The viewer has no server. Files you open are read and decoded on your own comput
 
 > **Not for diagnostic use.** The viewer is a demonstration of the `dicom_rs` package. It is not a certified medical device and must not be used for diagnosis or treatment decisions.
 
+### Medical professionals: your feedback is welcome
+
+If you are a radiologist, technologist, clinician or medical physicist, we would love to hear from you. Try the [web demo](https://abdelaziz-mahdy.github.io/dicom_rs/) with de-identified images and [open an issue](https://github.com/abdelaziz-mahdy/dicom_rs/issues/new) with what works, what feels wrong, and what would make the viewer useful in your daily work. Please never attach images that contain patient information.
+
 ### Sample files you can use
 
 You need DICOM files to try the viewer. If you don't have your own, these public sources provide de-identified research images for free:
@@ -36,12 +40,7 @@ Credit the source collection when you publish or share images from these archive
 
 ### Installing the downloaded apps
 
-The release builds are not signed with a paid developer certificate, so your system will warn you the first time:
-
-- **macOS:** unzip, then right-click the app and choose **Open** (or allow it in System Settings → Privacy & Security).
-- **Windows:** unzip and run `dicom_rs_example.exe`; if SmartScreen appears, choose **More info → Run anyway**.
-- **Linux:** extract the archive and run `bundle/dicom_rs_example`.
-- **Android:** open the APK and allow installing apps from that source when asked.
+The builds are not signed yet, so the first launch shows a warning. On **macOS** right-click the app and choose **Open**; on **Windows** choose **More info → Run anyway**; on **Android** allow installs from that source. On **Linux** run `bundle/dicom_rs_example`.
 
 ## 🚀 Features
 
