@@ -98,7 +98,14 @@ class HelpDialogWidget extends StatelessWidget {
                   'Visibility Toggle',
                   'Show/hide all measurements',
                 ),
-                _buildHelpItem('Clear All', 'Remove all measurements'),
+                _buildHelpItem(
+                  'Click a Point',
+                  'Copy or move that measurement to the next slice, or delete it',
+                ),
+                _buildHelpItem(
+                  'Clear All',
+                  'Remove all measurements on every slice',
+                ),
               ]),
 
               const SizedBox(height: 16),
