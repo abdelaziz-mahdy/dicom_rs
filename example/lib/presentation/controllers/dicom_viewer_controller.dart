@@ -26,7 +26,6 @@ class DicomViewerController extends ChangeNotifier {
 
   // Duplicate loading prevention
   bool _isCurrentlyLoading = false;
-  String? _lastLoadedDirectoryPath;
 
   // Image caching with buffer zone for smooth navigation
   final Map<String, Uint8List> _persistentImageCache =
@@ -39,7 +38,6 @@ class DicomViewerController extends ChangeNotifier {
       
   // Brightness/contrast processing optimization
   int _adjustmentRequestId = 0;
-  int _lastProcessedRequestId = 0;
   Timer? _adjustmentDebounceTimer;
   double _pendingBrightness = 0.0;
   double _pendingContrast = 1.0;
@@ -376,7 +374,6 @@ class DicomViewerController extends ChangeNotifier {
           return rawImageData;
         }
         
-        _lastProcessedRequestId = currentRequestId;
         debugPrint('⏱️ [PROCESSING] ✅ Request $currentRequestId completed: ${processingTime}ms');
 
         final result = processedImage.fold(
@@ -604,7 +601,6 @@ class DicomViewerController extends ChangeNotifier {
     _pendingBrightness = 0.0;
     _pendingContrast = 1.0;
     _adjustmentRequestId = 0;
-    _lastProcessedRequestId = 0;
     
     _updateState(const DicomViewerState());
   }

@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:dicom_rs/dicom_rs.dart';
 import '../models/complex_types.dart';

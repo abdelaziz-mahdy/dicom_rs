@@ -217,28 +217,6 @@ class FileSelectorService {
     }
   }
   
-  /// ULTRA-OPTIMIZED: Try to extract metadata from directory file (single-pass validation)
-  static Future<DicomFileData?> _tryExtractDicomMetadataFromFile(File file, int fileIndex, int totalFiles) async {
-    try {
-      final fileName = path.basename(file.path);
-      final bytes = await file.readAsBytes();
-      
-      // SINGLE PASS: Try to extract metadata directly - if this succeeds, it's valid DICOM!
-      final handler = DicomHandler();
-      final metadata = await handler.getMetadata(bytes); // This will throw if not valid DICOM
-      
-      return DicomFileData(
-        name: fileName,
-        bytes: bytes,
-        fullPath: file.path,
-        metadata: metadata, // Store the metadata we just extracted!
-      );
-    } catch (e) {
-      // Skip files that can't be read or are not valid DICOM
-      return null;
-    }
-  }
-
   /// Get platform-appropriate UI configuration
   /// Web: File selection with validation, Native: Directory selection with file fallback
   static FileSelectorUIConfig getUIConfig() {

@@ -1,3 +1,13 @@
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - windows/**
+    - macos/**
+    - linux/**
+    # Vendored cargokit build tool; it has its own pubspec and is not part of the package API.
+    - cargokit/**
 include: package:flutter_lints/flutter.yaml
 
 # Additional information about this file can be found at

@@ -152,15 +152,6 @@ class DicomValueTypeUnknown extends DicomValueType {
   const DicomValueTypeUnknown();
 }
 
-// Legacy type aliases for compatibility
-typedef DicomValueType_Str = DicomValueTypeStr;
-typedef DicomValueType_Int = DicomValueTypeInt;
-typedef DicomValueType_Float = DicomValueTypeFloat;
-typedef DicomValueType_StrList = DicomValueTypeStrList;
-typedef DicomValueType_IntList = DicomValueTypeIntList;
-typedef DicomValueType_FloatList = DicomValueTypeFloatList;
-typedef DicomValueType_Unknown = DicomValueTypeUnknown;
-
 /// DICOM series representation
 class DicomSeries {
   final String? seriesInstanceUID;

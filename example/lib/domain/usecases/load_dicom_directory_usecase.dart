@@ -24,7 +24,7 @@ class LoadDicomDirectoryUseCase {
         recursive: recursive,
       );
 
-      return result.fold(
+      return result.fold<Result<List<DicomImageEntity>>>(
         (images) {
           if (images.isEmpty) {
             return const Failure('No valid DICOM files found');

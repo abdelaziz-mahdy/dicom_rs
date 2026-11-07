@@ -865,7 +865,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               ],
             ),
           ),
-          Switch(value: value, onChanged: onChanged, activeColor: Colors.cyan),
+          Switch(value: value, onChanged: onChanged, activeThumbColor: Colors.cyan),
         ],
       ),
     );

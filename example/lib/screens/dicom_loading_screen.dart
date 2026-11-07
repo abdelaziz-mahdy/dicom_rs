@@ -33,11 +33,8 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
   
   // Enhanced progress tracking with ETA
   DateTime? _startTime;
-  DateTime? _lastUpdateTime;
   double _loadingSpeed = 0.0; // files per second
   Duration _estimatedTimeRemaining = Duration.zero;
-  int _totalBytesProcessed = 0;
-  int _currentFileSize = 0;
   
   StreamSubscription? _progressSubscription;
 
@@ -100,8 +97,6 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
         // Calculate ETA and speed metrics when files progress
         if (event.filesProcessed > _filesProcessed && _startTime != null) {
           final elapsed = now.difference(_startTime!);
-          final newFilesProcessed = event.filesProcessed - _filesProcessed;
-          
           // Update loading speed (files per second)
           if (elapsed.inMilliseconds > 0) {
             _loadingSpeed = event.filesProcessed / (elapsed.inMilliseconds / 1000.0);
@@ -113,18 +108,11 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
             final secondsRemaining = remainingFiles / _loadingSpeed;
             _estimatedTimeRemaining = Duration(seconds: secondsRemaining.ceil());
           }
-          
-          // Track bytes if available
-          if (event.currentFileSize != null) {
-            _totalBytesProcessed += event.currentFileSize!;
-            _currentFileSize = event.currentFileSize!;
-          }
         }
         
         _filesProcessed = event.filesProcessed;
         _totalFiles = event.totalFiles;
         _isScanning = event.isScanning;
-        _lastUpdateTime = now;
       });
 
       // Update progress animation
