@@ -9,6 +9,7 @@
 * Android builds now include the Rust library; apps built with recent Flutter versions crashed at start because it was missing.
 * macOS release builds with Xcode 27 no longer fail with "can't find crate".
 * The Android plugin compiles against API 36, as required by current AndroidX libraries.
+* Example viewer works with a mouse and a trackpad: the wheel and two-finger swipes change slices, pinch or Ctrl/Cmd + scroll zooms at the pointer, drag moves the image, and right-drag or Shift + drag adjusts brightness and contrast.
 * Example viewer: measurements are correct at any zoom-to-fit size, small images fill the viewer, loading a folder no longer leaves a blank window, the loading screen no longer waits forever when a load finishes quickly, and layouts no longer overflow on small windows and phones.
 
 ### Changed
