@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -30,7 +32,30 @@ class ImageInteractionController extends ChangeNotifier {
 
   // Current state
   bool _isRightClickDragging = false;
+  bool _isMiddleButtonPanning = false;
   Offset? _lastPanPosition;
+
+  // View transform: the image is scaled by [zoom] about the centre of the
+  // view and then moved by [pan] (both in logical pixels).
+  double _zoom = 1.0;
+  Offset _pan = Offset.zero;
+  Size _viewSize = Size.zero;
+  Size? _contentSize;
+  static const double minZoom = 0.5;
+  static const double maxZoom = 10.0;
+
+  // Scroll distance collected towards the next slice. A mouse wheel notch
+  // arrives as one large event or several small ones, and a trackpad sends
+  // many tiny deltas, so slices step on distance travelled, not per event.
+  double _wheelDistance = 0;
+  double _trackpadDistance = 0;
+  static const double _wheelDistancePerSlice = 50;
+  static const double _trackpadDistancePerSlice = 30;
+
+  // Current drag or pinch gesture.
+  double _gestureStartZoom = 1.0;
+  bool _trackpadPinching = false;
+  _DragMode? _dragMode;
 
   // Selected measurement tracking for highlighting
   dynamic _selectedMeasurement;
@@ -43,7 +68,10 @@ class ImageInteractionController extends ChangeNotifier {
   onBrightnessContrastChanged;
   void Function(double scale)? onScaleChanged;
   void Function(Offset position, Size imageSize)? onImageTapped;
-  void Function(Offset position)? onMeasurementPointDragged;
+
+  /// Called with image-space positions while dragging; returns whether a
+  /// measurement point is being dragged.
+  bool Function(Offset position)? onMeasurementPointDragged;
   void Function(dynamic measurement, int pointIndex, Offset newPosition)?
   onPointDrag;
 
@@ -61,6 +89,81 @@ class ImageInteractionController extends ChangeNotifier {
   static const Duration _navigationDebounce = Duration(milliseconds: 50);
 
   bool get isInteracting => _isRightClickDragging;
+  double get zoom => _zoom;
+  Offset get pan => _pan;
+
+  /// Size of the input area and, when the image is centred inside it, the
+  /// image's size, for zooming around the pointer and mapping positions.
+  void setViewSize(Size size, {Size? content}) {
+    _viewSize = size;
+    _contentSize = content;
+  }
+
+  /// Converts a position in the view to the image's own coordinates, undoing
+  /// zoom and pan, so taps and measurement points land on the same pixel at
+  /// any zoom.
+  Offset toImageSpace(Offset viewPosition) {
+    final center = _viewSize.center(Offset.zero);
+    final unzoomed = center + (viewPosition - center - _pan) / _zoom;
+    final content = _contentSize;
+    if (content == null) return unzoomed;
+    // Relative to the image box centred in the area.
+    return unzoomed - (center - content.center(Offset.zero));
+  }
+
+  /// Zooms to [newZoom], keeping the image point under [focus] (a view
+  /// position) where it is.
+  void zoomTo(double newZoom, {Offset? focus}) {
+    if (!enableZoom) return;
+    final clamped = newZoom.clamp(minZoom, maxZoom).toDouble();
+    if (clamped == _zoom) return;
+    final center = _viewSize.center(Offset.zero);
+    final anchor = (focus ?? center) - center;
+    _pan = anchor - (anchor - _pan) * (clamped / _zoom);
+    _zoom = clamped;
+    _clampPan();
+    onScaleChanged?.call(_zoom);
+    notifyListeners();
+  }
+
+  /// Moves the image by [delta] logical pixels.
+  void panBy(Offset delta) {
+    if (delta == Offset.zero) return;
+    _pan += delta;
+    _clampPan();
+    notifyListeners();
+  }
+
+  /// Back to fit-to-view: zoom 100 %, centred.
+  void resetView() {
+    _zoom = 1.0;
+    _pan = Offset.zero;
+    onScaleChanged?.call(_zoom);
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void setZoomForTest(double zoom, {Offset pan = Offset.zero}) {
+    _zoom = zoom;
+    _pan = pan;
+    notifyListeners();
+  }
+
+  /// Keeps at least part of the image on screen.
+  void _clampPan() {
+    final image = _contentSize ?? _viewSize;
+    final limitX = image.width * _zoom / 2;
+    final limitY = image.height * _zoom / 2;
+    if (limitX <= 0 || limitY <= 0) return;
+    _pan = Offset(
+      _pan.dx.clamp(-limitX, limitX).toDouble(),
+      _pan.dy.clamp(-limitY, limitY).toDouble(),
+    );
+  }
+
+  static bool get _zoomModifierPressed =>
+      HardwareKeyboard.instance.isControlPressed ||
+      HardwareKeyboard.instance.isMetaPressed;
   dynamic get selectedMeasurement => _selectedMeasurement;
   int? get selectedPointIndex => _selectedPointIndex;
 
@@ -70,33 +173,68 @@ class ImageInteractionController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Handle pointer signal events (scroll wheel and trackpad)
+  /// Mouse wheel and other scroll signals: change slice, or zoom with
+  /// Ctrl/Cmd held. Browsers send trackpad pinches as scale signals.
   void handlePointerSignal(PointerSignalEvent event) {
+    if (event is PointerScaleEvent) {
+      zoomTo(_zoom * event.scale, focus: event.localPosition);
+      return;
+    }
+    if (event is! PointerScrollEvent) return;
+
+    final delta = event.scrollDelta;
+    if (_zoomModifierPressed) {
+      zoomTo(_zoom * math.exp(-delta.dy / 300), focus: event.localPosition);
+      return;
+    }
     if (!enableScrollNavigation) return;
 
-    if (event is PointerScrollEvent) {
-      final scrollDelta = event.scrollDelta;
+    final distance = delta.dy.abs() >= delta.dx.abs() ? delta.dy : delta.dx;
+    if (distance == 0) return;
+    // Start over when the direction changes.
+    if (_wheelDistance.sign != distance.sign) _wheelDistance = 0;
+    _wheelDistance += distance;
+    // At most one slice per event, so one notch is one slice.
+    if (_wheelDistance.abs() >= _wheelDistancePerSlice) {
+      _wheelDistance > 0 ? onNextImage?.call() : onPreviousImage?.call();
+      _wheelDistance = 0;
+    }
+  }
 
-      // Use very low threshold for maximum trackpad sensitivity
-      // Most trackpads send small delta values (0.1 - 3.0)
-      final effectiveThreshold = 0.1;
+  /// Trackpad two-finger gestures (macOS, Windows precision touchpads):
+  /// swiping changes slices, pinching zooms.
+  void handlePanZoomStart(PointerPanZoomStartEvent event) {
+    _gestureStartZoom = _zoom;
+    _trackpadPinching = false;
+    _trackpadDistance = 0;
+  }
 
-      // Prioritize vertical scrolling (most common)
-      if (scrollDelta.dy.abs() > effectiveThreshold) {
-        if (scrollDelta.dy > 0) {
-          onNextImage?.call();
-        } else {
-          onPreviousImage?.call();
-        }
-      } else if (scrollDelta.dx.abs() > effectiveThreshold) {
-        // Horizontal scroll as fallback
-        if (scrollDelta.dx > 0) {
-          onNextImage?.call();
-        } else {
-          onPreviousImage?.call();
-        }
+  void handlePanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    if (!_trackpadPinching && (event.scale - 1).abs() > 0.05 && enableZoom) {
+      _trackpadPinching = true;
+    }
+    if (_trackpadPinching) {
+      zoomTo(_gestureStartZoom * event.scale, focus: event.localPosition);
+      return;
+    }
+    if (!enableScrollNavigation) return;
+
+    // Fingers moving up scroll forward, like a mouse wheel turned down.
+    _trackpadDistance -= event.panDelta.dy;
+    while (_trackpadDistance.abs() >= _trackpadDistancePerSlice) {
+      if (_trackpadDistance > 0) {
+        onNextImage?.call();
+        _trackpadDistance -= _trackpadDistancePerSlice;
+      } else {
+        onPreviousImage?.call();
+        _trackpadDistance += _trackpadDistancePerSlice;
       }
     }
+  }
+
+  void handlePanZoomEnd(PointerPanZoomEndEvent event) {
+    _trackpadPinching = false;
+    _trackpadDistance = 0;
   }
 
   /// Handle keyboard events with enhanced debouncing and reliable navigation
@@ -181,12 +319,19 @@ class ImageInteractionController extends ChangeNotifier {
     });
   }
 
-  /// Handle pointer down events (start of interactions)
+  /// Right-drag or Shift+drag adjusts brightness/contrast; middle-drag pans.
   void handlePointerDown(PointerDownEvent event) {
+    if (event.buttons == kMiddleMouseButton) {
+      _isMiddleButtonPanning = true;
+      _lastPanPosition = event.localPosition;
+      return;
+    }
     if (!enableBrightnessContrast) return;
 
-    // Right-click starts brightness/contrast adjustment
-    if (event.buttons == kSecondaryMouseButton) {
+    final shiftDrag =
+        event.buttons == kPrimaryButton &&
+        HardwareKeyboard.instance.isShiftPressed;
+    if (event.buttons == kSecondaryMouseButton || shiftDrag) {
       _isRightClickDragging = true;
       _lastPanPosition = event.localPosition;
       notifyListeners();
@@ -195,6 +340,11 @@ class ImageInteractionController extends ChangeNotifier {
 
   /// Handle pointer move events (during interactions)
   void handlePointerMove(PointerMoveEvent event) {
+    if (_isMiddleButtonPanning && _lastPanPosition != null) {
+      panBy(event.localPosition - _lastPanPosition!);
+      _lastPanPosition = event.localPosition;
+      return;
+    }
     if (!enableBrightnessContrast || !_isRightClickDragging) return;
 
     if (_lastPanPosition != null) {
@@ -225,6 +375,10 @@ class ImageInteractionController extends ChangeNotifier {
 
   /// Handle pointer up events (end of interactions)
   void handlePointerUp(PointerUpEvent event) {
+    if (_isMiddleButtonPanning) {
+      _isMiddleButtonPanning = false;
+      _lastPanPosition = null;
+    }
     if (_isRightClickDragging) {
       _isRightClickDragging = false;
       _lastPanPosition = null;
@@ -236,50 +390,46 @@ class ImageInteractionController extends ChangeNotifier {
   void handleTap(TapUpDetails details, Size imageSize) {
     if (!enableMeasurements) return;
 
-    onImageTapped?.call(details.localPosition, imageSize);
+    onImageTapped?.call(toImageSpace(details.localPosition), imageSize);
   }
 
-  /// Handle scale start (zoom/pan gestures)
+  /// Mouse drags and touch gestures. One pointer moves a measurement point
+  /// when the drag starts on one, otherwise pans; two fingers pinch-zoom and
+  /// pan. Trackpads go through [handlePanZoomUpdate] instead.
   void handleScaleStart(ScaleStartDetails details) {
-    if (!enableZoom || _isRightClickDragging) return;
-
-    // For single-finger gestures, allow measurement point detection
-    if (enableMeasurements && details.pointerCount == 1) {
-      // Single finger gesture - could be measurement point dragging
-      return;
-    }
-
-    // Only handle multi-touch zoom gestures
-    if (details.pointerCount >= 2) {
-      // Prepare for zoom
-    }
+    _gestureStartZoom = _zoom;
+    _dragMode = null;
   }
 
-  /// Handle scale update (zoom/pan gestures)
   void handleScaleUpdate(ScaleUpdateDetails details) {
-    // Priority 1: Measurement point dragging (single finger pan with scale = 1.0)
-    if (enableMeasurements &&
-        details.scale == 1.0 &&
-        details.pointerCount == 1) {
-      // Always try measurement point dragging for single-finger pan
-      onMeasurementPointDragged?.call(details.localFocalPoint);
+    if (_isRightClickDragging || _isMiddleButtonPanning) return;
+
+    if (details.pointerCount >= 2) {
+      zoomTo(_gestureStartZoom * details.scale, focus: details.localFocalPoint);
+      panBy(details.focalPointDelta);
       return;
     }
 
-    // Priority 2: Brightness/contrast (only during right-click drag)
-    if (enableBrightnessContrast && _isRightClickDragging) {
-      // Already handled in handlePointerMove
-      return;
+    // Decide on the first movement whether this drag moves a point or pans.
+    if (_dragMode == null) {
+      final grabbedPoint =
+          enableMeasurements &&
+          (onMeasurementPointDragged?.call(
+                toImageSpace(details.localFocalPoint),
+              ) ??
+              false);
+      _dragMode = grabbedPoint ? _DragMode.measurementPoint : _DragMode.pan;
+      if (grabbedPoint) return;
     }
-
-    // Priority 3: Zoom (only for multi-touch or explicit zoom gestures)
-    if (enableZoom && details.scale != 1.0 && details.pointerCount >= 2) {
-      onScaleChanged?.call(details.scale);
+    if (_dragMode == _DragMode.measurementPoint) {
+      onMeasurementPointDragged?.call(toImageSpace(details.localFocalPoint));
+    } else {
+      panBy(details.focalPointDelta);
     }
   }
 
-  /// Handle scale end (zoom/pan gestures)
   void handleScaleEnd(ScaleEndDetails details) {
+    _dragMode = null;
     // Clear selected measurement when gesture ends (user releases)
     clearSelectedMeasurement();
   }
@@ -301,6 +451,12 @@ class ImageInteractionController extends ChangeNotifier {
   /// Reset interaction state
   void reset() {
     _isRightClickDragging = false;
+    _isMiddleButtonPanning = false;
+    _zoom = 1.0;
+    _pan = Offset.zero;
+    _wheelDistance = 0;
+    _trackpadDistance = 0;
+    _dragMode = null;
     _lastPanPosition = null;
     _currentBrightness = 0.0;
     _currentContrast = 1.0;
@@ -370,3 +526,5 @@ class ImageInteractionController extends ChangeNotifier {
     );
   }
 }
+
+enum _DragMode { measurementPoint, pan }
