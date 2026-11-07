@@ -1,6 +1,6 @@
 [package]
 name = "dicom_rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Rust backend of the dicom_rs Flutter package"
 license = "MIT"
