@@ -89,13 +89,9 @@ class DicomFile {
   final DicomImage? image;
   final bool isValid;
 
-  const DicomFile({
-    required this.metadata,
-    this.image,
-    required this.isValid,
-  });
+  const DicomFile({required this.metadata, this.image, required this.isValid});
 
-  // Compatibility getters for legacy code  
+  // Compatibility getters for legacy code
   bool get isMultiframe => false; // Not available in minimal API
   int get numFrames => 1; // Default for minimal API
   List<dynamic> get allTags => []; // Not available in minimal API
@@ -110,12 +106,12 @@ class DicomFile {
 class DicomHandler {
   static const DicomHandler _instance = DicomHandler._internal();
   static rust.DicomHandler? _rustHandler;
-  
+
   const DicomHandler._internal();
-  
+
   /// Get the singleton instance
   factory DicomHandler() => _instance;
-  
+
   /// Initialize the Rust handler (called automatically)
   static Future<rust.DicomHandler> _getRustHandler() async {
     _rustHandler ??= await rust.DicomHandler.newInstance();
@@ -123,9 +119,9 @@ class DicomHandler {
   }
 
   /// Check if bytes represent a valid DICOM file
-  /// 
+  ///
   /// This is the fastest way to validate DICOM data without parsing the entire content.
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
@@ -140,13 +136,12 @@ class DicomHandler {
       return false;
     }
   }
-  
 
   /// Load a complete DICOM from bytes with metadata and image data
-  /// 
+  ///
   /// This loads both the metadata and pixel data (if available).
   /// Use [getMetadata] if you only need metadata for better performance.
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
@@ -164,20 +159,19 @@ class DicomHandler {
   Future<DicomFile> loadFile(List<int> bytes) async {
     final rustHandler = await _getRustHandler();
     final rustFile = await rustHandler.loadFileWithImage(bytes: bytes);
-    
+
     return DicomFile(
       metadata: _convertMetadata(rustFile.metadata),
       image: rustFile.image != null ? _convertImage(rustFile.image!) : null,
       isValid: rustFile.isValid,
     );
   }
-  
 
   /// Extract only metadata from DICOM bytes (faster than full load)
-  /// 
+  ///
   /// This is more efficient than [loadFile] when you only need metadata
   /// and don't need the pixel data.
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
@@ -195,13 +189,12 @@ class DicomHandler {
     final rustMetadata = await rustHandler.getMetadata(bytes: bytes);
     return _convertMetadata(rustMetadata);
   }
-  
 
   /// Get encoded image bytes (PNG format) ready for display
-  /// 
+  ///
   /// This returns the image data as PNG bytes that can be directly displayed
   /// in Flutter widgets like Image.memory().
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
@@ -218,13 +211,12 @@ class DicomHandler {
     final rustHandler = await _getRustHandler();
     return await rustHandler.getImageBytes(bytes: bytes);
   }
-  
 
   /// Extract raw pixel data and image parameters
-  /// 
+  ///
   /// Use this when you need access to the raw pixel data and detailed
   /// image parameters for custom processing.
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final handler = DicomHandler();
@@ -243,7 +235,6 @@ class DicomHandler {
     final rustImage = await rustHandler.extractPixelData(bytes: bytes);
     return _convertImage(rustImage);
   }
-  
 
   // Helper methods to convert from Rust types to our simplified types
   DicomMetadata _convertMetadata(rust.DicomMetadata rustMeta) {

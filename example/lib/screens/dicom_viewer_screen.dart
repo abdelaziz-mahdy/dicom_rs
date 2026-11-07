@@ -139,9 +139,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
           IconButton(
             icon: const Icon(Icons.description_rounded),
             onPressed: _selectSingleFile,
-            tooltip: kIsWeb 
-                ? 'Select single file (DICOM validation after selection)'
-                : 'Select single DICOM file',
+            tooltip:
+                kIsWeb
+                    ? 'Select single file (DICOM validation after selection)'
+                    : 'Select single DICOM file',
           ),
         ],
         // Show back and new directory buttons when images are loaded
@@ -211,18 +212,19 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
           colors: [Colors.grey[900]!, const Color(0xFF0A0A0A)],
         ),
       ),
-      child: _controller.state.hasImages
-          ? FadeTransition(
-              opacity: _fadeAnimation,
-              child: CleanDicomViewer(
-                controller: _controller,
-                interactionController: _interactionController,
-                showControls: true,
-                showMeasurementToolbar: true,
-                enableHelpButton: true,
-              ),
-            )
-          : _buildWelcomeScreen(),
+      child:
+          _controller.state.hasImages
+              ? FadeTransition(
+                opacity: _fadeAnimation,
+                child: CleanDicomViewer(
+                  controller: _controller,
+                  interactionController: _interactionController,
+                  showControls: true,
+                  showMeasurementToolbar: true,
+                  enableHelpButton: true,
+                ),
+              )
+              : _buildWelcomeScreen(),
     );
   }
 
@@ -391,10 +393,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       await _navigateToLoadingAndProcess(() async {
         debugPrint('📂 Starting directory/file selection...');
-        
+
         final result = await FileSelectorService.selectDicomContent();
         debugPrint('📂 Selection result: ${result?.files.length ?? 0} files');
-        
+
         if (result != null && result.hasContent) {
           debugPrint('📂 Loading ${result.files.length} files...');
           await _loadMultipleFiles(result.files);
@@ -418,10 +420,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       await _navigateToLoadingAndProcess(() async {
         debugPrint('📄 Starting individual files selection...');
-        
+
         final result = await FileSelectorService.selectDicomFiles();
         debugPrint('📄 Selection result: ${result?.files.length ?? 0} files');
-        
+
         if (result != null && result.hasContent) {
           debugPrint('📄 Loading ${result.files.length} files...');
           await _loadMultipleFiles(result.files);
@@ -445,10 +447,10 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       await _navigateToLoadingAndProcess(() async {
         debugPrint('📄 Starting single file selection...');
-        
+
         final result = await FileSelectorService.selectSingleDicomFile();
         debugPrint('📄 Selection result: ${result?.files.length ?? 0} files');
-        
+
         if (result != null && result.hasContent) {
           final fileData = result.files.first;
           debugPrint('📄 Loading single file: ${fileData.name}');
@@ -470,45 +472,50 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
   }
 
   /// Navigate to loading screen and process the loading task
-  Future<void> _navigateToLoadingAndProcess(Future<void> Function() loadingTask) async {
+  Future<void> _navigateToLoadingAndProcess(
+    Future<void> Function() loadingTask,
+  ) async {
     if (!mounted) return;
 
     debugPrint('🚀 Starting navigation to loading screen...');
 
     // Start loading task immediately after navigation
-    unawaited(Future.microtask(() async {
-      try {
-        debugPrint('🔄 Starting loading task...');
-        await loadingTask();
-        debugPrint('✅ Loading task completed successfully');
-      } catch (error, stackTrace) {
-        debugPrint('❌ Loading task failed: $error');
-        debugPrint('❌ Stack trace: $stackTrace');
-        if (mounted) {
-          DicomLoadingProgressNotifier.notify(
-            DicomLoadingProgressEvent.error('$error'),
-          );
+    unawaited(
+      Future.microtask(() async {
+        try {
+          debugPrint('🔄 Starting loading task...');
+          await loadingTask();
+          debugPrint('✅ Loading task completed successfully');
+        } catch (error, stackTrace) {
+          debugPrint('❌ Loading task failed: $error');
+          debugPrint('❌ Stack trace: $stackTrace');
+          if (mounted) {
+            DicomLoadingProgressNotifier.notify(
+              DicomLoadingProgressEvent.error('$error'),
+            );
+          }
         }
-      }
-    }));
+      }),
+    );
 
     // Navigate to loading screen - this will block until loading is complete
     debugPrint('🔄 Pushing loading screen...');
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => DicomLoadingScreen(
-          onLoadingComplete: () {
-            debugPrint('✅ Loading completed - popping screen with success');
-            // Pop the loading screen when complete
-            Navigator.of(context).pop(true);
-          },
-          onLoadingError: (error) {
-            debugPrint('❌ Loading error received: $error');
-            // Pop the loading screen with error
-            Navigator.of(context).pop(false);
-          },
-          initialMessage: 'Preparing to load DICOM files...',
-        ),
+        builder:
+            (context) => DicomLoadingScreen(
+              onLoadingComplete: () {
+                debugPrint('✅ Loading completed - popping screen with success');
+                // Pop the loading screen when complete
+                Navigator.of(context).pop(true);
+              },
+              onLoadingError: (error) {
+                debugPrint('❌ Loading error received: $error');
+                // Pop the loading screen with error
+                Navigator.of(context).pop(false);
+              },
+              initialMessage: 'Preparing to load DICOM files...',
+            ),
       ),
     );
 
@@ -524,7 +531,9 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     } else if (result == false && mounted) {
       debugPrint('❌ Loading failed - showing error');
       // Show error message if loading failed
-      _showErrorSnackBar('Failed to load DICOM files. Check console for details.');
+      _showErrorSnackBar(
+        'Failed to load DICOM files. Check console for details.',
+      );
     } else if (result == null && mounted) {
       debugPrint('🚫 Loading cancelled by user');
       // User cancelled the loading
@@ -535,7 +544,7 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       debugPrint('📄 Loading single file: ${fileData.name}');
       debugPrint('📄 File size: ${fileData.bytes.length} bytes');
-      
+
       await _controller.loadSingleFileFromData(fileData);
 
       if (mounted && _controller.state.hasImages) {
@@ -560,18 +569,24 @@ class _DicomViewerScreenState extends State<DicomViewerScreen>
     try {
       debugPrint('📄 Loading ${files.length} files...');
       for (int i = 0; i < files.length && i < 5; i++) {
-        debugPrint('📄 File $i: ${files[i].name} (${files[i].bytes.length} bytes)');
+        debugPrint(
+          '📄 File $i: ${files[i].name} (${files[i].bytes.length} bytes)',
+        );
       }
       if (files.length > 5) {
         debugPrint('📄 ... and ${files.length - 5} more files');
       }
-      
+
       // Load files from DicomFileData list (bytes-based)
       await _controller.loadFromFileDataList(files);
 
       if (mounted && _controller.state.hasImages) {
-        debugPrint('✅ ${_controller.state.images.length} DICOM files loaded successfully from ${files.length} files');
-        _showSuccessSnackBar('${_controller.state.images.length} DICOM files loaded successfully');
+        debugPrint(
+          '✅ ${_controller.state.images.length} DICOM files loaded successfully from ${files.length} files',
+        );
+        _showSuccessSnackBar(
+          '${_controller.state.images.length} DICOM files loaded successfully',
+        );
       } else {
         final error = 'No valid DICOM images found in ${files.length} files';
         debugPrint('❌ $error');
@@ -865,7 +880,11 @@ class _SettingsDialogState extends State<_SettingsDialog> {
               ],
             ),
           ),
-          Switch(value: value, onChanged: onChanged, activeThumbColor: Colors.cyan),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: Colors.cyan,
+          ),
         ],
       ),
     );
@@ -1425,5 +1444,3 @@ class _MetadataDialog extends StatelessWidget {
     return list.map((e) => e.toStringAsFixed(3)).join(', ');
   }
 }
-
-

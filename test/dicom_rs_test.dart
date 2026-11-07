@@ -21,10 +21,7 @@ void main() {
         studyDate: '20231201',
       );
 
-      const file = DicomFile(
-        metadata: metadata,
-        isValid: true,
-      );
+      const file = DicomFile(metadata: metadata, isValid: true);
 
       expect(file.metadata.patientName, 'Test Patient');
       expect(file.metadata.modality, 'CT');
@@ -47,7 +44,7 @@ void main() {
 
     test('DicomImage should have correct properties', () {
       final pixelData = Uint8List.fromList([1, 2, 3, 4]);
-      
+
       final image = DicomImage(
         width: 512,
         height: 512,
@@ -69,7 +66,7 @@ void main() {
     test('getDicomHandler should return same instance', () {
       final handler1 = getDicomHandler();
       final handler2 = getDicomHandler();
-      
+
       expect(handler1, same(handler2));
     });
 
@@ -85,6 +82,6 @@ void main() {
 
 // Note: Comprehensive tests including actual DICOM file loading
 // are available in the example app at example/test/comprehensive_dicom_test.dart
-// 
+//
 // This package focuses on providing the minimal API.
 // The example app demonstrates advanced usage and testing patterns.

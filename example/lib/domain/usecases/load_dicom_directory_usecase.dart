@@ -24,20 +24,17 @@ class LoadDicomDirectoryUseCase {
         recursive: recursive,
       );
 
-      return result.fold<Result<List<DicomImageEntity>>>(
-        (images) {
-          if (images.isEmpty) {
-            return const Failure('No valid DICOM files found');
-          }
-          
-          // Sort by instance number and slice location for proper ordering
-          final sortedImages = List<DicomImageEntity>.from(images);
-          sortedImages.sort(_compareImages);
-          
-          return Success(sortedImages);
-        },
-        (error) => Failure('Failed to load files: $error'),
-      );
+      return result.fold<Result<List<DicomImageEntity>>>((images) {
+        if (images.isEmpty) {
+          return const Failure('No valid DICOM files found');
+        }
+
+        // Sort by instance number and slice location for proper ordering
+        final sortedImages = List<DicomImageEntity>.from(images);
+        sortedImages.sort(_compareImages);
+
+        return Success(sortedImages);
+      }, (error) => Failure('Failed to load files: $error'));
     } catch (e, stackTrace) {
       return Failure('Unexpected error: $e', stackTrace);
     }

@@ -31,7 +31,7 @@ class ImageInteractionController extends ChangeNotifier {
   // Current state
   bool _isRightClickDragging = false;
   Offset? _lastPanPosition;
-  
+
   // Selected measurement tracking for highlighting
   dynamic _selectedMeasurement;
   int? _selectedPointIndex;
@@ -39,11 +39,13 @@ class ImageInteractionController extends ChangeNotifier {
   // Callbacks
   VoidCallback? onNextImage;
   VoidCallback? onPreviousImage;
-  void Function(double brightness, double contrast)? onBrightnessContrastChanged;
+  void Function(double brightness, double contrast)?
+  onBrightnessContrastChanged;
   void Function(double scale)? onScaleChanged;
   void Function(Offset position, Size imageSize)? onImageTapped;
   void Function(Offset position)? onMeasurementPointDragged;
-  void Function(dynamic measurement, int pointIndex, Offset newPosition)? onPointDrag;
+  void Function(dynamic measurement, int pointIndex, Offset newPosition)?
+  onPointDrag;
 
   // Brightness/contrast state with debouncing
   double _currentBrightness = 0.0;
@@ -71,14 +73,14 @@ class ImageInteractionController extends ChangeNotifier {
   /// Handle pointer signal events (scroll wheel and trackpad)
   void handlePointerSignal(PointerSignalEvent event) {
     if (!enableScrollNavigation) return;
-    
+
     if (event is PointerScrollEvent) {
       final scrollDelta = event.scrollDelta;
-      
+
       // Use very low threshold for maximum trackpad sensitivity
       // Most trackpads send small delta values (0.1 - 3.0)
       final effectiveThreshold = 0.1;
-      
+
       // Prioritize vertical scrolling (most common)
       if (scrollDelta.dy.abs() > effectiveThreshold) {
         if (scrollDelta.dy > 0) {
@@ -100,15 +102,16 @@ class ImageInteractionController extends ChangeNotifier {
   /// Handle keyboard events with enhanced debouncing and reliable navigation
   void handleKeyEvent(KeyEvent event) {
     if (!enableKeyboardNavigation) return;
-    
+
     final key = event.logicalKey;
-    final isNavigationKey = key == LogicalKeyboardKey.arrowLeft ||
-                          key == LogicalKeyboardKey.arrowRight ||
-                          key == LogicalKeyboardKey.arrowUp ||
-                          key == LogicalKeyboardKey.arrowDown;
-    
+    final isNavigationKey =
+        key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.arrowDown;
+
     if (!isNavigationKey) return;
-    
+
     if (event is KeyDownEvent) {
       _handleKeyDown(key);
     } else if (event is KeyUpEvent) {
@@ -118,7 +121,7 @@ class ImageInteractionController extends ChangeNotifier {
 
   void _handleKeyDown(LogicalKeyboardKey key) {
     final now = DateTime.now();
-    
+
     // Debounce rapid key presses to prevent jumping
     if (_lastNavigationTime != null) {
       final timeSinceLastNav = now.difference(_lastNavigationTime!);
@@ -126,16 +129,16 @@ class ImageInteractionController extends ChangeNotifier {
         return; // Ignore too-rapid key presses
       }
     }
-    
+
     // Clean up any existing timer
     _navigationTimer?.cancel();
-    
+
     // First key press: immediate navigation
     if (_activeKey != key) {
       _activeKey = key;
       _navigateWithKey(key);
       _lastNavigationTime = now;
-      
+
       // Start repeat timer for continuous navigation
       _navigationTimer = Timer(_navigationDelay, () {
         _startRepeatedNavigation(key);
@@ -167,11 +170,11 @@ class ImageInteractionController extends ChangeNotifier {
   void _startRepeatedNavigation(LogicalKeyboardKey key) {
     // Only continue if the key is still being held down
     if (_activeKey != key) return;
-    
+
     final now = DateTime.now();
     _navigateWithKey(key);
     _lastNavigationTime = now;
-    
+
     // Schedule next repeat navigation
     _navigationTimer = Timer(_navigationInterval, () {
       _startRepeatedNavigation(key);
@@ -181,7 +184,7 @@ class ImageInteractionController extends ChangeNotifier {
   /// Handle pointer down events (start of interactions)
   void handlePointerDown(PointerDownEvent event) {
     if (!enableBrightnessContrast) return;
-    
+
     // Right-click starts brightness/contrast adjustment
     if (event.buttons == kSecondaryMouseButton) {
       _isRightClickDragging = true;
@@ -193,27 +196,29 @@ class ImageInteractionController extends ChangeNotifier {
   /// Handle pointer move events (during interactions)
   void handlePointerMove(PointerMoveEvent event) {
     if (!enableBrightnessContrast || !_isRightClickDragging) return;
-    
+
     if (_lastPanPosition != null) {
       final delta = event.localPosition - _lastPanPosition!;
-      
+
       // Convert movement to brightness/contrast adjustments
       final brightnessChange = delta.dx * brightnessContrastSensitivity;
-      final contrastChange = -delta.dy * brightnessContrastSensitivity; // Negative for intuitive up/down
-      
+      final contrastChange =
+          -delta.dy *
+          brightnessContrastSensitivity; // Negative for intuitive up/down
+
       // Update internal state
       _currentBrightness += brightnessChange;
       _currentContrast += contrastChange;
-      
+
       // Clamp values to reasonable ranges
       _currentBrightness = _currentBrightness.clamp(-1.0, 1.0);
       _currentContrast = _currentContrast.clamp(0.1, 3.0);
-      
+
       // Call immediately for responsive adjustments
       if (onBrightnessContrastChanged != null) {
         onBrightnessContrastChanged!(_currentBrightness, _currentContrast);
       }
-      
+
       _lastPanPosition = event.localPosition;
     }
   }
@@ -230,20 +235,20 @@ class ImageInteractionController extends ChangeNotifier {
   /// Handle tap events for measurements
   void handleTap(TapUpDetails details, Size imageSize) {
     if (!enableMeasurements) return;
-    
+
     onImageTapped?.call(details.localPosition, imageSize);
   }
 
   /// Handle scale start (zoom/pan gestures)
   void handleScaleStart(ScaleStartDetails details) {
     if (!enableZoom || _isRightClickDragging) return;
-    
+
     // For single-finger gestures, allow measurement point detection
     if (enableMeasurements && details.pointerCount == 1) {
       // Single finger gesture - could be measurement point dragging
       return;
     }
-    
+
     // Only handle multi-touch zoom gestures
     if (details.pointerCount >= 2) {
       // Prepare for zoom
@@ -253,18 +258,20 @@ class ImageInteractionController extends ChangeNotifier {
   /// Handle scale update (zoom/pan gestures)
   void handleScaleUpdate(ScaleUpdateDetails details) {
     // Priority 1: Measurement point dragging (single finger pan with scale = 1.0)
-    if (enableMeasurements && details.scale == 1.0 && details.pointerCount == 1) {
+    if (enableMeasurements &&
+        details.scale == 1.0 &&
+        details.pointerCount == 1) {
       // Always try measurement point dragging for single-finger pan
       onMeasurementPointDragged?.call(details.localFocalPoint);
       return;
     }
-    
+
     // Priority 2: Brightness/contrast (only during right-click drag)
     if (enableBrightnessContrast && _isRightClickDragging) {
       // Already handled in handlePointerMove
       return;
     }
-    
+
     // Priority 3: Zoom (only for multi-touch or explicit zoom gestures)
     if (enableZoom && details.scale != 1.0 && details.pointerCount >= 2) {
       onScaleChanged?.call(details.scale);
@@ -297,19 +304,19 @@ class ImageInteractionController extends ChangeNotifier {
     _lastPanPosition = null;
     _currentBrightness = 0.0;
     _currentContrast = 1.0;
-    
+
     // Reset navigation state
     _navigationTimer?.cancel();
     _navigationTimer = null;
     _activeKey = null;
     _lastNavigationTime = null;
-    
+
     // Brightness/contrast state reset (no debouncing)
-    
+
     // Clear selected measurement
     _selectedMeasurement = null;
     _selectedPointIndex = null;
-    
+
     notifyListeners();
   }
 
@@ -323,8 +330,8 @@ class ImageInteractionController extends ChangeNotifier {
 
   /// Get current brightness value
   double get currentBrightness => _currentBrightness;
-  
-  /// Get current contrast value  
+
+  /// Get current contrast value
   double get currentContrast => _currentContrast;
 
   /// Set brightness/contrast values directly (for initialization)
@@ -348,13 +355,17 @@ class ImageInteractionController extends ChangeNotifier {
     double? zoomSensitivity,
   }) {
     return ImageInteractionController(
-      enableScrollNavigation: enableScrollNavigation ?? this.enableScrollNavigation,
-      enableKeyboardNavigation: enableKeyboardNavigation ?? this.enableKeyboardNavigation,
-      enableBrightnessContrast: enableBrightnessContrast ?? this.enableBrightnessContrast,
+      enableScrollNavigation:
+          enableScrollNavigation ?? this.enableScrollNavigation,
+      enableKeyboardNavigation:
+          enableKeyboardNavigation ?? this.enableKeyboardNavigation,
+      enableBrightnessContrast:
+          enableBrightnessContrast ?? this.enableBrightnessContrast,
       enableZoom: enableZoom ?? this.enableZoom,
       enableMeasurements: enableMeasurements ?? this.enableMeasurements,
       scrollThreshold: scrollThreshold ?? this.scrollThreshold,
-      brightnessContrastSensitivity: brightnessContrastSensitivity ?? this.brightnessContrastSensitivity,
+      brightnessContrastSensitivity:
+          brightnessContrastSensitivity ?? this.brightnessContrastSensitivity,
       zoomSensitivity: zoomSensitivity ?? this.zoomSensitivity,
     );
   }

@@ -92,8 +92,10 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
                       selectedTool: widget.selectedTool,
                       scale: widget.scale,
                       onPointDrag: widget.interactionController.onPointDrag,
-                      selectedMeasurement: widget.interactionController.selectedMeasurement,
-                      selectedPointIndex: widget.interactionController.selectedPointIndex,
+                      selectedMeasurement:
+                          widget.interactionController.selectedMeasurement,
+                      selectedPointIndex:
+                          widget.interactionController.selectedPointIndex,
                     ),
                   ),
 

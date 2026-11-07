@@ -33,7 +33,7 @@ void main() {
       ];
 
       final organized = DicomServiceSimple.organizeByPatient(files);
-      
+
       expect(organized.keys.length, 2);
       expect(organized['John Doe']?.length, 2);
       expect(organized['Jane Smith']?.length, 1);
@@ -41,22 +41,13 @@ void main() {
 
     test('should organize files by modality correctly', () {
       final files = [
-        const DicomFile(
-          metadata: DicomMetadata(modality: 'CT'),
-          isValid: true,
-        ),
-        const DicomFile(
-          metadata: DicomMetadata(modality: 'MR'),
-          isValid: true,
-        ),
-        const DicomFile(
-          metadata: DicomMetadata(modality: 'CT'),
-          isValid: true,
-        ),
+        const DicomFile(metadata: DicomMetadata(modality: 'CT'), isValid: true),
+        const DicomFile(metadata: DicomMetadata(modality: 'MR'), isValid: true),
+        const DicomFile(metadata: DicomMetadata(modality: 'CT'), isValid: true),
       ];
 
       final organized = DicomServiceSimple.organizeByModality(files);
-      
+
       expect(organized.keys.length, 2);
       expect(organized['CT']?.length, 2);
       expect(organized['MR']?.length, 1);
@@ -79,7 +70,7 @@ void main() {
       ];
 
       final sorted = DicomServiceSimple.sortByInstanceNumber(files);
-      
+
       expect(sorted[0].metadata.instanceNumber, 1);
       expect(sorted[1].metadata.instanceNumber, 2);
       expect(sorted[2].metadata.instanceNumber, 3);
@@ -107,10 +98,7 @@ void main() {
           isValid: true,
         ),
         const DicomFile(
-          metadata: DicomMetadata(
-            patientName: 'Jane Smith',
-            modality: 'MR',
-          ),
+          metadata: DicomMetadata(patientName: 'Jane Smith', modality: 'MR'),
           isValid: true,
         ),
         DicomFile(
@@ -124,7 +112,7 @@ void main() {
       ];
 
       final stats = DicomServiceSimple.getBasicStats(files);
-      
+
       expect(stats['totalFiles'], 3);
       expect(stats['imagesWithPixelData'], 2);
       expect(stats['uniquePatients'], 2);
@@ -164,7 +152,7 @@ void main() {
 
     test('DicomImage should calculate correct properties', () {
       final pixelData = Uint8List.fromList(List.generate(1024, (i) => i % 256));
-      
+
       final image = DicomImage(
         width: 512,
         height: 512,
@@ -201,11 +189,7 @@ void main() {
         pixelData: Uint8List(512),
       );
 
-      final file = DicomFile(
-        metadata: metadata,
-        image: image,
-        isValid: true,
-      );
+      final file = DicomFile(metadata: metadata, image: image, isValid: true);
 
       expect(file.isValid, isTrue);
       expect(file.image, isNotNull);
@@ -218,16 +202,13 @@ void main() {
   group('Edge Cases and Error Handling', () {
     test('should handle null and empty values gracefully', () {
       const metadataWithNulls = DicomMetadata();
-      
+
       expect(metadataWithNulls.patientName, isNull);
       expect(metadataWithNulls.modality, isNull);
       expect(metadataWithNulls.studyDate, isNull);
 
       final files = [
-        const DicomFile(
-          metadata: metadataWithNulls,
-          isValid: true,
-        ),
+        const DicomFile(metadata: metadataWithNulls, isValid: true),
       ];
 
       // Should handle null patient names
@@ -270,14 +251,17 @@ void main() {
   group('Performance Tests', () {
     test('should handle large file lists efficiently', () {
       // Generate a large list of mock DICOM files
-      final files = List.generate(1000, (i) => DicomFile(
-        metadata: DicomMetadata(
-          patientName: 'Patient ${i % 10}',
-          modality: ['CT', 'MR', 'XR'][i % 3],
-          instanceNumber: i,
+      final files = List.generate(
+        1000,
+        (i) => DicomFile(
+          metadata: DicomMetadata(
+            patientName: 'Patient ${i % 10}',
+            modality: ['CT', 'MR', 'XR'][i % 3],
+            instanceNumber: i,
+          ),
+          isValid: true,
         ),
-        isValid: true,
-      ));
+      );
 
       final stopwatch = Stopwatch()..start();
 
@@ -298,7 +282,7 @@ void main() {
       expect(stats['uniqueModalities'], 3);
 
       stopwatch.stop();
-    
+
       // Should complete in reasonable time (less than 1 second for 1000 files)
       expect(stopwatch.elapsedMilliseconds, lessThan(1000));
     });

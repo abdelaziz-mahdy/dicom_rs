@@ -21,7 +21,8 @@ class DicomDirectoryEntry {
     this.image,
   });
 
-  factory DicomDirectoryEntry.fromDicomFile(DicomFile file, {
+  factory DicomDirectoryEntry.fromDicomFile(
+    DicomFile file, {
     required Uint8List bytes,
     required String name,
   }) {
@@ -35,7 +36,10 @@ class DicomDirectoryEntry {
   }
 
   /// Create from DicomFileData (preferred constructor)
-  factory DicomDirectoryEntry.fromDicomFileData(DicomFileData fileData, DicomFile dicomFile) {
+  factory DicomDirectoryEntry.fromDicomFileData(
+    DicomFileData fileData,
+    DicomFile dicomFile,
+  ) {
     return DicomDirectoryEntry(
       bytes: fileData.bytes,
       name: fileData.name,
@@ -50,10 +54,10 @@ class DicomDirectoryEntry {
   String? get sopInstanceUid => metadata.sopInstanceUid;
   List<double>? get imagePosition => metadata.imagePosition;
   double? get sliceLocation => metadata.sliceLocation;
-  
+
   // For volume viewer compatibility - simulated pixel data
   Uint8List? get data => image?.pixelData;
-  
+
   // For sorting and display compatibility
   String get displayName => name;
   String get sortKey => name; // Use name instead of path for sorting
@@ -64,10 +68,7 @@ class DicomMetadataMap {
   final Map<String, DicomTag> tags;
   final Map<String, Map<String, DicomTag>> groupElements;
 
-  const DicomMetadataMap({
-    required this.tags,
-    required this.groupElements,
-  });
+  const DicomMetadataMap({required this.tags, required this.groupElements});
 }
 
 /// DICOM tag representation
@@ -88,13 +89,14 @@ class DicomTag {
 /// DICOM value types
 abstract class DicomValueType {
   const DicomValueType();
-  
+
   factory DicomValueType.str(String value) = DicomValueTypeStr;
   factory DicomValueType.int(int value) = DicomValueTypeInt;
   factory DicomValueType.float(double value) = DicomValueTypeFloat;
   factory DicomValueType.strList(List<String> value) = DicomValueTypeStrList;
   factory DicomValueType.intList(List<int> value) = DicomValueTypeIntList;
-  factory DicomValueType.floatList(List<double> value) = DicomValueTypeFloatList;
+  factory DicomValueType.floatList(List<double> value) =
+      DicomValueTypeFloatList;
   factory DicomValueType.unknown() = DicomValueTypeUnknown;
 
   @override
@@ -108,9 +110,13 @@ abstract class DicomValueType {
     } else if (this is DicomValueTypeStrList) {
       return (this as DicomValueTypeStrList).field0.join(', ');
     } else if (this is DicomValueTypeIntList) {
-      return (this as DicomValueTypeIntList).field0.map((e) => e.toString()).join(', ');
+      return (this as DicomValueTypeIntList).field0
+          .map((e) => e.toString())
+          .join(', ');
     } else if (this is DicomValueTypeFloatList) {
-      return (this as DicomValueTypeFloatList).field0.map((e) => e.toString()).join(', ');
+      return (this as DicomValueTypeFloatList).field0
+          .map((e) => e.toString())
+          .join(', ');
     } else {
       return 'Unknown';
     }
@@ -245,9 +251,10 @@ class DicomVolume {
     this.imageOrientation,
   });
 
-  // Convenience getters for compatibility  
+  // Convenience getters for compatibility
   String get dataType => 'Volume';
   int get numComponents => 1;
   List<double>? get spacing => pixelSpacing;
-  DicomMetadata? get metadata => slices.isNotEmpty ? slices.first.metadata : null;
+  DicomMetadata? get metadata =>
+      slices.isNotEmpty ? slices.first.metadata : null;
 }

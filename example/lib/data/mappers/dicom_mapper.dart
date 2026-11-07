@@ -40,7 +40,8 @@ class DicomMapper {
   }
 
   /// Convert DicomFile to DicomImageEntity (bytes-based)
-  static DicomImageEntity fromDicomFile(DicomFile file, {
+  static DicomImageEntity fromDicomFile(
+    DicomFile file, {
     required Uint8List bytes,
     required String name,
     String? path,
@@ -61,18 +62,18 @@ class DicomMapper {
     if (sopUid != null && sopUid.isNotEmpty) {
       return sopUid;
     }
-    
+
     // Fallback to name-based ID
     return name.hashCode.toString();
   }
-  
+
   /// Generate unique ID for image from metadata only
   static String _generateIdFromMetadata(DicomMetadata metadata) {
     final sopUid = metadata.sopInstanceUid;
     if (sopUid != null && sopUid.isNotEmpty) {
       return sopUid;
     }
-    
+
     // Fallback to combination of available metadata
     final patientId = metadata.patientId ?? 'unknown';
     final instanceNumber = metadata.instanceNumber ?? 0;

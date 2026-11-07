@@ -30,26 +30,26 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
   String _currentMessage = '';
   String _currentFileName = '';
   bool _isScanning = true;
-  
+
   // Enhanced progress tracking with ETA
   DateTime? _startTime;
   double _loadingSpeed = 0.0; // files per second
   Duration _estimatedTimeRemaining = Duration.zero;
-  
+
   StreamSubscription? _progressSubscription;
 
   @override
   void initState() {
     super.initState();
-    
+
     _currentMessage = widget.initialMessage;
-    
+
     // Setup animations
     _progressController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -65,7 +65,7 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
 
     // Start pulse animation
     _pulseController.repeat(reverse: true);
-    
+
     // Listen to global loading progress events
     _listenToLoadingProgress();
   }
@@ -82,34 +82,37 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
     // Listen to loading progress events from the global stream
     _progressSubscription = DicomLoadingProgressNotifier.stream.listen((event) {
       if (!mounted) return;
-      
+
       final now = DateTime.now();
-      
+
       // Initialize start time on first progress event
       if (_startTime == null && event.totalFiles > 0) {
         _startTime = now;
       }
-      
+
       setState(() {
         _currentMessage = event.message;
         _currentFileName = event.currentFile ?? '';
-        
+
         // Calculate ETA and speed metrics when files progress
         if (event.filesProcessed > _filesProcessed && _startTime != null) {
           final elapsed = now.difference(_startTime!);
           // Update loading speed (files per second)
           if (elapsed.inMilliseconds > 0) {
-            _loadingSpeed = event.filesProcessed / (elapsed.inMilliseconds / 1000.0);
+            _loadingSpeed =
+                event.filesProcessed / (elapsed.inMilliseconds / 1000.0);
           }
-          
+
           // Calculate ETA for remaining files
           final remainingFiles = event.totalFiles - event.filesProcessed;
           if (_loadingSpeed > 0 && remainingFiles > 0) {
             final secondsRemaining = remainingFiles / _loadingSpeed;
-            _estimatedTimeRemaining = Duration(seconds: secondsRemaining.ceil());
+            _estimatedTimeRemaining = Duration(
+              seconds: secondsRemaining.ceil(),
+            );
           }
         }
-        
+
         _filesProcessed = event.filesProcessed;
         _totalFiles = event.totalFiles;
         _isScanning = event.isScanning;
@@ -133,12 +136,12 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
   void _handleLoadingComplete() async {
     // Complete the progress animation
     await _progressController.forward();
-    
+
     // Show completion briefly
     setState(() {
       _currentMessage = 'Loading complete!';
     });
-    
+
     // Wait a moment then notify completion
     await Future.delayed(const Duration(milliseconds: 800));
     widget.onLoadingComplete();
@@ -314,7 +317,9 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.cyan),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.cyan,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -378,9 +383,7 @@ class _DicomLoadingScreenState extends State<DicomLoadingScreen>
                   decoration: BoxDecoration(
                     color: Colors.grey[900]?.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.grey[700]!,
-                    ),
+                    border: Border.all(color: Colors.grey[700]!),
                   ),
                   child: Column(
                     children: [
@@ -467,9 +470,10 @@ class DicomLoadingProgressEvent {
   /// Create scanning event
   factory DicomLoadingProgressEvent.scanning({String? directory}) {
     return DicomLoadingProgressEvent(
-      message: directory != null 
-          ? 'Scanning directory: ${directory.split('/').last}'
-          : 'Scanning for DICOM files...',
+      message:
+          directory != null
+              ? 'Scanning directory: ${directory.split('/').last}'
+              : 'Scanning for DICOM files...',
       isScanning: true,
     );
   }
@@ -516,9 +520,6 @@ class DicomLoadingProgressEvent {
 
   /// Create error event
   factory DicomLoadingProgressEvent.error(String error) {
-    return DicomLoadingProgressEvent(
-      message: 'Loading failed',
-      error: error,
-    );
+    return DicomLoadingProgressEvent(message: 'Loading failed', error: error);
   }
 }

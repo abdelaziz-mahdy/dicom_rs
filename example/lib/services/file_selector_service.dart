@@ -29,17 +29,23 @@ class FileSelectorService {
   }
 
   /// ULTRA-OPTIMIZED: Try to extract metadata directly - if successful, it's valid DICOM
-  static Future<DicomFileData?> _tryExtractDicomMetadata(PlatformFile file, int fileIndex, int totalFiles) async {
+  static Future<DicomFileData?> _tryExtractDicomMetadata(
+    PlatformFile file,
+    int fileIndex,
+    int totalFiles,
+  ) async {
     try {
       debugPrint('🚀 Processing file $fileIndex/$totalFiles: ${file.name}');
-      
+
       // Reads from the path on native and from the browser's file on web.
       final bytes = await file.readAsBytes();
-      
+
       // SINGLE PASS: Try to extract metadata directly - if this succeeds, it's valid DICOM!
       final handler = DicomHandler();
-      final metadata = await handler.getMetadata(bytes); // This will throw if not valid DICOM
-      
+      final metadata = await handler.getMetadata(
+        bytes,
+      ); // This will throw if not valid DICOM
+
       debugPrint('✅ Valid DICOM file: ${file.name}');
       return DicomFileData(
         name: file.name,
@@ -54,31 +60,49 @@ class FileSelectorService {
 
   /// ULTRA-OPTIMIZED: Single-pass metadata extraction for all files in parallel
   static Future<List<DicomFileData>> _validateAndFilterDicomFiles(
-    List<PlatformFile> platformFiles
+    List<PlatformFile> platformFiles,
   ) async {
-    debugPrint('🚀 ULTRA-OPTIMIZED: Single-pass metadata extraction for ${platformFiles.length} files in parallel...');
-    
+    debugPrint(
+      '🚀 ULTRA-OPTIMIZED: Single-pass metadata extraction for ${platformFiles.length} files in parallel...',
+    );
+
     // NO BATCHING - Process ALL files in parallel for maximum speed!
-    final futures = platformFiles.asMap().entries.map(
-      (entry) => _tryExtractDicomMetadata(entry.value, entry.key + 1, platformFiles.length)
-    ).toList();
-    
+    final futures =
+        platformFiles
+            .asMap()
+            .entries
+            .map(
+              (entry) => _tryExtractDicomMetadata(
+                entry.value,
+                entry.key + 1,
+                platformFiles.length,
+              ),
+            )
+            .toList();
+
     // Wait for all files to process in parallel
     final results = await Future.wait(futures, eagerError: false);
-    
+
     // Collect valid results
-    final validDicomFiles = results.where((result) => result != null).cast<DicomFileData>().toList();
-    
-    debugPrint('✅ ULTRA-OPTIMIZED: Single-pass processing complete: ${validDicomFiles.length}/${platformFiles.length} valid DICOM files');
+    final validDicomFiles =
+        results
+            .where((result) => result != null)
+            .cast<DicomFileData>()
+            .toList();
+
+    debugPrint(
+      '✅ ULTRA-OPTIMIZED: Single-pass processing complete: ${validDicomFiles.length}/${platformFiles.length} valid DICOM files',
+    );
     return validDicomFiles;
   }
+
   /// Select multiple DICOM files using the universal file picker
   /// Returns a FileSelectorResult with file data for cross-platform compatibility
   /// On web: Allows all files, validates DICOM content after selection
   /// On native: Uses extension filtering for better UX
   static Future<FileSelectorResult?> selectDicomFiles() async {
     final config = _getFilePickerConfig();
-    
+
     final files = await FilePicker.pickFiles(
       dialogTitle: config.dialogTitle,
       type: config.fileType,
@@ -88,7 +112,7 @@ class FileSelectorService {
     if (files.isNotEmpty) {
       // Validate and filter DICOM files based on content
       final validDicomFiles = await _validateAndFilterDicomFiles(files);
-      
+
       if (validDicomFiles.isNotEmpty) {
         return FileSelectorResult.files(validDicomFiles);
       }
@@ -101,7 +125,7 @@ class FileSelectorService {
   /// On native: Uses extension filtering for better UX
   static Future<FileSelectorResult?> selectSingleDicomFile() async {
     final config = _getFilePickerConfig();
-    
+
     final file = await FilePicker.pickFile(
       dialogTitle: config.dialogTitle.replaceAll('Files', 'File'),
       type: config.fileType,
@@ -111,7 +135,7 @@ class FileSelectorService {
     if (file != null) {
       // Validate and filter DICOM files based on content
       final validDicomFiles = await _validateAndFilterDicomFiles([file]);
-      
+
       if (validDicomFiles.isNotEmpty) {
         return FileSelectorResult.files(validDicomFiles);
       }
@@ -135,7 +159,9 @@ class FileSelectorService {
   /// Recursively scans directory and validates DICOM content
   static Future<FileSelectorResult?> selectDicomDirectory() async {
     if (kIsWeb) {
-      throw UnsupportedError('Directory selection is not supported on web platforms');
+      throw UnsupportedError(
+        'Directory selection is not supported on web platforms',
+      );
     }
 
     debugPrint('📂 Starting directory selection...');
@@ -149,13 +175,17 @@ class FileSelectorService {
         debugPrint('📂 Selected directory: $directoryPath');
         final dicomFiles = await _scanDirectoryForDicomFiles(directoryPath);
         if (dicomFiles.isNotEmpty) {
-          debugPrint('✅ Directory scan complete: ${dicomFiles.length} DICOM files found');
+          debugPrint(
+            '✅ Directory scan complete: ${dicomFiles.length} DICOM files found',
+          );
           return FileSelectorResult.directory(
             directoryPath: directoryPath,
             files: dicomFiles,
           );
         } else {
-          debugPrint('❌ No valid DICOM files found in directory: $directoryPath');
+          debugPrint(
+            '❌ No valid DICOM files found in directory: $directoryPath',
+          );
         }
       } else {
         debugPrint('🚫 Directory selection cancelled by user');
@@ -165,12 +195,14 @@ class FileSelectorService {
       debugPrint('❌ Stack trace: $stackTrace');
       rethrow;
     }
-    
+
     return null;
   }
 
   /// ISOLATE-OPTIMIZED: Directory scanning with CPU-core based validation
-  static Future<List<DicomFileData>> _scanDirectoryForDicomFiles(String directoryPath) async {
+  static Future<List<DicomFileData>> _scanDirectoryForDicomFiles(
+    String directoryPath,
+  ) async {
     final directory = Directory(directoryPath);
 
     try {
@@ -181,20 +213,28 @@ class FileSelectorService {
 
       // Collect ALL files for processing
       final allFiles = <File>[];
-      await for (final entity in directory.list(recursive: true, followLinks: false)) {
+      await for (final entity in directory.list(
+        recursive: true,
+        followLinks: false,
+      )) {
         if (entity is File) {
           allFiles.add(entity);
         }
       }
-      
-      debugPrint('🚀 ISOLATE-OPTIMIZED: Found ${allFiles.length} files, using ${Platform.numberOfProcessors} CPU cores for validation...');
-      
+
+      debugPrint(
+        '🚀 ISOLATE-OPTIMIZED: Found ${allFiles.length} files, using ${Platform.numberOfProcessors} CPU cores for validation...',
+      );
+
       // Use isolate-based validation with RustLib initialization
-      final dicomFiles = await DicomIsolateValidator.validateFilesWithIsolates(allFiles);
-      
-      debugPrint('✅ ISOLATE-OPTIMIZED: Directory scan complete: ${dicomFiles.length}/${allFiles.length} valid DICOM files');
+      final dicomFiles = await DicomIsolateValidator.validateFilesWithIsolates(
+        allFiles,
+      );
+
+      debugPrint(
+        '✅ ISOLATE-OPTIMIZED: Directory scan complete: ${dicomFiles.length}/${allFiles.length} valid DICOM files',
+      );
       return dicomFiles;
-      
     } catch (e) {
       debugPrint('Error scanning directory $directoryPath: $e');
       DicomLoadingProgressNotifier.notify(
@@ -203,7 +243,7 @@ class FileSelectorService {
       return [];
     }
   }
-  
+
   /// Get platform-appropriate UI configuration
   /// Web: File selection with validation, Native: Directory selection with file fallback
   static FileSelectorUIConfig getUIConfig() {
@@ -212,7 +252,8 @@ class FileSelectorService {
         primaryIcon: Icons.file_open_rounded,
         primaryLabel: 'Select Files',
         primaryTooltip: 'Select files (DICOM validation after selection)',
-        helpText: 'Select files - DICOM content will be validated automatically',
+        helpText:
+            'Select files - DICOM content will be validated automatically',
         actionDescription: 'selecting files for DICOM validation',
         supportsDirectory: false,
       );
@@ -237,7 +278,8 @@ class DicomFileData {
   final String name;
   final Uint8List bytes;
   final String? fullPath;
-  final dynamic metadata; // Pre-extracted metadata to avoid duplicate processing
+  final dynamic
+  metadata; // Pre-extracted metadata to avoid duplicate processing
 
   const DicomFileData({
     required this.name,
@@ -330,5 +372,6 @@ class FileSelectorUIConfig {
   });
 
   /// Check if this config has secondary options
-  bool get hasSecondaryOption => secondaryIcon != null && secondaryLabel != null;
+  bool get hasSecondaryOption =>
+      secondaryIcon != null && secondaryLabel != null;
 }

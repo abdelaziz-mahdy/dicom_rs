@@ -34,9 +34,9 @@ class MeasurementToolbarWidget extends StatelessWidget {
         children: [
           // Measurement tools
           ...MeasurementType.values.map((type) => _buildToolButton(type)),
-          
+
           const Spacer(),
-          
+
           // Controls
           IconButton(
             icon: Icon(
@@ -44,15 +44,16 @@ class MeasurementToolbarWidget extends StatelessWidget {
               color: Colors.cyan,
             ),
             onPressed: onToggleVisibility,
-            tooltip: measurementsVisible ? 'Hide measurements' : 'Show measurements',
+            tooltip:
+                measurementsVisible ? 'Hide measurements' : 'Show measurements',
           ),
-          
+
           IconButton(
             icon: const Icon(Icons.clear_all, color: Colors.red),
             onPressed: measurementCount > 0 ? onClearMeasurements : null,
             tooltip: 'Clear all measurements',
           ),
-          
+
           // Measurement count
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -72,11 +73,14 @@ class MeasurementToolbarWidget extends StatelessWidget {
 
   Widget _buildToolButton(MeasurementType type) {
     final isSelected = selectedTool == type;
-    
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Material(
-        color: isSelected ? Colors.cyan.withValues(alpha: 0.3) : Colors.transparent,
+        color:
+            isSelected
+                ? Colors.cyan.withValues(alpha: 0.3)
+                : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
@@ -85,7 +89,10 @@ class MeasurementToolbarWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               border: Border.all(
-                color: isSelected ? Colors.cyan : Colors.grey.withValues(alpha: 0.3),
+                color:
+                    isSelected
+                        ? Colors.cyan
+                        : Colors.grey.withValues(alpha: 0.3),
               ),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -103,7 +110,8 @@ class MeasurementToolbarWidget extends StatelessWidget {
                   style: TextStyle(
                     color: isSelected ? Colors.cyan : Colors.white70,
                     fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ],
