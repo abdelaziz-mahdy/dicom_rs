@@ -117,12 +117,9 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
         );
         // No need to reload image - the getCurrentImageData() will apply adjustments on-demand
       }
-      ..onScaleChanged = (scale) {
-        // Only allow scaling when not measuring
-        if (_selectedMeasurementTool == null) {
-          _controller.updateScale(scale);
-        }
-      }
+      // Taps and points map through zoom and pan, so measuring works at any
+      // zoom.
+      ..onScaleChanged = _controller.updateScale
       ..onImageTapped = _handleImageTap
       ..onMeasurementPointDragged = _handleMeasurementPointDrag
       ..onPointDrag = _handlePointDrag;
@@ -250,52 +247,58 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
 
                 // Main image area
                 Expanded(
-                  child: Stack(
-                    children: [
-                      // Image display, fitted to the available area so small
-                      // images are enlarged as well as large ones reduced.
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final display = ImageDisplayWidget(
-                            imageData: _currentImageData,
-                            scale: _controller.state.scale,
-                            measurements: _measurements,
-                            currentMeasurementPoints: _currentMeasurementPoints,
-                            selectedTool: _selectedMeasurementTool,
-                            isLoading:
-                                _controller.state.hasImages &&
-                                _currentImageData == null,
-                            measurementsVisible: _measurementsVisible,
-                            interactionController: _interactionController,
-                          );
-                          final data = _currentImageData;
-                          final pixelSize =
-                              data == null ? null : pngPixelSize(data);
-                          if (pixelSize == null) {
-                            _imagePixelSize = null;
-                            _displayedImageSize = null;
-                            return Center(child: display);
-                          }
-                          final fitted = fitInside(
-                            pixelSize,
-                            const EdgeInsets.all(
-                              16,
-                            ).deflateSize(constraints.biggest),
-                          );
-                          _imagePixelSize = pixelSize;
-                          _displayedImageSize = fitted;
-                          return Center(
-                            child: SizedBox.fromSize(
-                              size: fitted,
-                              child: display,
-                            ),
-                          );
-                        },
-                      ),
+                  // Keep a zoomed image inside the viewer area.
+                  child: ClipRect(
+                    child: Stack(
+                      children: [
+                        // Image display, fitted to the available area so small
+                        // images are enlarged as well as large ones reduced.
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            ImageDisplayWidget display({Size? imageSize}) =>
+                                ImageDisplayWidget(
+                                  imageSize: imageSize,
+                                  imageData: _currentImageData,
+                                  scale: _controller.state.scale,
+                                  measurements: _measurements,
+                                  currentMeasurementPoints:
+                                      _currentMeasurementPoints,
+                                  selectedTool: _selectedMeasurementTool,
+                                  isLoading:
+                                      _controller.state.hasImages &&
+                                      _currentImageData == null,
+                                  measurementsVisible: _measurementsVisible,
+                                  interactionController: _interactionController,
+                                );
+                            final data = _currentImageData;
+                            final pixelSize =
+                                data == null ? null : pngPixelSize(data);
+                            if (pixelSize == null) {
+                              _imagePixelSize = null;
+                              _displayedImageSize = null;
+                              return Center(child: display());
+                            }
+                            final fitted = fitInside(
+                              pixelSize,
+                              const EdgeInsets.all(
+                                16,
+                              ).deflateSize(constraints.biggest),
+                            );
+                            _imagePixelSize = pixelSize;
+                            _displayedImageSize = fitted;
+                            // The whole area takes mouse and trackpad input, so
+                            // a zoomed image can be scrolled and dragged
+                            // anywhere it shows.
+                            return SizedBox.expand(
+                              child: display(imageSize: fitted),
+                            );
+                          },
+                        ),
 
-                      // UI overlays
-                      _buildUIOverlays(),
-                    ],
+                        // UI overlays
+                        _buildUIOverlays(),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -398,8 +401,11 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
           left: 16,
           child: IconButton(
             icon: const Icon(Icons.refresh, color: Colors.cyan),
-            onPressed: _controller.resetImageAdjustments,
-            tooltip: 'Reset adjustments',
+            onPressed: () {
+              _controller.resetImageAdjustments();
+              _interactionController.resetView();
+            },
+            tooltip: 'Reset brightness, contrast and zoom',
             style: IconButton.styleFrom(
               backgroundColor: Colors.black.withValues(alpha: 0.7),
               side: BorderSide(color: Colors.cyan.withValues(alpha: 0.3)),
@@ -465,11 +471,6 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     setState(() {
       _selectedMeasurementTool = tool;
       _currentMeasurementPoints.clear();
-
-      // Reset scale to 1.0 when starting measurements to avoid scaling issues
-      if (tool != null) {
-        _controller.updateScale(1.0);
-      }
     });
   }
 
@@ -528,7 +529,9 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
     }
   }
 
-  void _handleMeasurementPointDrag(Offset position) {
+  /// Moves the measurement point under [position] (image coordinates).
+  /// Returns whether a point is being dragged; if not, the drag pans.
+  bool _handleMeasurementPointDrag(Offset position) {
     // If no drag is in progress, check if we're starting a drag on a measurement point
     if (_draggingMeasurement == null) {
       // Check for point hit and immediately start dragging if found
@@ -562,12 +565,12 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
                 }
               });
             }
-            return;
+            return true;
           }
         }
       }
       // No point hit, nothing to drag
-      return;
+      return false;
     }
 
     // Continue dragging the selected point
@@ -589,6 +592,7 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
         });
       }
     }
+    return true;
   }
 
   /// Update a specific measurement point position

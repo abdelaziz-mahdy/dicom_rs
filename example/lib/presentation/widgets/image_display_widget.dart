@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/measurement_entity.dart';
@@ -17,6 +18,7 @@ class ImageDisplayWidget extends StatefulWidget {
     this.measurementsVisible = true,
     required this.interactionController,
     this.isLoading = false,
+    this.imageSize,
   });
 
   final Uint8List? imageData;
@@ -27,6 +29,11 @@ class ImageDisplayWidget extends StatefulWidget {
   final bool measurementsVisible;
   final ImageInteractionController interactionController;
   final bool isLoading;
+
+  /// Size the image is shown at (its fitted size). When set, this widget
+  /// fills its parent and centres the image, so input works over the whole
+  /// area; positions reported to measurements are relative to the image.
+  final Size? imageSize;
 
   @override
   State<ImageDisplayWidget> createState() => _ImageDisplayWidgetState();
@@ -58,63 +65,113 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final interaction = widget.interactionController;
     return KeyboardListener(
       focusNode: _focusNode,
-      onKeyEvent: widget.interactionController.handleKeyEvent,
-      child: Listener(
-        onPointerSignal: widget.interactionController.handlePointerSignal,
-        onPointerDown: widget.interactionController.handlePointerDown,
-        onPointerMove: widget.interactionController.handlePointerMove,
-        onPointerUp: widget.interactionController.handlePointerUp,
-        child: GestureDetector(
-          onTapUp:
-              (details) => widget.interactionController.handleTap(
-                details,
-                _getImageSize(),
+      onKeyEvent: interaction.handleKeyEvent,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          interaction.setViewSize(
+            constraints.biggest,
+            content: widget.imageSize,
+          );
+          return Listener(
+            // Clicking the image gives it keyboard focus for arrow-key navigation.
+            onPointerDown: (event) {
+              _focusNode.requestFocus();
+              interaction.handlePointerDown(event);
+            },
+            onPointerSignal: interaction.handlePointerSignal,
+            onPointerMove: interaction.handlePointerMove,
+            onPointerUp: interaction.handlePointerUp,
+            // Trackpad two-finger swipes and pinches.
+            onPointerPanZoomStart: interaction.handlePanZoomStart,
+            onPointerPanZoomUpdate: interaction.handlePanZoomUpdate,
+            onPointerPanZoomEnd: interaction.handlePanZoomEnd,
+            child: GestureDetector(
+              // Trackpad gestures are handled above (swipe = slices), so the
+              // pan/zoom recogniser here only sees mouse, touch and stylus.
+              supportedDevices: const {
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.touch,
+                PointerDeviceKind.stylus,
+                PointerDeviceKind.invertedStylus,
+                PointerDeviceKind.unknown,
+              },
+              onTapUp:
+                  (details) => interaction.handleTap(details, _getImageSize()),
+              onScaleStart: interaction.handleScaleStart,
+              onScaleUpdate: interaction.handleScaleUpdate,
+              onScaleEnd: interaction.handleScaleEnd,
+              // Zoom about the centre, then pan.
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.translationValues(
+                  interaction.pan.dx,
+                  interaction.pan.dy,
+                  0,
+                )..multiply(
+                  Matrix4.diagonal3Values(
+                    interaction.zoom,
+                    interaction.zoom,
+                    1,
+                  ),
+                ),
+                child: _centred(
+                  Stack(
+                    alignment: Alignment.center,
+                    // With an image, fill the box the viewer sized to the image's
+                    // fitted size, so small images are enlarged too.
+                    fit:
+                        widget.imageData != null
+                            ? StackFit.expand
+                            : StackFit.loose,
+                    children: [
+                      // Main image
+                      _buildImage(),
+
+                      // Measurement overlays
+                      if (widget.measurementsVisible)
+                        Positioned.fill(
+                          child: MeasurementOverlayWidget(
+                            measurements: widget.measurements,
+                            currentPoints: widget.currentMeasurementPoints,
+                            selectedTool: widget.selectedTool,
+                            scale: widget.scale,
+                            onPointDrag:
+                                widget.interactionController.onPointDrag,
+                            selectedMeasurement:
+                                widget
+                                    .interactionController
+                                    .selectedMeasurement,
+                            selectedPointIndex:
+                                widget.interactionController.selectedPointIndex,
+                          ),
+                        ),
+
+                      // Interaction feedback
+                      if (widget.interactionController.isInteracting)
+                        const Positioned(
+                          top: 10,
+                          left: 10,
+                          child: Icon(Icons.tune, color: Colors.cyan, size: 24),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-          onScaleStart: widget.interactionController.handleScaleStart,
-          onScaleUpdate: widget.interactionController.handleScaleUpdate,
-          onScaleEnd: widget.interactionController.handleScaleEnd,
-          child: Transform.scale(
-            scale: widget.scale,
-            child: Stack(
-              alignment: Alignment.center,
-              // With an image, fill the box the viewer sized to the image's
-              // fitted size, so small images are enlarged too.
-              fit: widget.imageData != null ? StackFit.expand : StackFit.loose,
-              children: [
-                // Main image
-                _buildImage(),
-
-                // Measurement overlays
-                if (widget.measurementsVisible)
-                  Positioned.fill(
-                    child: MeasurementOverlayWidget(
-                      measurements: widget.measurements,
-                      currentPoints: widget.currentMeasurementPoints,
-                      selectedTool: widget.selectedTool,
-                      scale: widget.scale,
-                      onPointDrag: widget.interactionController.onPointDrag,
-                      selectedMeasurement:
-                          widget.interactionController.selectedMeasurement,
-                      selectedPointIndex:
-                          widget.interactionController.selectedPointIndex,
-                    ),
-                  ),
-
-                // Interaction feedback
-                if (widget.interactionController.isInteracting)
-                  const Positioned(
-                    top: 10,
-                    left: 10,
-                    child: Icon(Icons.tune, color: Colors.cyan, size: 24),
-                  ),
-              ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
+  }
+
+  /// With [ImageDisplayWidget.imageSize], centres the image box in the area.
+  Widget _centred(Widget image) {
+    final size = widget.imageSize;
+    if (size == null) return image;
+    return Center(child: SizedBox.fromSize(size: size, child: image));
   }
 
   Widget _buildImage() {
@@ -210,6 +267,7 @@ class _ImageDisplayWidgetState extends State<ImageDisplayWidget> {
   }
 
   Size _getImageSize() {
+    if (widget.imageSize != null) return widget.imageSize!;
     // Try to get actual image size from render box
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox != null) {
