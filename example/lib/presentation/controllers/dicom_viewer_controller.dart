@@ -45,6 +45,7 @@ class DicomViewerController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _cacheCleanupTimer?.cancel();
     _adjustmentDebounceTimer?.cancel();
     _persistentImageCache.clear();
@@ -698,9 +699,14 @@ class DicomViewerController extends ChangeNotifier {
 
   // Private methods
   void _updateState(DicomViewerState newState) {
+    // Loads and buffer preloads finish asynchronously and may complete after
+    // the viewer has been closed and this controller disposed.
+    if (_disposed) return;
     _state = newState;
     notifyListeners();
   }
+
+  bool _disposed = false;
 
   /// Get cache statistics for monitoring memory usage
   Map<String, int> get cacheStatistics => {
