@@ -74,6 +74,13 @@ class _CleanDicomViewerState extends State<CleanDicomViewer> {
         _mainFocusNode.requestFocus();
       }
     });
+
+    // Show the current image if loading finished before this widget was
+    // built. Otherwise nothing requests it until the controller changes
+    // again, and the viewer stays on "Loading image...".
+    if (_controller.state.hasImages) {
+      Future.microtask(_loadCurrentImage);
+    }
   }
 
   @override
